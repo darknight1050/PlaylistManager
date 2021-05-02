@@ -42,8 +42,6 @@ extern "C" void load() {
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LOG_INFO("songsLoaded");
-            
-
             auto list = *PlaylistManager::ReadFromFile(GetPlaylistsPath() + "/test.json");
             auto pack = RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle());
             auto stuff = Array<GlobalNamespace::CustomPreviewBeatmapLevel*>::NewLength(1);
