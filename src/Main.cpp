@@ -22,9 +22,6 @@ std::string GetPlaylistsPath() {
     return playlistsPath;
 }
 
-#include "Types/BPList.hpp"
-#include "PlaylistManager.hpp"
-
 extern "C" void setup(ModInfo& info) {
     modInfo.id = "PlaylistManager";
     modInfo.version = VERSION;
@@ -35,19 +32,57 @@ extern "C" void setup(ModInfo& info) {
         mkpath(playlistsPath);
 }
 
+
+#include "Types/BPList.hpp"
+#include "PlaylistManager.hpp"
+
+#include <dirent.h>
+
+using namespace RuntimeSongLoader;
+
+std::vector<SongLoaderCustomBeatmapLevelPack*> playlists;
+
+
 extern "C" void load() {
     LOG_INFO("Starting PlaylistManager installation...");
     il2cpp_functions::Init();
     QuestUI::Init();
-    RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
-        [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
+    API::AddRefreshLevelPacksEvent(
+        [] (SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LOG_INFO("songsLoaded");
-            auto list = *PlaylistManager::ReadFromFile(GetPlaylistsPath() + "/test.json");
-            auto pack = RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle());
-            auto stuff = Array<GlobalNamespace::CustomPreviewBeatmapLevel*>::NewLength(1);
-            stuff->values[0] = RuntimeSongLoader::API::GetLoadedSongs()[0];
-            pack->SetCustomPreviewBeatmapLevels(stuff);
-            pack->AddTo(customBeatmapLevelPackCollectionSO, false);
+            std::string fullPath(GetPlaylistsPath());
+            DIR *dir;
+            struct dirent *ent;
+            if((dir = opendir(fullPath.c_str())) != nullptr) {
+                while((ent = readdir(dir)) != nullptr) {
+                    std::string name = ent->d_name;
+                    if(name != "." && name != "..") {
+                        auto listOpt = PlaylistManager::ReadFromFile(GetPlaylistsPath() + "/" + name);
+                        if(listOpt.has_value()) {
+                            auto list = listOpt.value();
+                            SongLoaderCustomBeatmapLevelPack* customBeatmapLevelPack = nullptr;
+                            for(auto pack : playlists) {
+                                if(to_utf8(csstrtostr(pack->CustomLevelsPack->packName)) == list.GetPlaylistTitle())
+                                    customBeatmapLevelPack = pack;
+                            }
+                            if(!customBeatmapLevelPack) {
+                                customBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle());
+                                playlists.push_back(customBeatmapLevelPack);
+                            }
+                            auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
+                            for(auto& song : list.GetSongs()) {
+                                auto search = API::GetLevelByHash(song.GetHash());
+                                if(search.has_value())
+                                    foundSongs->Add(search.value());
+                            }
+                            customBeatmapLevelPack->SetCustomPreviewBeatmapLevels(foundSongs->ToArray());
+                            customBeatmapLevelPack->AddTo(customBeatmapLevelPackCollectionSO, true);
+                        }
+                    }
+                }
+                closedir(dir);
+            }
+            
         }
     );
     LOG_INFO("Successfully installed PlaylistManager!");
