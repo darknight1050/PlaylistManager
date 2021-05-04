@@ -37,11 +37,10 @@ extern "C" void setup(ModInfo& info) {
 #include "PlaylistManager.hpp"
 
 #include <dirent.h>
-
+#include "System/Collections/Generic/List_1.hpp"
 using namespace RuntimeSongLoader;
 
-std::vector<SongLoaderCustomBeatmapLevelPack*> playlists;
-
+System::Collections::Generic::List_1<SongLoaderCustomBeatmapLevelPack*>* playlists;
 
 extern "C" void load() {
     LOG_INFO("Starting PlaylistManager installation...");
@@ -49,7 +48,9 @@ extern "C" void load() {
     QuestUI::Init();
     API::AddRefreshLevelPacksEvent(
         [] (SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
-            LOG_INFO("songsLoaded");
+            if(!playlists)
+                playlists = System::Collections::Generic::List_1<SongLoaderCustomBeatmapLevelPack*>::New_ctor();
+            LOG_INFO("playlists");
             std::string fullPath(GetPlaylistsPath());
             DIR *dir;
             struct dirent *ent;
@@ -61,13 +62,16 @@ extern "C" void load() {
                         if(listOpt.has_value()) {
                             auto list = listOpt.value();
                             SongLoaderCustomBeatmapLevelPack* customBeatmapLevelPack = nullptr;
-                            for(auto pack : playlists) {
-                                if(to_utf8(csstrtostr(pack->CustomLevelsPack->packName)) == list.GetPlaylistTitle())
+                            for(int i = 0; i < playlists->get_Count(); i++) {
+                                auto pack = playlists->get_Item(i);
+                                if(to_utf8(csstrtostr(pack->CustomLevelsPack->packName)) == list.GetPlaylistTitle()) {
                                     customBeatmapLevelPack = pack;
+                                    break;
+                                }
                             }
                             if(!customBeatmapLevelPack) {
                                 customBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle());
-                                playlists.push_back(customBeatmapLevelPack);
+                                playlists->Add(customBeatmapLevelPack);
                             }
                             auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
                             for(auto& song : list.GetSongs()) {
