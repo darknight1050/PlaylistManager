@@ -38,7 +38,10 @@ namespace PlaylistManager {
             playlists = System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>::New_ctor();
         if(fullRefresh)
             playlists->Clear();
-        for (const auto& entry : std::filesystem::directory_iterator(GetPlaylistsPath())) {
+        auto path = GetPlaylistsPath();
+        if(!std::filesystem::is_directory(path))
+            return;
+        for (const auto& entry : std::filesystem::directory_iterator(path)) {
             if(!entry.is_directory()) {
                 auto path = entry.path().string();
                 auto pathCS = il2cpp_utils::newcsstr(path);
