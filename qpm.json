@@ -12,6 +12,11 @@
   },
   "dependencies": [
     {
+      "id": "beatsaber-hook",
+      "versionRange": "^1.3.5",
+      "additionalData": {}
+    },
+    {
       "id": "songloader",
       "versionRange": "^0.2.7",
       "additionalData": {}

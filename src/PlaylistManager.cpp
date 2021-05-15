@@ -18,7 +18,7 @@ using namespace RuntimeSongLoader;
 
 namespace PlaylistManager {
 
-    SafePtr<System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>>* playlists;
+    SafePtr<System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>> playlists;
 
     std::optional<BPList> ReadFromFile(std::string_view path) {
         if(!fileexists(path))
@@ -35,16 +35,16 @@ namespace PlaylistManager {
     
     void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh) {
         if(!playlists)
-            playlists = new SafePtr<System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>>(System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>::New_ctor());
+            playlists = System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>::New_ctor();
         if(fullRefresh)
-            playlists->operator->()->Clear();
+            playlists->Clear();
         for (const auto& entry : std::filesystem::directory_iterator(GetPlaylistsPath())) {
             if(!entry.is_directory()) {
                 auto path = entry.path().string();
                 auto pathCS = il2cpp_utils::newcsstr(path);
-                if(playlists->operator->()->ContainsKey(pathCS)) {
+                if(playlists->ContainsKey(pathCS)) {
                     LOG_INFO("Loading playlist file %s from cache", path.c_str());
-                    playlists->operator->()->get_Item(pathCS)->AddTo(customBeatmapLevelPackCollectionSO, true);
+                    playlists->get_Item(pathCS)->AddTo(customBeatmapLevelPackCollectionSO, true);
                 } else {
                     LOG_INFO("Loading playlist file %s", path.c_str());
                     auto listOpt = ReadFromFile(path);
@@ -60,7 +60,7 @@ namespace PlaylistManager {
                             coverImage = QuestUI::BeatSaberUI::Base64ToSprite(imageBase64);
                         }
                         SongLoaderCustomBeatmapLevelPack* customBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle(), coverImage);
-                        playlists->operator->()->Add(pathCS, customBeatmapLevelPack);
+                        playlists->Add(pathCS, customBeatmapLevelPack);
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
                         for(auto& song : list.GetSongs()) {
                             auto search = RuntimeSongLoader::API::GetLevelByHash(song.GetHash());
