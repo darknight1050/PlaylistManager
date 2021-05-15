@@ -1,9 +1,6 @@
 #include "PlaylistManager.hpp"
 
-#include <fstream>
-#include <iostream>
 #include <filesystem>
-namespace fs = std::filesystem;
 
 #include "CustomLogger.hpp"
 #include "Paths.hpp"
@@ -41,7 +38,7 @@ namespace PlaylistManager {
             playlists = new SafePtr<System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>>(System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>::New_ctor());
         if(fullRefresh)
             playlists->operator->()->Clear();
-        for (const auto& entry : fs::directory_iterator(GetPlaylistsPath())) {
+        for (const auto& entry : std::filesystem::directory_iterator(GetPlaylistsPath())) {
             if(!entry.is_directory()) {
                 auto path = entry.path().string();
                 auto pathCS = il2cpp_utils::newcsstr(path);
