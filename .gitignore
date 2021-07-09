@@ -49,3 +49,6 @@ extern
 qpm.shared.json
 
 Android.mk.backup
+/.vs/PlaylistManager/
+/.vs/ProjectSettings.json
+*.sqlite
