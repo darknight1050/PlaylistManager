@@ -49,7 +49,7 @@ LOCAL_MODULE := questui
 LOCAL_EXPORT_C_INCLUDES := extern/questui
 LOCAL_SRC_FILES := extern/libquestui.so
 include $(PREBUILT_SHARED_LIBRARY)
-# Creating prebuilt for dependency: songloader - version: 0.6.2
+# Creating prebuilt for dependency: songloader - version: 0.6.3
 include $(CLEAR_VARS)
 LOCAL_MODULE := songloader
 LOCAL_EXPORT_C_INCLUDES := extern/songloader
@@ -76,7 +76,7 @@ LOCAL_SHARED_LIBRARIES += questui
 LOCAL_SHARED_LIBRARIES += songloader
 LOCAL_STATIC_LIBRARIES += cryptopp
 LOCAL_LDLIBS += -llog
-LOCAL_CFLAGS += -DVERSION='"0.0.1"'
+LOCAL_CFLAGS += -DVERSION='"0.1.2"'
 LOCAL_C_INCLUDES += ./include ./shared ./src ./extern ./extern/libil2cpp/il2cpp/libil2cpp ./extern/codegen/include
 LOCAL_CPP_FEATURES += exceptions
 include $(BUILD_SHARED_LIBRARY)
