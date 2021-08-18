@@ -28,9 +28,14 @@ namespace PlaylistManager {
         document.Parse(json);
         if(document.HasParseError() || !document.IsObject())
             return std::nullopt;
-        BPList list;
-        list.Deserialize(document.GetObject());
-        return list;
+        try {
+            BPList list;
+            list.Deserialize(document.GetObject());
+            return list;
+        } catch (const char* msg) {
+            LOG_ERROR("Error loading playlist %s: %s", path.data(), msg);
+        }
+        return std::nullopt;
     }
     
     void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh) {

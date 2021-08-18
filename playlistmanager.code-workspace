@@ -112,7 +112,8 @@
 			"__memory": "cpp",
 			"hash_map": "cpp",
 			"hash_set": "cpp",
-			"__hash": "cpp"
+			"__hash": "cpp",
+			"xlocale": "cpp"
 		}
 	}
 }
