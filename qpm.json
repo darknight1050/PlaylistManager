@@ -7,7 +7,10 @@
     "version": "0.1.2",
     "url": "https://github.com/darknight1050/playlistmanager",
     "additionalData": {
-      "overrideSoName": "libplaylistmanager.so"
+      "overrideSoName": "libplaylistmanager.so",
+      "branchName": "version-v0.1.2",
+      "soLink": "https://github.com/darknight1050/PlaylistManager/releases/download/v0.1.2/libplaylistmanager.so",
+      "debugSoLink": "https://github.com/darknight1050/PlaylistManager/releases/download/v0.1.2/debug_libplaylistmanager.so"
     }
   },
   "dependencies": [
