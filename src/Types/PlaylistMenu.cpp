@@ -1,0 +1,479 @@
+#include "Types/PlaylistMenu.hpp"
+#include "Types/CustomCoverListSource.hpp"
+#include "PlaylistManager.hpp"
+#include "Main.hpp"
+#include "Icons.hpp"
+
+#include "songloader/shared/API.hpp"
+
+#include "questui/shared/BeatSaberUI.hpp"
+#include "questui/shared/CustomTypes/Components/Backgroundable.hpp"
+#include "questui/shared/CustomTypes/Components/List/QuestUITableView.hpp"
+
+#include "UnityEngine/Mathf.hpp"
+#include "UnityEngine/Time.hpp"
+#include "UnityEngine/Resources.hpp"
+
+#include "HMUI/CurvedTextMeshPro.hpp"
+#include "HMUI/UIKeyboard.hpp"
+#include "HMUI/ScrollView.hpp"
+#include "HMUI/TableView_ScrollPositionType.hpp"
+
+#include "GlobalNamespace/LevelCollectionTableView.hpp"
+#include "GlobalNamespace/LevelPackHeaderTableCell.hpp"
+#include "GlobalNamespace/SharedCoroutineStarter.hpp"
+
+// #include "System/Action.hpp"
+
+#include <math.h>
+
+using namespace PlaylistManager;
+using namespace QuestUI;
+
+DEFINE_TYPE(PlaylistManager, PlaylistMenu);
+
+#define ANCHOR(component, xmin, ymin, xmax, ymax) auto component##_rect = reinterpret_cast<UnityEngine::RectTransform*>(component->get_transform()); \
+component##_rect->set_anchorMin({xmin, ymin}); \
+component##_rect->set_anchorMax({xmax, ymax});
+
+std::function<void()> PlaylistMenu::nextCloseKeyboard = nullptr;
+
+UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float xmin, float ymin, float xmax, float ymax) {
+    static auto name = CSTR("BPContainer");
+    auto go = UnityEngine::GameObject::New_ctor(name);
+    go->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
+    // go->AddComponent<Backgroundable*>();
+    
+    auto rect = go->GetComponent<UnityEngine::RectTransform*>();
+    rect->SetParent(parent, false);
+    rect->set_anchorMin({xmin, ymin});
+    rect->set_anchorMax({xmax, ymax});
+    rect->set_sizeDelta({0, 0});
+
+    go->AddComponent<UnityEngine::UI::LayoutElement*>();
+    return go;
+}
+
+UnityEngine::UI::Button* anchorMiniButton(UnityEngine::Transform* parent, std::string_view buttonText, std::string_view buttonTemplate, std::function<void()> onClick, float x, float y) {
+    auto button = BeatSaberUI::CreateUIButton(parent, buttonText, buttonTemplate, onClick);
+
+    UnityEngine::GameObject::Destroy(button->get_transform()->Find(CSTR("Content"))->GetComponent<UnityEngine::UI::LayoutElement*>());
+    auto sizeFitter = button->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
+    sizeFitter->set_verticalFit(2);
+    sizeFitter->set_horizontalFit(2);
+
+    ANCHOR(button, x, y, x, y);
+
+    return button;
+}
+
+float movementEasing(float p) {
+    // ease in out quartic
+    if (p < 0.5f) {
+        return 8 * p * p * p * p;
+    } else {
+        float f = p - 1;
+        return (-8 * f * f * f * f) + 1;
+    }
+}
+
+custom_types::Helpers::Coroutine PlaylistMenu::moveCoroutine(bool reversed) {
+    // no overlap
+    if(inMovement)
+        co_return;
+    inMovement = true;
+    float time = 0;
+    static const float duration = 0.4;
+    static const double pi = 3.141592653589793;
+    if(!reversed) {
+        // moving into view
+        detailsContainer->set_active(true);
+        detailsVisible = true;
+    }
+    while(time < 1) {
+        time += UnityEngine::Time::get_deltaTime()/duration;
+        float val = movementEasing(time);
+        auto transf = reinterpret_cast<UnityEngine::RectTransform*>(detailsContainer->get_transform());
+        if(!reversed) {
+            transf->set_anchorMin({1 - val, 0});
+            transf->set_anchorMax({2 - val, 1});
+        } else {
+            transf->set_anchorMin({val, 0});
+            transf->set_anchorMax({val + 1, 1});
+        }
+        co_yield nullptr;
+    }
+    if(reversed) {
+        // moved out of view
+        detailsContainer->set_active(false);
+        detailsVisible = false;
+    }
+    inMovement = false;
+    co_return;
+}
+
+custom_types::Helpers::Coroutine PlaylistMenu::refreshCoroutine() {
+    // don't mess with other animations
+    if(inMovement)
+        co_return;
+    // don't close if already closed
+    if(detailsVisible)
+        co_yield reinterpret_cast<System::Collections::IEnumerator*>(
+            StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(
+                custom_types::Helpers::CoroutineHelper::New(moveCoroutine(true)) )) );
+    updateDetailsMode();
+    co_yield reinterpret_cast<System::Collections::IEnumerator*>(
+            StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(
+                custom_types::Helpers::CoroutineHelper::New(moveCoroutine(false)) )) );
+    co_return;
+}
+
+custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
+    #pragma region sideButtons
+    buttonsContainer = anchorContainer(get_transform(), 0.525, 0.15, 0.65, 1);
+
+    // side menu buttons, from bottom to top
+    auto infoButton = anchorMiniButton(buttonsContainer->get_transform(), "i", "ActionButton", [this](){
+        if(inMovement)
+            return;
+        // toggle mode if open to viewing details
+        if(!addingPlaylist) {
+            // reset texts to current values for playlist when opening
+            if(!detailsVisible)
+                updateDetailsMode();
+            ShowDetails(!detailsVisible);
+        } else {
+            addingPlaylist = false;
+            RefreshDetails();
+        }
+    }, -3, 0);
+    // disable all caps mode
+    infoButton->GetComponentInChildren<HMUI::CurvedTextMeshPro*>()->set_fontStyle(2);
+    BeatSaberUI::AddHoverHint(infoButton->get_gameObject(), "Playlist information");
+    
+    auto deleteButton = anchorMiniButton(buttonsContainer->get_transform(), "-", "PracticeButton", [this](){
+        if(confirmModal)
+            confirmModal->Show(true, false, nullptr);
+    }, 0, 0.13);
+    BeatSaberUI::AddHoverHint(deleteButton->get_gameObject(), "Delete playlist");
+    
+    auto rightButton = anchorMiniButton(buttonsContainer->get_transform(), ">", "PracticeButton", [this](){
+        // use old cell idx because not all configured playlists will always be shown
+        int oldCellIdx = gameTableView->selectedColumn;
+        int configIdx = GetPackIndex(playlist->PlaylistTitle);
+        if(oldCellIdx + 1 == gameTableView->NumberOfCells() || configIdx < 0)
+            return;
+        MovePlaylist(playlist, configIdx + 1);
+        // move playlist in table
+        using CollectionType = GlobalNamespace::IAnnotatedBeatmapLevelCollection*;
+        // janky casting
+        auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
+        auto movedCollection = collectionList->get_Item(oldCellIdx);
+        collectionList->RemoveAt(oldCellIdx);
+        collectionList->Insert(oldCellIdx + 1, movedCollection);
+        gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+        scrollToIndex(oldCellIdx + 1);
+    }, 0, 0.26);
+    BeatSaberUI::AddHoverHint(rightButton->get_gameObject(), "Move playlist right");
+    
+    auto leftButton = anchorMiniButton(buttonsContainer->get_transform(), "<", "PracticeButton", [this](){
+        // use old cell idx because not all configured playlists will always be shown
+        int oldCellIdx = gameTableView->selectedColumn;
+        int configIdx = GetPackIndex(playlist->PlaylistTitle);
+        if(oldCellIdx == 0 || configIdx <= 0)
+            return;
+        MovePlaylist(playlist, configIdx - 1);
+        // move playlist in table
+        using CollectionType = GlobalNamespace::IAnnotatedBeatmapLevelCollection*;
+        // janky casting
+        auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
+        auto movedCollection = collectionList->get_Item(oldCellIdx);
+        collectionList->RemoveAt(oldCellIdx);
+        collectionList->Insert(oldCellIdx - 1, movedCollection);
+        gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+        scrollToIndex(oldCellIdx - 1);
+    }, 0, 0.39);
+    BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
+    
+    auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
+        if(inMovement)
+            return;
+        // do nothing if already open for adding a playlist
+        if(addingPlaylist && !detailsVisible) {
+            // also reset on reopen
+            updateDetailsMode();
+            ShowDetails(true);
+        } else if(!addingPlaylist) {
+            addingPlaylist = true;
+            RefreshDetails();
+        }
+    }, 0, 0.52);
+    BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
+    #pragma endregion
+
+    co_yield nullptr;
+
+    #pragma region details
+    // details container
+    detailsContainer = anchorContainer(detailWrapper->get_transform(), 1, 0, 2, 1);
+    auto bg = detailsContainer->AddComponent<Backgroundable*>();
+    bg->ApplyBackgroundWithAlpha(CSTR("round-rect-panel"), 0.96);
+    bg->background->get_transform()->set_localScale({1.012, 1.012, 1.012});
+
+    playlistTitle = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Title", "", [this](std::string_view newValue){
+        currentTitle = newValue.data();
+        if(!PlaylistMenu::nextCloseKeyboard) {
+            PlaylistMenu::nextCloseKeyboard = [this](){
+                LOG_INFO("Title set to %s", currentTitle.c_str());
+                if(!addingPlaylist) {
+                    RenamePlaylist(playlist, currentTitle);
+                    // get header cell and set text
+                    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
+                    if(arr->Length() < 1)
+                        return;
+                    auto tableView = arr->get(0);
+                    if(!tableView->showLevelPackHeader)
+                        return;
+                    tableView->headerText = CSTR(currentTitle);
+                    tableView->tableView->RefreshCells(true, true);
+                }
+            };
+        }
+        if(!playlistTitle->hasKeyboardAssigned && System::String::IsNullOrEmpty(playlistTitle->get_text())) {
+            LOG_INFO("Title cleared");
+            PlaylistMenu::nextCloseKeyboard = nullptr;
+        }
+    });
+    playlistTitle->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
+    playlistTitle->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
+    ANCHOR(playlistTitle, 0.2, 0.87, 0.8, 0.97);
+
+    playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1}, [this](std::string_view newValue){
+        currentAuthor = newValue.data();
+        if(!PlaylistMenu::nextCloseKeyboard) {
+            PlaylistMenu::nextCloseKeyboard = [this](){
+                LOG_INFO("Author set to %s", currentAuthor.c_str());
+                if(!addingPlaylist)
+                    playlist->PlaylistAuthor = currentAuthor;
+            };
+        }
+        if(!playlistAuthor->hasKeyboardAssigned && System::String::IsNullOrEmpty(playlistAuthor->get_text())) {
+            LOG_INFO("Author cleared");
+            PlaylistMenu::nextCloseKeyboard();
+            PlaylistMenu::nextCloseKeyboard = nullptr;
+        }
+    });
+    playlistAuthor->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
+    playlistAuthor->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
+    ANCHOR(playlistAuthor, 0.2, 0.72, 0.8, 0.82);
+
+    coverButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Change Cover", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
+        // coverModal->Show(true, false, il2cpp_utils::MakeDelegate<System::Action*>(classof(System::Action*), (std::function<void()>)[this](){
+        //     // crashes still
+        //     this->list->tableView->ScrollToCellWithIdx(playlist->imageIndex + 1, HMUI::TableView::ScrollPositionType::Center, false);
+        // }));
+        coverModal->Show(true, false, nullptr);
+        list->tableView->SelectCellWithIdx(addingPlaylist ? coverImageIndex + 1 : playlist->imageIndex + 1, false);
+    });
+    ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
+
+    // description
+    descriptionTitle = BeatSaberUI::CreateText(detailsContainer->get_transform(), "Description");
+    ANCHOR(descriptionTitle, 0.565, 0.32, 0.6, 0.37);
+    playlistDescription = BeatSaberUI::CreateText(detailsContainer->get_transform(), "", false, {0, 0}, {29, 8});
+    playlistDescription->set_enableWordWrapping(true);
+    playlistDescription->set_fontSize(3.5);
+    playlistDescription->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
+    playlistDescription->set_alignment(TMPro::TextAlignmentOptions::TopLeft);
+    ANCHOR(playlistDescription, 0.29, 0.05, 0.7, 0.3);
+
+    // set to playlist sprite if playlist has been made
+    coverImage = BeatSaberUI::CreateImage(detailsContainer->get_transform(), playlist ? PlaylistManager::GetCoverImage(playlist) : nullptr, {0, 0}, {0, 0});
+    ANCHOR(coverImage, 0.05, 0.4, 0.3, 0.65);
+
+    createButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Create", "ActionButton", {0, 0}, {13, 5}, [this](){
+        // todo: create
+    });
+    // of course the text isn't centered
+    createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-1.2, 0});
+    ANCHOR(createButton, 0.17, 0.1, 0.35, 0.17);
+    
+    cancelButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {13, 5}, [this](){
+        ShowDetails(false);
+    });
+    ANCHOR(cancelButton, 0.64, 0.1, 0.84, 0.17);
+    #pragma endregion
+
+    co_yield nullptr;
+
+    #pragma region modals
+    // confirmation modal for deletion
+    confirmModal = BeatSaberUI::CreateModal(get_transform(), {38, 20}, {-7, 0}, nullptr);
+
+    auto confirmText = BeatSaberUI::CreateText(confirmModal->get_transform(), "Are you sure you would like to delete this playlist?", false, {0, 0}, {30, 7});
+    confirmText->set_enableWordWrapping(true);
+    confirmText->set_alignment(TMPro::TextAlignmentOptions::Center);
+    ANCHOR(confirmText, 0.4, 0.5, 0.6, 0.9);
+
+    auto yesButton = BeatSaberUI::CreateUIButton(confirmModal->get_transform(), "Delete", "ActionButton", {0, 0}, {7, 5}, [this](){
+        confirmModal->Hide(true, nullptr);
+        // todo: delete playlist
+    });
+    yesButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-10, 0});
+    ANCHOR(yesButton, 0.17, 0.15, 0.37, 0.35);
+
+    auto noButton = BeatSaberUI::CreateUIButton(confirmModal->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {7, 5}, [this](){
+        confirmModal->Hide(true, nullptr);
+    });
+    noButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-9.5, 0});
+    ANCHOR(noButton, 0.63, 0.15, 0.83, 0.35);
+
+    // playlist cover changing modal
+    coverModal = BeatSaberUI::CreateModal(get_transform(), {83, 20}, {-6, -15}, nullptr);
+
+    list = BeatSaberUI::CreateCustomSourceList<CustomCoverListSource*>(coverModal->get_transform(), {0, 0}, {70, 15}, [this](int cellIdx){
+        // sprite selected
+        auto sprite = this->list->getSprite(cellIdx);
+        if(!addingPlaylist) {
+            // change in list and json
+            if(cellIdx == 0)
+                PlaylistManager::ChangePlaylistCover(this->playlist, nullptr, cellIdx - 1);
+            else
+                PlaylistManager::ChangePlaylistCover(this->playlist, sprite, cellIdx - 1);
+            // change background pack image
+            auto trans = this->detailWrapper->get_transform();
+            for(int i = 0; i < trans->GetChildCount(); i++) {
+                auto child = trans->GetChild(i);
+                if(STR(child->get_name()) == "PackImage") {
+                    LOG_INFO("Setting ingame image");
+                    child->GetComponent<HMUI::ImageView*>()->set_sprite(sprite);
+                    break;
+                }
+            }
+            // change image in playlist bar
+            auto idx = gameTableView->selectedColumn;
+            gameTableView->tableView->RefreshCells(true, true);
+        }
+        this->coverImage->set_sprite(sprite);
+        // one less because the default image is not included
+        this->coverImageIndex = cellIdx - 1;
+    });
+    list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
+    list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
+
+    co_yield nullptr;
+
+    // reload covers from folder
+    GetCoverImages();
+    // add cover images and reload
+    list->addSprites({GetDefaultCoverImage()});
+    list->addSprites(PlaylistManager::loadedImages);
+    list->tableView->ReloadData();
+
+    co_yield nullptr;
+
+    // scroll arrows
+    auto left = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [this](){
+        // get table view as questui table view
+        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->list), "tableView"));
+        // both assume the table is vertical
+        // int idx = tableView->get_scrolledRow();
+        // idx -= tableView->get_scrollDistance();
+        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
+        idx -= 4;
+        idx = idx > 0 ? idx : 0;
+        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+    });
+    reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+    BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
+
+    auto right = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [this](){
+        // get table view as questui table view
+        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->list), "tableView"));
+        // both assume the table is vertical
+        // int idx = tableView->get_scrolledRow();
+        // idx += tableView->get_scrollDistance();
+        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
+        idx += 4;
+        int max = tableView->get_dataSource()->NumberOfCells();
+        idx = idx < max ? idx : max - 1;
+        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+    });
+    reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+    BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
+    #pragma endregion
+
+    co_return;
+}
+
+void PlaylistMenu::updateDetailsMode() {
+    descriptionTitle->get_gameObject()->set_active(!addingPlaylist);
+    playlistDescription->get_gameObject()->set_active(!addingPlaylist);
+    coverImage->get_gameObject()->set_active(addingPlaylist);
+    createButton->get_gameObject()->set_active(addingPlaylist);
+    cancelButton->get_gameObject()->set_active(addingPlaylist);
+
+    if(!addingPlaylist) {
+        playlistTitle->SetText(CSTR(playlist->PlaylistTitle));
+
+        std::string auth = playlist->PlaylistAuthor ? playlist->PlaylistAuthor.value() : "";
+        playlistAuthor->SetText(CSTR(auth));
+
+        std::string desc = playlist->PlaylistDescription ? playlist->PlaylistDescription.value() : "...";
+        playlistDescription->SetText(CSTR(desc));
+
+        ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
+    } else {
+        playlistTitle->SetText(CSTR("New Playlist"));
+        playlistAuthor->SetText(CSTR("Playlist Manager"));
+        playlistDescription->SetText(CSTR(""));
+
+        ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
+    }
+}
+
+void PlaylistMenu::scrollToIndex(int index) {
+    gameTableView->SelectAndScrollToCellWithIdx(index);
+    gameTableView->HandleDidSelectColumnEvent(gameTableView->tableView, index);
+}
+
+void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
+    // get table view for setting selected cell
+    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::AnnotatedBeatmapLevelCollectionsTableView*>();
+    if(arr->Length() > 0)
+        gameTableView = arr->get(0);
+    playlist = list;
+    coverImageIndex = playlist->imageIndex;
+    this->detailWrapper = detailWrapper;
+    
+    // don't let it get stopped by set visible
+    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
+        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+}
+
+void PlaylistMenu::SetPlaylist(BPList* list) {
+    LOG_INFO("Playlist set to %s", list->PlaylistTitle.c_str());
+    playlist = list;
+    coverImageIndex = playlist->imageIndex;
+    if(coverImage)
+        coverImage->set_sprite(PlaylistManager::GetCoverImage(playlist));
+}
+
+void PlaylistMenu::ShowDetails(bool visible) {
+    StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(!visible))));
+}
+
+void PlaylistMenu::RefreshDetails() {
+    StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(refreshCoroutine())));
+}
+
+void PlaylistMenu::SetVisible(bool visible) {
+    StopAllCoroutines();
+    if(buttonsContainer)
+        buttonsContainer->set_active(visible);
+    if(detailsContainer)
+        detailsContainer->set_active(false);
+    detailsVisible = false;
+    if(confirmModal)
+        confirmModal->Hide(false, nullptr);
+}

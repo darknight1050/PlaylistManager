@@ -1,0 +1,8 @@
+#pragma once
+
+#include "TypeMacros.hpp"
+
+DECLARE_JSON_CLASS(PlaylistManager, BPFolder,
+    std::vector<std::string> PlaylistNames;
+    bool ShowDefaults;
+)
