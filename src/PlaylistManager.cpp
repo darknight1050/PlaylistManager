@@ -56,7 +56,35 @@ namespace PlaylistManager {
         "WIP Levels"
     };
     
-    std::string GetBase64ImageType(std::string base64) {
+    std::string SanitizeFileName(std::string fileName) {
+        std::string newName;
+        // yes I know not all of these are disallowed, and also that they are unlikely to end up in a name
+        static const std::unordered_set<unsigned char> replacedChars = {
+            '/', '\n', '\\', '\'', '\"', ' ', '?', '<', '>', ':', '*'
+        };
+        std::transform(fileName.begin(), fileName.end(), std::back_inserter(newName), [](unsigned char c){
+            if(replacedChars.contains(c))
+                return (unsigned char)('_');
+            return c;
+        });
+        if(newName == "")
+            return "_";
+        return newName;
+    }
+
+    bool UniqueFileName(std::string fileName, std::string compareDirectory) {
+        if(!std::filesystem::is_directory(compareDirectory))
+            return true;
+        for(auto& entry : std::filesystem::directory_iterator(compareDirectory)) {
+            if(entry.is_directory())
+                continue;
+            if(entry.path().filename().string() == fileName)
+                return false;
+        }
+        return true;
+    }
+
+    std::string GetBase64ImageType(std::string& base64) {
         if(base64.length() < 3)
             return "";
         std::string sub = base64.substr(0, 3);
@@ -276,6 +304,18 @@ namespace PlaylistManager {
         }
     }
 
+    bool AvailablePlaylistName(std::string title) {
+        // check in constant playlists
+        if(staticPacks.contains(title))
+            return false;
+        // check in custom playlists
+        for(auto& pair : playlists_json) {
+            if(pair.second->PlaylistTitle == title)
+                return false;
+        }
+        return true;
+    }
+
     bool ShouldAddPack(std::string name) {
         if(currentFolder && folderSelectionState == 3) {
             for(std::string testName : currentFolder->PlaylistNames) {
@@ -325,14 +365,10 @@ namespace PlaylistManager {
                     BPList* list = new BPList();
                     if(ReadFromFile(path, *list)) {
                         // check for duplicate name
-                        bool nameChanged = false;
                         while(playlists_json.find(list->PlaylistTitle) != playlists_json.end()) {
                             LOG_INFO("Duplicate playlist name!");
-                            list->PlaylistTitle = list->PlaylistTitle + ".";
-                            nameChanged = true;
+                            continue;
                         }
-                        if(nameChanged)
-                            WriteToFile(path, *list);
                         playlists_json.insert({list->PlaylistTitle, list});
                         // create playlist object and add it to playlist dictionary
                         list->path = path;
@@ -370,14 +406,16 @@ namespace PlaylistManager {
         // create playlist with info
         auto newPlaylist = BPList();
         newPlaylist.PlaylistTitle = title;
-        newPlaylist.PlaylistAuthor = author;
+        if(author != "")
+            newPlaylist.PlaylistAuthor = author;
         auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
         newPlaylist.ImageString = STR(System::Convert::ToBase64String(bytes));
         // save playlist
-        if(!WriteToFile(GetPlaylistsPath() + "/" + title + ".bplist_BMBF.json", newPlaylist))
-            LOG_ERROR("Failed to save playlist!");
-        else
-            RefreshPlaylists(); // load it, with the others because I'm lazy
+        std::string fileTitle = SanitizeFileName(title);
+        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
+            fileTitle += "_";
+        WriteToFile(GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json", newPlaylist);
+        RefreshPlaylists(); // load it, with the others because I'm lazy
     }
 
     void MovePlaylist(BPList* playlist, int index) {
@@ -393,6 +431,7 @@ namespace PlaylistManager {
 
     void RenamePlaylist(BPList* playlist, std::string title) {
         std::string oldName = playlist->PlaylistTitle;
+        std::string oldPath = playlist->path;
         int orderIndex = GetPackIndex(playlist->PlaylistTitle);
         if(orderIndex < 0) {
             LOG_ERROR("Attempting to rename unloaded playlist");
@@ -425,7 +464,19 @@ namespace PlaylistManager {
         }
         // save changes
         WriteToFile(GetConfigPath(), playlistConfig);
-        WriteToFile(playlist->path, *playlist);
+        WriteToFile(oldPath, *playlist);
+        // rename file
+        std::string fileTitle = SanitizeFileName(title);
+        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
+            fileTitle += "_";
+        std::string newPath = GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json";
+        std::filesystem::rename(oldPath, newPath);
+        playlist->path = newPath;
+        // update path dictionary
+        if(levelPack) {
+            path_playlists->Remove(CSTR(oldPath));
+            path_playlists->Add(CSTR(newPath), levelPack);
+        }
     }
 
     void ChangePlaylistCover(BPList* playlist, UnityEngine::Sprite* newCover, int coverIndex) {

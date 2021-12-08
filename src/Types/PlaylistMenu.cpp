@@ -227,8 +227,17 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
         currentTitle = newValue.data();
         if(!PlaylistMenu::nextCloseKeyboard) {
             PlaylistMenu::nextCloseKeyboard = [this](){
-                LOG_INFO("Title set to %s", currentTitle.c_str());
+                // check for valid title
+                if(!AvailablePlaylistName(currentTitle)) {
+                    LOG_INFO("Resetting invalid title");
+                    if(!addingPlaylist)
+                        playlistTitle->SetText(CSTR(playlist->PlaylistTitle));
+                    else
+                        playlistTitle->SetText(CSTR("New Playlist"));
+                    return;
+                }
                 if(!addingPlaylist) {
+                    LOG_INFO("Title set to %s", currentTitle.c_str());
                     RenamePlaylist(playlist, currentTitle);
                     // get header cell and set text
                     auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
@@ -239,6 +248,8 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
                         return;
                     tableView->headerText = CSTR(currentTitle);
                     tableView->tableView->RefreshCells(true, true);
+                    // update hover texts
+                    ButtonsContainer::buttonsInstance->RefreshPlaylists();
                 }
             };
         }
@@ -293,6 +304,11 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(coverImage, 0.05, 0.4, 0.3, 0.65);
 
     createButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Create", "ActionButton", {0, 0}, {13, 5}, [this](){
+        // while the keyboard function has a check, names such as "New Playlist" may also be unavailable
+        if(!AvailablePlaylistName(currentTitle)) {
+            LOG_ERROR("Attempting to create playlist with unavailable name");
+            return;
+        }
         // create new playlist based on fields
         AddPlaylist(currentTitle, currentAuthor, coverImage->get_sprite());
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
@@ -425,8 +441,10 @@ void PlaylistMenu::updateDetailsMode() {
 
         ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
     } else {
-        playlistTitle->SetText(CSTR("New Playlist"));
-        playlistAuthor->SetText(CSTR("Playlist Manager"));
+        currentTitle = "New Playlist";
+        playlistTitle->SetText(CSTR(currentTitle));
+        currentAuthor = "Playlist Manager";
+        playlistAuthor->SetText(CSTR(currentAuthor));
         playlistDescription->SetText(CSTR(""));
 
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);

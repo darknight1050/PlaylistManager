@@ -32,6 +32,8 @@ namespace PlaylistManager {
 
     void GetCoverImages();
 
+    bool AvailablePlaylistName(std::string title);
+
     void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh = false);
 
     void AddPlaylist(std::string title, std::string author, UnityEngine::Sprite* coverImage);

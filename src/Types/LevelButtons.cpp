@@ -86,7 +86,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
         levelListTableView->SetData(newLevelsArrCast, levelListTableView->favoriteLevelIds, false);
         levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
         // clear selection since the selected song was just deleted
-        levelListTableView->ClearSelection();
+        levelListTableView->tableView->SelectCellWithIdx(0, true);
         // update jsons
         RemoveSongFromPlaylist(json, removeLevel);
     });
