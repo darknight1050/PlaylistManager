@@ -4,6 +4,9 @@
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
+#include "questui/shared/CustomTypes/Components/List/QuestUITableView.hpp"
+
+#include "HMUI/TableView_ScrollPositionType.hpp"
 
 DEFINE_TYPE(PlaylistManager, CustomTableCell);
 DEFINE_TYPE(PlaylistManager, CustomListSource);
@@ -102,6 +105,32 @@ std::string CustomListSource::getText(int index) {
     if(index < 0 || index >= texts.size())
         return "";
     return texts[index];
+}
+
+// static scroll methods
+void CustomListSource::ScrollListLeft(CustomListSource* list, int numCells) {
+    // get table view as questui table view
+    auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(list), "tableView"));
+    // both assume the table is vertical
+    // int idx = tableView->get_scrolledRow();
+    // idx -= tableView->get_scrollDistance();
+    int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
+    idx -= numCells;
+    idx = idx > 0 ? idx : 0;
+    tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+}
+
+void CustomListSource::ScrollListRight(CustomListSource* list, int numCells) {
+    // get table view as questui table view
+    auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(list), "tableView"));
+    // both assume the table is vertical
+    // int idx = tableView->get_scrolledRow();
+    // idx += tableView->get_scrollDistance();
+    int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
+    idx += 4;
+    int max = tableView->get_dataSource()->NumberOfCells();
+    idx = idx < max ? idx : max - 1;
+    tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
 }
 
 void CustomTableCell::SelectionDidChange(HMUI::SelectableCell::TransitionType transitionType) {

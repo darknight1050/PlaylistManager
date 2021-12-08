@@ -8,11 +8,9 @@
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
-#include "questui/shared/CustomTypes/Components/List/QuestUITableView.hpp"
 
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 
-#include "HMUI/TableView_ScrollPositionType.hpp"
 #include "HMUI/ScrollView.hpp"
 
 using namespace PlaylistManager;
@@ -27,11 +25,43 @@ UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
     return go;
 }
 
+#pragma region uiFunctions
+void PlaylistFilters::filterSelected(int filter) {
+    folderSelectionState = filter;
+    RefreshPlaylists();
+    if(filter == 3) {
+        SetFoldersFilters(false);
+    }
+}
+
+void PlaylistFilters::folderSelected(int listCellIdx) {
+    // set selected
+    // show menu for folder
+    // refresh playlists
+}
+
+void PlaylistFilters::scrollFolderListLeftButtonPressed() {
+    CustomListSource::ScrollListLeft(folderList, 5);
+}
+
+void PlaylistFilters::scrollFolderListRightButtonPressed() {
+    CustomListSource::ScrollListLeft(folderList, 5);
+}
+
+void PlaylistFilters::scrollPlaylistListLeftButtonPressed() {
+    CustomListSource::ScrollListLeft(playlistList, 4);
+}
+
+void PlaylistFilters::scrollPlaylistListRightButtonPressed() {
+    CustomListSource::ScrollListLeft(playlistList, 4);
+}
+#pragma endregion
+
 custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // make canvas for display
     auto canvas = BeatSaberUI::CreateCanvas();
     auto cvsTrans = canvas->get_transform();
-    cvsTrans->set_position({0, 1, 3});
+    cvsTrans->set_position({5, 15, 10});
     cvsTrans->set_eulerAngles({90, 0, 0});
 
     co_yield nullptr;
@@ -39,11 +69,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     #pragma region filterList
     // set up list
     filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, {60, 15}, [this](int cellIdx){
-        folderSelectionState = cellIdx;
-        RefreshPlaylists();
-        if(cellIdx == 3) {
-            SetFoldersFilters(false);
-        }
+        filterSelected(cellIdx);
     });
     filterList->setType(csTypeOf(PlaylistManager::CoverTableCell*));
     filterList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
@@ -68,8 +94,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderListContainer = createContainer(cvsTrans);
     // set up list
     folderList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(folderListContainer->get_transform(), {0, -10}, {75, 30}, [this](int cellIdx){
-        // set folder selected
-        // show menu for folder
+        folderSelected(cellIdx);
     });
     folderList->setType(csTypeOf(PlaylistManager::FolderTableCell*));
     folderList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
@@ -77,24 +102,13 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     ReloadFolders();
     // paging buttons
     auto left = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
-        // get table view as questui table view
-        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->folderList), "tableView"));
-        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
-        idx -= 5;
-        idx = idx > 0 ? idx : 0;
-        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+        scrollFolderListLeftButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
     auto right = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {40, 0}, {8, 8}, [this](){
-        // get table view as questui table view
-        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->folderList), "tableView"));
-        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
-        idx += 5;
-        int max = tableView->get_dataSource()->NumberOfCells();
-        idx = idx < max ? idx : max - 1;
-        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+        scrollFolderListRightButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
@@ -103,7 +117,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
 
     playlistListContainer = createContainer(cvsTrans);
     // list for selecting playlists from folders
-    playlistList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(playlistListContainer->get_transform(), {60, 15}, [this](int cellIdx){
+    playlistList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(playlistListContainer->get_transform(), {0, 20}, {60, 15}, [this](int cellIdx){
         // multi select somehow
     });
     playlistList->setType(csTypeOf(PlaylistManager::CoverTableCell*));
@@ -111,25 +125,14 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     playlistList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     reloadFolderPlaylists();
     // paging buttons
-    left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-30, 0}, {8, 8}, [this](){
-        // get table view as questui table view
-        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->playlistList), "tableView"));
-        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
-        idx -= 4;
-        idx = idx > 0 ? idx : 0;
-        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+    left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-30, 20}, {8, 8}, [this](){
+        scrollPlaylistListLeftButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
-    right = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {30, 0}, {8, 8}, [this](){
-        // get table view as questui table view
-        auto tableView = CRASH_UNLESS(il2cpp_utils::GetFieldValue<QuestUI::TableView*>(reinterpret_cast<Il2CppObject*>(this->playlistList), "tableView"));
-        int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
-        idx += 4;
-        int max = tableView->get_dataSource()->NumberOfCells();
-        idx = idx < max ? idx : max - 1;
-        tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);
+    right = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {30, 20}, {8, 8}, [this](){
+        scrollPlaylistListRightButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());

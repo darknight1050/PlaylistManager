@@ -46,6 +46,22 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     void updateDetailsMode();
     void scrollToIndex(int index);
 
+    void infoButtonPressed();
+    void deleteButtonPressed();
+    void moveRightButtonPressed();
+    void moveLeftButtonPressed();
+    void addButtonPressed();
+    void playlistTitleTyped(std::string_view newValue);
+    void playlistAuthorTyped(std::string_view newValue);
+    void coverButtonPressed();
+    void createButtonPressed();
+    void cancelButtonPressed();
+    void confirmDeleteButtonPressed();
+    void cancelDeleteButtonPressed();
+    void coverSelected(int listCellIdx);
+    void scrollListLeftButtonPressed();
+    void scrollListRightButtonPressed();
+
     public:
     static std::function<void()> nextCloseKeyboard;
     static PlaylistMenu* menuInstance;

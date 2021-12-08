@@ -14,6 +14,13 @@ namespace PlaylistManager {
         custom_types::Helpers::Coroutine initCoroutine();
         void reloadFolderPlaylists();
 
+        void filterSelected(int filter);
+        void folderSelected(int listCellIdx);
+        void scrollFolderListLeftButtonPressed();
+        void scrollFolderListRightButtonPressed();
+        void scrollPlaylistListLeftButtonPressed();
+        void scrollPlaylistListRightButtonPressed();
+
         public:
         static PlaylistFilters* filtersInstance;
 

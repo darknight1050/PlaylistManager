@@ -28,6 +28,13 @@ namespace PlaylistManager {
 
         custom_types::Helpers::Coroutine initCoroutine();
 
+        void saveCoverButtonPressed();
+        void addToPlaylistButtonPressed();
+        void removeFromPlaylistButtonPressed();
+        void playlistSelected(int listCellIdx);
+        void scrollListLeftButtonPressed();
+        void scrollListRightButtonPressed();
+
         public:
         static ButtonsContainer* buttonsInstance;
 

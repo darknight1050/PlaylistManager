@@ -46,6 +46,9 @@ ___DECLARE_TYPE_WRAPPER_INHERITANCE(PlaylistManager, CustomListSource, Il2CppTyp
     System::Type* type;
 
     public:
+    static void ScrollListLeft(CustomListSource* list, int numCells);
+    static void ScrollListRight(CustomListSource* list, int numCells);
+
     void setType(System::Type* cellType);
     void addSprites(std::vector<UnityEngine::Sprite*> newSprites);
     void replaceSprites(std::vector<UnityEngine::Sprite*> newSprites);
