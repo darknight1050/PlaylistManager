@@ -17,10 +17,6 @@
 
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsTableView.hpp"
 
-namespace PlaylistManager {
-    class CustomCoverListSource;
-}
-
 DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     private:
@@ -30,7 +26,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     UnityEngine::UI::Button *coverButton, *createButton, *cancelButton;
     HMUI::ImageView *coverImage;
     HMUI::ModalView *confirmModal, *coverModal;
-    CustomCoverListSource* list;
+    class CustomListSource *list;
 
     int coverImageIndex;
 
@@ -38,7 +34,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     bool detailsVisible, inMovement, addingPlaylist;
 
-    GlobalNamespace::AnnotatedBeatmapLevelCollectionsTableView *gameTableView;
+    GlobalNamespace::AnnotatedBeatmapLevelCollectionsTableView* gameTableView;
     UnityEngine::GameObject* detailWrapper;
     BPList* playlist;
 
@@ -52,9 +48,11 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     public:
     static std::function<void()> nextCloseKeyboard;
+    static PlaylistMenu* menuInstance;
 
     void Init(UnityEngine::GameObject* detailWrapper, BPList* list);
     void SetPlaylist(BPList* playlist);
+    void RefreshCovers();
 
     void SetVisible(bool visible);
     void ShowDetails(bool visible);

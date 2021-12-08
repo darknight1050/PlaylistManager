@@ -1,10 +1,10 @@
 #include "Types/PlaylistMenu.hpp"
-#include "Types/CustomCoverListSource.hpp"
+#include "Types/LevelButtons.hpp"
+#include "Types/CustomListSource.hpp"
+#include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
 #include "Main.hpp"
 #include "Icons.hpp"
-
-#include "songloader/shared/API.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 #include "questui/shared/CustomTypes/Components/Backgroundable.hpp"
@@ -23,7 +23,9 @@
 #include "GlobalNamespace/LevelPackHeaderTableCell.hpp"
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 
-// #include "System/Action.hpp"
+#include "System/Threading/CancellationToken.hpp"
+#include "System/Threading/Tasks/Task_1.hpp"
+#include "System/Action.hpp"
 
 #include <math.h>
 
@@ -37,6 +39,7 @@ component##_rect->set_anchorMin({xmin, ymin}); \
 component##_rect->set_anchorMax({xmax, ymax});
 
 std::function<void()> PlaylistMenu::nextCloseKeyboard = nullptr;
+PlaylistMenu* PlaylistMenu::menuInstance = nullptr;
 
 UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float xmin, float ymin, float xmax, float ymax) {
     static auto name = CSTR("BPContainer");
@@ -268,12 +271,10 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(playlistAuthor, 0.2, 0.72, 0.8, 0.82);
 
     coverButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Change Cover", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
-        // coverModal->Show(true, false, il2cpp_utils::MakeDelegate<System::Action*>(classof(System::Action*), (std::function<void()>)[this](){
-        //     // crashes still
-        //     this->list->tableView->ScrollToCellWithIdx(playlist->imageIndex + 1, HMUI::TableView::ScrollPositionType::Center, false);
-        // }));
         coverModal->Show(true, false, nullptr);
+        // have correct cover selected and shown
         list->tableView->SelectCellWithIdx(addingPlaylist ? coverImageIndex + 1 : playlist->imageIndex + 1, false);
+        list->tableView->ScrollToCellWithIdx(playlist->imageIndex + 1, HMUI::TableView::ScrollPositionType::Center, false);
     });
     ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
 
@@ -288,11 +289,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(playlistDescription, 0.29, 0.05, 0.7, 0.3);
 
     // set to playlist sprite if playlist has been made
-    coverImage = BeatSaberUI::CreateImage(detailsContainer->get_transform(), playlist ? PlaylistManager::GetCoverImage(playlist) : nullptr, {0, 0}, {0, 0});
+    coverImage = BeatSaberUI::CreateImage(detailsContainer->get_transform(), playlist ? GetCoverImage(playlist) : nullptr, {0, 0}, {0, 0});
     ANCHOR(coverImage, 0.05, 0.4, 0.3, 0.65);
 
     createButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Create", "ActionButton", {0, 0}, {13, 5}, [this](){
-        // todo: create
+        // create new playlist based on fields
+        AddPlaylist(currentTitle, currentAuthor, coverImage->get_sprite());
+        ButtonsContainer::buttonsInstance->RefreshPlaylists();
     });
     // of course the text isn't centered
     createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-1.2, 0});
@@ -317,7 +320,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
 
     auto yesButton = BeatSaberUI::CreateUIButton(confirmModal->get_transform(), "Delete", "ActionButton", {0, 0}, {7, 5}, [this](){
         confirmModal->Hide(true, nullptr);
-        // todo: delete playlist
+        // delete playlist
+        DeletePlaylist(playlist->PlaylistTitle);
+        ButtonsContainer::buttonsInstance->RefreshPlaylists();
     });
     yesButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-10, 0});
     ANCHOR(yesButton, 0.17, 0.15, 0.37, 0.35);
@@ -329,17 +334,17 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(noButton, 0.63, 0.15, 0.83, 0.35);
 
     // playlist cover changing modal
-    coverModal = BeatSaberUI::CreateModal(get_transform(), {83, 20}, {-6, -15}, nullptr);
+    coverModal = BeatSaberUI::CreateModal(get_transform(), {83, 17}, {-6, -13}, nullptr);
 
-    list = BeatSaberUI::CreateCustomSourceList<CustomCoverListSource*>(coverModal->get_transform(), {0, 0}, {70, 15}, [this](int cellIdx){
+    list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [this](int cellIdx){
         // sprite selected
         auto sprite = this->list->getSprite(cellIdx);
         if(!addingPlaylist) {
             // change in list and json
             if(cellIdx == 0)
-                PlaylistManager::ChangePlaylistCover(this->playlist, nullptr, cellIdx - 1);
+                ChangePlaylistCover(this->playlist, nullptr, cellIdx - 1);
             else
-                PlaylistManager::ChangePlaylistCover(this->playlist, sprite, cellIdx - 1);
+                ChangePlaylistCover(this->playlist, sprite, cellIdx - 1);
             // change background pack image
             auto trans = this->detailWrapper->get_transform();
             for(int i = 0; i < trans->GetChildCount(); i++) {
@@ -358,17 +363,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
         // one less because the default image is not included
         this->coverImageIndex = cellIdx - 1;
     });
+    list->setType(csTypeOf(PlaylistManager::CoverTableCell*));
     list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
 
     co_yield nullptr;
 
-    // reload covers from folder
-    GetCoverImages();
-    // add cover images and reload
-    list->addSprites({GetDefaultCoverImage()});
-    list->addSprites(PlaylistManager::loadedImages);
-    list->tableView->ReloadData();
+    RefreshCovers();
 
     co_yield nullptr;
 
@@ -449,6 +450,8 @@ void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     // don't let it get stopped by set visible
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
         reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+    
+    PlaylistMenu::menuInstance = this;
 }
 
 void PlaylistMenu::SetPlaylist(BPList* list) {
@@ -456,7 +459,17 @@ void PlaylistMenu::SetPlaylist(BPList* list) {
     playlist = list;
     coverImageIndex = playlist->imageIndex;
     if(coverImage)
-        coverImage->set_sprite(PlaylistManager::GetCoverImage(playlist));
+        coverImage->set_sprite(GetCoverImage(playlist));
+}
+
+void PlaylistMenu::RefreshCovers() {
+    if(!list) return;
+    // reload covers from folder
+    GetCoverImages();
+    // add cover images and reload
+    list->replaceSprites({GetDefaultCoverImage()});
+    list->addSprites(loadedImages);
+    list->tableView->ReloadData();
 }
 
 void PlaylistMenu::ShowDetails(bool visible) {
@@ -471,8 +484,11 @@ void PlaylistMenu::SetVisible(bool visible) {
     StopAllCoroutines();
     if(buttonsContainer)
         buttonsContainer->set_active(visible);
-    if(detailsContainer)
+    if(detailsContainer) {
         detailsContainer->set_active(false);
+        // once, and only once, the details menu disappeared for me during testing
+        detailsContainer->get_transform()->SetAsLastSibling();
+    }
     detailsVisible = false;
     if(confirmModal)
         confirmModal->Hide(false, nullptr);

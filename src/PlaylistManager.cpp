@@ -1,3 +1,4 @@
+#include "Types/BPList.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "Main.hpp"
@@ -33,7 +34,6 @@ namespace PlaylistManager {
     
     // array of all loaded images
     std::vector<UnityEngine::Sprite*> loadedImages;
-    // SafePtr<System::Collections::Generic::List_1<UnityEngine::Sprite*>> loadedImages;
     // all unusable playlists
     const std::unordered_set<std::string> staticPacks = {
         "Original Soundtrack Vol. 1",
@@ -53,7 +53,7 @@ namespace PlaylistManager {
         "Imagine Dragons Music Pack",
         "Monstercat Music Pack Vol. 1",
         "Custom Levels",
-        "Custom WIP Levels" // guessing
+        "WIP Levels"
     };
     
     std::string GetBase64ImageType(std::string base64) {
@@ -132,6 +132,33 @@ namespace PlaylistManager {
         if(path_playlists->ContainsKey(pathCS))
             return path_playlists->get_Item(pathCS);
         return nullptr;
+    }
+
+    std::vector<GlobalNamespace::CustomBeatmapLevelPack*> GetLoadedPlaylists() {
+        // create return vector with base size
+        std::vector<GlobalNamespace::CustomBeatmapLevelPack*> ret(playlistConfig.Order.size());
+        auto cs_itr = path_playlists->get_Values()->System_Collections_IEnumerable_GetEnumerator();
+        while(cs_itr->MoveNext()) {
+            auto pack = reinterpret_cast<SongLoaderCustomBeatmapLevelPack*>(cs_itr->get_Current());
+            if(pack) {
+                std::string name = STR(pack->CustomLevelsPack->get_packName());
+                int idx = GetPackIndex(name);
+                if(idx >= 0)
+                    ret[idx] = pack->CustomLevelsPack;
+                else
+                    ret.push_back(pack->CustomLevelsPack);
+            }
+        }
+        // remove empty slots
+        int i = 0;
+        for(auto itr = ret.begin(); itr != ret.end(); itr++) {
+            if(*itr == nullptr) {
+                ret.erase(itr);
+                itr--;
+            }
+            i++;
+        }
+        return ret;
     }
 
     UnityEngine::Sprite* GetDefaultCoverImage() {
@@ -339,6 +366,20 @@ namespace PlaylistManager {
         }
     }
 
+    void AddPlaylist(std::string title, std::string author, UnityEngine::Sprite* coverImage) {
+        // create playlist with info
+        auto newPlaylist = BPList();
+        newPlaylist.PlaylistTitle = title;
+        newPlaylist.PlaylistAuthor = author;
+        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
+        newPlaylist.ImageString = STR(System::Convert::ToBase64String(bytes));
+        // save playlist
+        if(!WriteToFile(GetPlaylistsPath() + "/" + title + ".bplist_BMBF.json", newPlaylist))
+            LOG_ERROR("Failed to save playlist!");
+        else
+            RefreshPlaylists(); // load it, with the others because I'm lazy
+    }
+
     void MovePlaylist(BPList* playlist, int index) {
         int originalIndex = GetPackIndex(playlist->PlaylistTitle);
         if(originalIndex < 0) {
@@ -351,6 +392,7 @@ namespace PlaylistManager {
     }
 
     void RenamePlaylist(BPList* playlist, std::string title) {
+        std::string oldName = playlist->PlaylistTitle;
         int orderIndex = GetPackIndex(playlist->PlaylistTitle);
         if(orderIndex < 0) {
             LOG_ERROR("Attempting to rename unloaded playlist");
@@ -367,6 +409,13 @@ namespace PlaylistManager {
         playlist->PlaylistTitle = title;
         playlists_json.erase(map_pos);
         playlists_json.insert({title, playlist});
+        // change name in all folders
+        for(auto& folder : playlistConfig.Folders) {
+            for(int i = 0; i < folder.PlaylistNames.size(); i++) {
+                if(folder.PlaylistNames[i] == oldName)
+                    folder.PlaylistNames[i] = title;
+            }
+        }
         // rename playlist ingame
         auto levelPack = GetSongloaderPack(playlist);
         if(levelPack) {
@@ -403,10 +452,65 @@ namespace PlaylistManager {
         WriteToFile(playlist->path, *playlist);
     }
 
+    void DeletePlaylist(std::string title) {
+        std::string path = GetPlaylistJSON(title)->path;
+        // remove from loaded playlists
+        path_playlists->Remove(CSTR(path));
+        // delete file
+        std::filesystem::remove(path);
+        // remove name from order config
+        int orderIndex = GetPackIndex(title);
+        playlistConfig.Order.erase(playlistConfig.Order.begin() + orderIndex);
+        // reload
+        RefreshPlaylists();
+    }
+
     void RefreshPlaylists() {
         bool showDefaults = folderSelectionState == 0 || folderSelectionState == 1;
         if(folderSelectionState == 3 && currentFolder)
             showDefaults = currentFolder->ShowDefaults;
         API::RefreshPacks(showDefaults);
+    }
+
+    std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        std::string id = STR(level->levelID);
+        // should be in all songloader levels
+        auto prefixIndex = id.find("custom_level_");
+        if(prefixIndex == std::string::npos)
+            return "";
+        // remove prefix
+        id = id.substr(prefixIndex + 14);
+        auto wipIndex = id.find(" WIP");
+        if(wipIndex != std::string::npos)
+            id = id.substr(0, wipIndex);
+        std::transform(id.begin(), id.end(), id.begin(), toupper);
+        return id;
+    }
+
+    void AddSongToPlaylist(BPList* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        // add a blank song
+        playlist->Songs.emplace_back(BPSong());
+        // set info
+        auto& songJson = playlist->Songs[playlist->Songs.size()  - 1];
+        songJson.Hash = GetLevelHash(level);
+        songJson.SongName = STR(level->songName);
+        // write to file
+        WriteToFile(playlist->path, *playlist);
+    }
+
+    void RemoveSongFromPlaylist(BPList* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        // find song by hash (since the field is required) and remove
+        auto levelHash = GetLevelHash(level);
+        for(auto itr = playlist->Songs.begin(); itr != playlist->Songs.end(); ++itr) {
+            auto& song = *itr;
+            std::transform(song.Hash.begin(), song.Hash.end(), song.Hash.begin(), toupper);
+            std::transform(levelHash.begin(), levelHash.end(), levelHash.begin(), toupper);
+            if(song.Hash == levelHash) {
+                playlist->Songs.erase(itr);
+                break;
+            }
+        }
+        // write to file
+        WriteToFile(playlist->path, *playlist);
     }
 }

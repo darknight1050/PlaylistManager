@@ -114,6 +114,7 @@
 			"hash_set": "cpp",
 			"__hash": "cpp",
 			"xlocale": "cpp"
-		}
+		},
+		"search.useIgnoreFiles": false
 	}
 }

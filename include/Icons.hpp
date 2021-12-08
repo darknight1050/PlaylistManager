@@ -2,12 +2,20 @@
 
 #include "UnityEngine/Sprite.hpp"
 
-UnityEngine::Sprite* WhiteSprite();
+#define SPRITE(name) UnityEngine::Sprite* name##Sprite();
+#define ACTIVE_INACTIVE(name) UnityEngine::Sprite* name##Sprite(); UnityEngine::Sprite* name##InactiveSprite();
 
-UnityEngine::Sprite* LeftCaratSprite();
+SPRITE(White);
+SPRITE(AllPacks);
+SPRITE(DefaultPacks);
+SPRITE(CustomPacks);
+SPRITE(PackFolders);
+SPRITE(Folder);
+ACTIVE_INACTIVE(LeftCarat);
+ACTIVE_INACTIVE(RightCarat);
+ACTIVE_INACTIVE(SaveCover);
+ACTIVE_INACTIVE(AddToPlaylist);
+ACTIVE_INACTIVE(RemoveFromPlaylist);
 
-UnityEngine::Sprite* LeftCaratInactiveSprite();
-
-UnityEngine::Sprite* RightCaratSprite();
-
-UnityEngine::Sprite* RightCaratInactiveSprite();
+#undef SPRITE
+#undef ACTIVE_INACTIVE

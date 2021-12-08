@@ -4,6 +4,7 @@
 #include "Types/BPList.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderBeatmapLevelPackCollectionSO.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderCustomBeatmapLevelPack.hpp"
+#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 #include "UnityEngine/Sprite.hpp"
 
 namespace PlaylistManager {
@@ -23,6 +24,8 @@ namespace PlaylistManager {
 
     RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack* GetSongloaderPack(BPList* playlist);
 
+    std::vector<GlobalNamespace::CustomBeatmapLevelPack*> GetLoadedPlaylists();
+
     UnityEngine::Sprite* GetDefaultCoverImage();
 
     UnityEngine::Sprite* GetCoverImage(BPList* playlist);
@@ -31,12 +34,19 @@ namespace PlaylistManager {
 
     void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh = false);
 
+    void AddPlaylist(std::string title, std::string author, UnityEngine::Sprite* coverImage);
+
     void MovePlaylist(BPList* playlist, int index);
 
     void RenamePlaylist(BPList* playlist, std::string title);
 
     void ChangePlaylistCover(BPList* playlist, UnityEngine::Sprite* newCover, int coverIndex);
 
+    void DeletePlaylist(std::string title);
+
     void RefreshPlaylists();
     
+    void AddSongToPlaylist(BPList* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
+
+    void RemoveSongFromPlaylist(BPList* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
 }
