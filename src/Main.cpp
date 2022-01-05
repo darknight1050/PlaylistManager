@@ -177,6 +177,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_LoadBeatmapLevelAsync);
+    INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             PlaylistManager::LoadPlaylists(customBeatmapLevelPackCollectionSO);

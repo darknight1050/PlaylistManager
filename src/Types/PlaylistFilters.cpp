@@ -13,6 +13,10 @@
 
 #include "HMUI/ScrollView.hpp"
 
+#include "UnityEngine/Rect.hpp"
+#include "UnityEngine/WaitForSeconds.hpp"
+#include "UnityEngine/UI/RectMask2D.hpp"
+
 using namespace PlaylistManager;
 using namespace QuestUI;
 
@@ -61,27 +65,44 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // make canvas for display
     auto canvas = BeatSaberUI::CreateCanvas();
     auto cvsTrans = canvas->get_transform();
-    cvsTrans->set_position({5, 15, 10});
+    cvsTrans->set_position({0, 0.02, 1});
     cvsTrans->set_eulerAngles({90, 0, 0});
 
     co_yield nullptr;
 
     #pragma region filterList
     // set up list
-    filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, {60, 15}, [this](int cellIdx){
+    UnityEngine::Vector2 sizeDelta{60, 15};
+    filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, sizeDelta, [this](int cellIdx){
         filterSelected(cellIdx);
     });
     filterList->setType(csTypeOf(PlaylistManager::CoverTableCell*));
     filterList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
+    filterList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
+    // yet another questui bug
+    auto layoutElement = filterList->tableView->get_transform()->get_parent()->GetComponent<UnityEngine::UI::LayoutElement*>();
+    layoutElement->set_flexibleHeight(sizeDelta.y);
+    layoutElement->set_minHeight(sizeDelta.y);
+    layoutElement->set_preferredHeight(sizeDelta.y);
+    layoutElement->set_flexibleWidth(sizeDelta.x);
+    layoutElement->set_minWidth(sizeDelta.x);
+    layoutElement->set_preferredWidth(sizeDelta.x);
 
     // add list data
     filterList->addSprites({AllPacksSprite(), DefaultPacksSprite(), CustomPacksSprite(), PackFoldersSprite()});
     filterList->addTexts({"All level packs", "No custom playlists", "Only custom playlists", "Playlist folders"});
+    // starting anchors break size delta for some reason
+    auto contentTransform = filterList->tableView->scrollView->contentRectTransform;
+    contentTransform->set_anchorMin({0, 0});
+    contentTransform->set_anchorMax({0, 1});
     filterList->tableView->ReloadData();
     filterList->tableView->SelectCellWithIdx(folderSelectionState, false);
-    #pragma endregion
 
     co_yield nullptr;
+    // some update method or something is messing with this
+    // and I cannot figure out what or why it's only this list
+    contentTransform->set_localPosition({0, 7.5, 0});
+    #pragma endregion
 
     #pragma region folderMenu
     folderMenu = createContainer(cvsTrans);
@@ -167,6 +188,7 @@ void PlaylistFilters::SetFoldersFilters(bool filtersVisible) {
     filterList->get_transform()->GetParent()->get_gameObject()->SetActive(filtersVisible);
     folderList->get_transform()->GetParent()->get_gameObject()->SetActive(!filtersVisible);
     folderMenu->SetActive(!filtersVisible);
+    playlistListContainer->SetActive(false);
 }
 
 void PlaylistFilters::ReloadFolders() {

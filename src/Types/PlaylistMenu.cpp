@@ -511,6 +511,8 @@ void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     playlist = list;
     coverImageIndex = playlist->imageIndex;
     this->detailWrapper = detailWrapper;
+    // resize playlist area
+    // reinterpret_cast<UnityEngine::RectTransform*>(get_transform())->set_sizeDelta({70, 55}); doesn't fix the bug
     
     // don't let it get stopped by set visible
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
