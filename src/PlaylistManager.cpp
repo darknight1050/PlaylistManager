@@ -499,8 +499,10 @@ namespace PlaylistManager {
         }
         // change cover ingame
         auto levelPack = GetSongloaderPack(playlist);
-        if(levelPack)
+        if(levelPack) {
             levelPack->CustomLevelsPack->coverImage = newCover;
+            levelPack->CustomLevelsPack->smallCoverImage = newCover;
+        }
         WriteToFile(playlist->path, *playlist);
     }
 

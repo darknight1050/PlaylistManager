@@ -24,12 +24,14 @@
 
 #include "System/Threading/CancellationToken.hpp"
 #include "System/Threading/Tasks/Task_1.hpp"
+#include "System/Collections/Generic/Dictionary_2.hpp"
 #include "System/Action_1.hpp"
 
 #include <math.h>
 
 using namespace PlaylistManager;
 using namespace QuestUI;
+using namespace GlobalNamespace;
 
 DEFINE_TYPE(PlaylistManager, PlaylistMenu);
 
@@ -159,7 +161,7 @@ void PlaylistMenu::moveRightButtonPressed() {
         return;
     MovePlaylist(playlist, configIdx + 1);
     // move playlist in table
-    using CollectionType = GlobalNamespace::IAnnotatedBeatmapLevelCollection*;
+    using CollectionType = IAnnotatedBeatmapLevelCollection*;
     // janky casting
     auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
     auto movedCollection = collectionList->get_Item(oldCellIdx);
@@ -177,7 +179,7 @@ void PlaylistMenu::moveLeftButtonPressed() {
         return;
     MovePlaylist(playlist, configIdx - 1);
     // move playlist in table
-    using CollectionType = GlobalNamespace::IAnnotatedBeatmapLevelCollection*;
+    using CollectionType = IAnnotatedBeatmapLevelCollection*;
     // janky casting
     auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
     auto movedCollection = collectionList->get_Item(oldCellIdx);
@@ -218,7 +220,7 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
                 LOG_INFO("Title set to %s", currentTitle.c_str());
                 RenamePlaylist(playlist, currentTitle);
                 // get header cell and set text
-                auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
+                auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<LevelCollectionTableView*>();
                 if(arr.Length() < 1)
                     return;
                 auto tableView = arr[0];
@@ -227,7 +229,8 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
                 tableView->headerText = CSTR(currentTitle);
                 tableView->tableView->RefreshCells(true, true);
                 // update hover texts
-                ButtonsContainer::buttonsInstance->RefreshPlaylists();
+                if(ButtonsContainer::buttonsInstance)
+                    ButtonsContainer::buttonsInstance->RefreshPlaylists();
             }
         };
     }
@@ -267,7 +270,8 @@ void PlaylistMenu::createButtonPressed() {
     }
     // create new playlist based on fields
     AddPlaylist(currentTitle, currentAuthor, coverImage->get_sprite());
-    ButtonsContainer::buttonsInstance->RefreshPlaylists();
+    if(ButtonsContainer::buttonsInstance)
+        ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
 
 void PlaylistMenu::cancelButtonPressed() {
@@ -278,7 +282,8 @@ void PlaylistMenu::confirmDeleteButtonPressed() {
     confirmModal->Hide(true, nullptr);
     // delete playlist
     DeletePlaylist(playlist->PlaylistTitle);
-    ButtonsContainer::buttonsInstance->RefreshPlaylists();
+    if(ButtonsContainer::buttonsInstance)
+        ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
 
 void PlaylistMenu::cancelDeleteButtonPressed() {
@@ -286,16 +291,16 @@ void PlaylistMenu::cancelDeleteButtonPressed() {
 }
 
 void PlaylistMenu::coverSelected(int listCellIdx) {
-    auto sprite = this->list->getSprite(listCellIdx);
+    auto sprite = list->getSprite(listCellIdx);
     // don't set playlist cover when adding a new one
     if(!addingPlaylist) {
         // change in list and json
         if(listCellIdx == 0)
-            ChangePlaylistCover(this->playlist, nullptr, listCellIdx - 1);
+            ChangePlaylistCover(playlist, nullptr, listCellIdx - 1);
         else
-            ChangePlaylistCover(this->playlist, sprite, listCellIdx - 1);
+            ChangePlaylistCover(playlist, sprite, listCellIdx - 1);
         // change background pack image
-        auto trans = this->detailWrapper->get_transform();
+        auto trans = detailWrapper->get_transform();
         for(int i = 0; i < trans->GetChildCount(); i++) {
             auto child = trans->GetChild(i);
             if(STR(child->get_name()) == "PackImage") {
@@ -305,12 +310,12 @@ void PlaylistMenu::coverSelected(int listCellIdx) {
             }
         }
         // change image in playlist bar
-        auto idx = gameTableView->selectedCellIndex;
         gameTableView->gridView->ReloadData();
     }
-    this->coverImage->set_sprite(sprite);
+    coverImage->set_sprite(sprite);
     // one less because the default image is not included
-    this->coverImageIndex = listCellIdx - 1;
+    coverImageIndex = listCellIdx - 1;
+    coverModal->Hide(true, nullptr);
 }
 
 void PlaylistMenu::scrollListLeftButtonPressed() {
@@ -501,7 +506,7 @@ void PlaylistMenu::scrollToIndex(int index) {
 
 void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     // get table view for setting selected cell
-    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
+    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>();
     if(arr.Length() < 1) {
         PlaylistMenu::menuInstance = nullptr;
         UnityEngine::Object::Destroy(this);
@@ -515,7 +520,7 @@ void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     // reinterpret_cast<UnityEngine::RectTransform*>(get_transform())->set_sizeDelta({70, 55}); doesn't fix the bug
     
     // don't let it get stopped by set visible
-    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
+    SharedCoroutineStarter::get_instance()->StartCoroutine(
         reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
     
     PlaylistMenu::menuInstance = this;
@@ -527,6 +532,10 @@ void PlaylistMenu::SetPlaylist(BPList* list) {
     coverImageIndex = playlist->imageIndex;
     if(coverImage)
         coverImage->set_sprite(GetCoverImage(playlist));
+    if(coverModal)
+        coverModal->Hide(true, nullptr);
+    if(confirmModal)
+        confirmModal->Hide(true, nullptr);
 }
 
 void PlaylistMenu::RefreshCovers() {
