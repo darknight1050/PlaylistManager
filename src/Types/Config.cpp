@@ -2,7 +2,7 @@
 
 DESERIALIZE_METHOD(PlaylistManager, PlaylistConfig,
     DESERIALIZE_VECTOR_BASIC(Order, order, String);
-    DESERIALIZE_VECTOR(Folders, folders, BPFolder);
+    DESERIALIZE_VECTOR(Folders, folders, Folder);
 )
 
 SERIALIZE_METHOD(PlaylistManager, PlaylistConfig,

@@ -1,7 +1,7 @@
+#include "Main.hpp"
 #include "Types/BPList.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
-#include "Main.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -102,7 +102,7 @@ namespace PlaylistManager {
     // returns base 64 string of png as well
     std::string WriteImageToFile(std::string_view pathToPng, UnityEngine::Sprite* image) {
         auto bytes = UnityEngine::ImageConversion::EncodeToPNG(image->get_texture());
-        writefile(pathToPng, std::string(reinterpret_cast<char*>(bytes->values), bytes->Length()));
+        writefile(pathToPng, std::string(reinterpret_cast<char*>(bytes.begin()), bytes.Length()));
         return STR(System::Convert::ToBase64String(bytes));
     }
 
@@ -165,9 +165,10 @@ namespace PlaylistManager {
     std::vector<GlobalNamespace::CustomBeatmapLevelPack*> GetLoadedPlaylists() {
         // create return vector with base size
         std::vector<GlobalNamespace::CustomBeatmapLevelPack*> ret(playlistConfig.Order.size());
-        auto cs_itr = path_playlists->get_Values()->System_Collections_IEnumerable_GetEnumerator();
-        while(cs_itr->MoveNext()) {
-            auto pack = reinterpret_cast<SongLoaderCustomBeatmapLevelPack*>(cs_itr->get_Current());
+        // auto cs_itr = path_playlists->get_Values()->GetEnumerator();
+        // while(cs_itr.MoveNext()) {
+        for(int i = 0; i < path_playlists->get_Count(); i++) {
+            auto pack = (SongLoaderCustomBeatmapLevelPack*) path_playlists->entries[i].value;
             if(pack) {
                 std::string name = STR(pack->CustomLevelsPack->get_packName());
                 int idx = GetPackIndex(name);
@@ -192,11 +193,11 @@ namespace PlaylistManager {
     UnityEngine::Sprite* GetDefaultCoverImage() {
         if(!defaultCover) {
             auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::CustomLevelLoader*>();
-            if(arr->Length() < 1) {
+            if(arr.Length() < 1) {
                 LOG_ERROR("Unable to find custom level loader");
                 return nullptr;
             }
-            defaultCover = arr->get(0)->defaultPackCover;
+            defaultCover = arr[0]->defaultPackCover;
         }
         return defaultCover;
     }
@@ -245,7 +246,7 @@ namespace PlaylistManager {
             // save image as file and return
             LOG_INFO("Writing image with hash %lu", imgHash);
             std::string imgPath = GetCoversPath() + "/" + playlist->PlaylistTitle + "_" + std::to_string(imgHash) + ".png";
-            writefile(imgPath, std::string(reinterpret_cast<char*>(bytes->values), bytes->Length()));
+            writefile(imgPath, std::string(reinterpret_cast<char*>(bytes.begin()), bytes.Length()));
             imageHashes.insert({imgHash, loadedImages.size()});
             playlist->imageIndex = loadedImages.size();
             loadedImages.emplace_back(sprite);

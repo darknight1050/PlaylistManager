@@ -1,9 +1,9 @@
+#include "Main.hpp"
 #include "Types/PlaylistMenu.hpp"
 #include "Types/PlaylistFilters.hpp"
 #include "Types/LevelButtons.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
-#include "Main.hpp"
 
 #include <chrono>
 
@@ -37,7 +37,7 @@ ModInfo modInfo;
 
 // shared config data
 PlaylistManager::PlaylistConfig playlistConfig;
-PlaylistManager::BPFolder* currentFolder;
+PlaylistManager::Folder* currentFolder;
 int folderSelectionState = 0;
 
 Logger& getLogger() {

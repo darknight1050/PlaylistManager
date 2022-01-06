@@ -1,10 +1,10 @@
+#include "Main.hpp"
 #include "Types/PlaylistFilters.hpp"
-#include "Types/BPFolder.hpp"
+#include "Types/Folder.hpp"
 #include "Types/FolderTableCell.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
-#include "Main.hpp"
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"

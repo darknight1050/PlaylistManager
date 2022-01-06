@@ -1,9 +1,9 @@
+#include "Main.hpp"
 #include "Types/PlaylistMenu.hpp"
 #include "Types/LevelButtons.hpp"
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
-#include "Main.hpp"
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
@@ -24,7 +24,7 @@
 
 #include "System/Threading/CancellationToken.hpp"
 #include "System/Threading/Tasks/Task_1.hpp"
-#include "System/Action.hpp"
+#include "System/Action_1.hpp"
 
 #include <math.h>
 
@@ -153,9 +153,9 @@ void PlaylistMenu::deleteButtonPressed() {
 
 void PlaylistMenu::moveRightButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
-    int oldCellIdx = gameTableView->selectedColumn;
+    int oldCellIdx = gameTableView->selectedCellIndex;
     int configIdx = GetPackIndex(playlist->PlaylistTitle);
-    if(oldCellIdx + 1 == gameTableView->NumberOfCells() || configIdx < 0)
+    if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx < 0)
         return;
     MovePlaylist(playlist, configIdx + 1);
     // move playlist in table
@@ -171,7 +171,7 @@ void PlaylistMenu::moveRightButtonPressed() {
 
 void PlaylistMenu::moveLeftButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
-    int oldCellIdx = gameTableView->selectedColumn;
+    int oldCellIdx = gameTableView->selectedCellIndex;
     int configIdx = GetPackIndex(playlist->PlaylistTitle);
     if(oldCellIdx == 0 || configIdx <= 0)
         return;
@@ -219,9 +219,9 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
                 RenamePlaylist(playlist, currentTitle);
                 // get header cell and set text
                 auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
-                if(arr->Length() < 1)
+                if(arr.Length() < 1)
                     return;
-                auto tableView = arr->get(0);
+                auto tableView = arr[0];
                 if(!tableView->showLevelPackHeader)
                     return;
                 tableView->headerText = CSTR(currentTitle);
@@ -305,8 +305,8 @@ void PlaylistMenu::coverSelected(int listCellIdx) {
             }
         }
         // change image in playlist bar
-        auto idx = gameTableView->selectedColumn;
-        gameTableView->tableView->RefreshCells(true, true);
+        auto idx = gameTableView->selectedCellIndex;
+        gameTableView->gridView->ReloadData();
     }
     this->coverImage->set_sprite(sprite);
     // one less because the default image is not included
@@ -371,7 +371,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     playlistTitle->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
     ANCHOR(playlistTitle, 0.2, 0.87, 0.8, 0.97);
 
-    playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1}, [this](std::string_view newValue){
+    playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1, 0}, [this](std::string_view newValue){
         playlistAuthorTyped(newValue);
     });
     playlistAuthor->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
@@ -496,18 +496,18 @@ void PlaylistMenu::updateDetailsMode() {
 
 void PlaylistMenu::scrollToIndex(int index) {
     gameTableView->SelectAndScrollToCellWithIdx(index);
-    gameTableView->HandleDidSelectColumnEvent(gameTableView->tableView, index);
+    gameTableView->didSelectAnnotatedBeatmapLevelCollectionEvent->Invoke(gameTableView->annotatedBeatmapLevelCollections->get_Item(index));
 }
 
 void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     // get table view for setting selected cell
-    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::AnnotatedBeatmapLevelCollectionsTableView*>();
-    if(arr->Length() < 1) {
+    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
+    if(arr.Length() < 1) {
         PlaylistMenu::menuInstance = nullptr;
         UnityEngine::Object::Destroy(this);
         return;
     }
-    gameTableView = arr->get(0);
+    gameTableView = arr[0];
     playlist = list;
     coverImageIndex = playlist->imageIndex;
     this->detailWrapper = detailWrapper;

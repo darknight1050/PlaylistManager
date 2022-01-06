@@ -1,6 +1,6 @@
+#include "Main.hpp"
 #include "Types/FolderTableCell.hpp"
 #include "Icons.hpp"
-#include "Main.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 
@@ -16,7 +16,7 @@ void FolderTableCell::ctor() {
     // run tableCell ctor
     auto thisref = this;
     static auto info = il2cpp_utils::FindMethodUnsafe("HMUI", "TableCell", ".ctor", 0);
-    il2cpp_utils::RunMethodThrow(thisref, info);
+    il2cpp_utils::RunMethodRethrow(thisref, info);
     
     refreshVisualsFunc = [this](){ refreshVisuals(); };
     initFunc = [this](UnityEngine::Sprite* sprite, std::string text){ init(sprite, text); };

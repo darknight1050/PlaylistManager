@@ -1,10 +1,10 @@
+#include "Main.hpp"
 #include "Types/LevelButtons.hpp"
 #include "Types/PlaylistMenu.hpp"
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
 #include "Icons.hpp"
-#include "Main.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 
@@ -48,9 +48,9 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
     LevelType removeLevel = reinterpret_cast<LevelType>(currentLevel);
     // remove only one level if duplicates
     bool removed = false;
-    for(int i = 0; i < levelArr->Length(); i++) {
+    for(int i = 0; i < levelArr.Length(); i++) {
         // comparison should work
-        auto level = levelArr->get(i);
+        auto level = levelArr[i];
         if(removed || level != removeLevel)
             newLevels->Add(level);
         else
@@ -61,7 +61,7 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
     // keep scroll position
     float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
     anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-    auto newLevelsArrCast = reinterpret_cast<Array<GlobalNamespace::IPreviewBeatmapLevel*>*>(newLevelsArr);
+    auto newLevelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &newLevelsArr);
     levelListTableView->SetData(newLevelsArrCast, levelListTableView->favoriteLevelIds, false);
     levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
     // clear selection since the selected song was just deleted
@@ -78,8 +78,8 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
     auto newLevels = List<LevelType>::New_ctor();
-    for(int i = 0; i < levelArr->Length(); i++) {
-        newLevels->Add(levelArr->get(i));
+    for(int i = 0; i < levelArr.Length(); i++) {
+        newLevels->Add(levelArr[i]);
     }
     newLevels->Add(reinterpret_cast<LevelType>(currentLevel));
     auto newLevelsArr = newLevels->ToArray();
@@ -94,7 +94,7 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
         // keep scroll position
         float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
         anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-        auto newLevelsArrCast = reinterpret_cast<Array<GlobalNamespace::IPreviewBeatmapLevel*>*>(newLevelsArr);
+        auto newLevelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &newLevelsArr);
         levelListTableView->SetData(newLevelsArrCast, levelListTableView->favoriteLevelIds, false);
         levelListTableView->tableView->SelectCellWithIdx(currIndex, true);
         levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
@@ -182,11 +182,11 @@ void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* levelDetai
     // get constant references
     this->levelDetailView = levelDetailView;
     auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
-    if(arr->Length() < 1) {
+    if(arr.Length() < 1) {
         LOG_ERROR("Unable to find level collection table view!");
         SAFE_ABORT();
     }
-    this->levelListTableView = arr->get(0);
+    this->levelListTableView = arr[0];
     
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
         reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));

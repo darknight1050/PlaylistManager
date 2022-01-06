@@ -15,7 +15,7 @@
 
 #include "TMPro/TextMeshProUGUI.hpp"
 
-#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsTableView.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
 
 DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
@@ -34,7 +34,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     bool detailsVisible, inMovement, addingPlaylist;
 
-    GlobalNamespace::AnnotatedBeatmapLevelCollectionsTableView* gameTableView;
+    GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
     UnityEngine::GameObject* detailWrapper;
     BPList* playlist;
 
