@@ -107,7 +107,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
         bool construction = false;
         if(!PlaylistMenu::menuInstance) {
             auto playlistMenu = self->get_gameObject()->AddComponent<PlaylistMenu*>();
-            playlistMenu->Init(self->detailWrapper, json);
+            playlistMenu->Init(self->packImage, json);
         } else {
             if(json) {
                 PlaylistMenu::menuInstance->SetPlaylist(json);
@@ -122,8 +122,8 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
 // when to show the level buttons
 MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &StandardLevelDetailViewController::LoadBeatmapLevelAsync, 
-        System::Threading::Tasks::Task*, StandardLevelDetailViewController* self, System::Threading::CancellationToken cancellationToken) {
-    LOG_INFO("Loading level");
+        System::Threading::Tasks::Task*, StandardLevelDetailViewController* self, System::Threading::CancellationToken cancellationToken) {\
+
     auto ret = StandardLevelDetailViewController_LoadBeatmapLevelAsync(self, cancellationToken);
     
     using namespace PlaylistManager;
@@ -141,7 +141,8 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
 }
 
 // when to set up the folders
-MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::DidActivate, void, MainMenuViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::DidActivate, 
+        void, MainMenuViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
     MainMenuViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
     using namespace PlaylistManager;
     if(!PlaylistFilters::filtersInstance) {

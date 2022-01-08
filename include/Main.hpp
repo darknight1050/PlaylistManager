@@ -11,6 +11,7 @@
 
 #define STR(il2cpp_str) to_utf8(csstrtostr(il2cpp_str))
 #define CSTR(string) il2cpp_utils::newcsstr(string)
+#define STATIC_CSTR(name, string) static auto name = il2cpp_utils::newcsstr<il2cpp_utils::CreationType::Manual>(string)
 
 #include "beatsaber-hook/shared/utils/utils.h"
 Logger& getLogger();

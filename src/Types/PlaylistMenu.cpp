@@ -12,6 +12,8 @@
 #include "UnityEngine/Mathf.hpp"
 #include "UnityEngine/Time.hpp"
 #include "UnityEngine/Resources.hpp"
+#include "UnityEngine/Rect.hpp"
+#include "UnityEngine/UI/Mask.hpp"
 
 #include "HMUI/CurvedTextMeshPro.hpp"
 #include "HMUI/UIKeyboard.hpp"
@@ -59,12 +61,10 @@ UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float x
 }
 
 UnityEngine::UI::Button* anchorMiniButton(UnityEngine::Transform* parent, std::string_view buttonText, std::string_view buttonTemplate, std::function<void()> onClick, float x, float y) {
-    auto button = BeatSaberUI::CreateUIButton(parent, buttonText, buttonTemplate, onClick);
+    auto button = BeatSaberUI::CreateUIButton(parent, buttonText, buttonTemplate, {0, 0}, {8, 8}, onClick);
 
     UnityEngine::GameObject::Destroy(button->get_transform()->Find(CSTR("Content"))->GetComponent<UnityEngine::UI::LayoutElement*>());
-    auto sizeFitter = button->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
-    sizeFitter->set_verticalFit(2);
-    sizeFitter->set_horizontalFit(2);
+    button->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-0.8, 0});
 
     ANCHOR(button, x, y, x, y);
 
@@ -94,16 +94,18 @@ custom_types::Helpers::Coroutine PlaylistMenu::moveCoroutine(bool reversed) {
         detailsContainer->set_active(true);
         detailsVisible = true;
     }
+    auto transf = (UnityEngine::RectTransform*) detailsContainer->get_transform();
+    float minY = transf->get_anchorMin().y;
+    float maxY = transf->get_anchorMax().y;
     while(time < 1) {
         time += UnityEngine::Time::get_deltaTime()/duration;
         float val = movementEasing(time);
-        auto transf = reinterpret_cast<UnityEngine::RectTransform*>(detailsContainer->get_transform());
         if(!reversed) {
-            transf->set_anchorMin({1 - val, 0});
-            transf->set_anchorMax({2 - val, 1});
+            transf->set_anchorMin({1 - val, minY});
+            transf->set_anchorMax({2 - val, maxY});
         } else {
-            transf->set_anchorMin({val, 0});
-            transf->set_anchorMax({val + 1, 1});
+            transf->set_anchorMin({val, minY});
+            transf->set_anchorMax({val + 1, maxY});
         }
         co_yield nullptr;
     }
@@ -148,9 +150,22 @@ void PlaylistMenu::infoButtonPressed() {
     }
 }
 
-void PlaylistMenu::deleteButtonPressed() {
-    if(confirmModal)
-        confirmModal->Show(true, false, nullptr);
+void PlaylistMenu::syncButtonPressed() {
+    // sync
+}
+
+void PlaylistMenu::addButtonPressed() {
+    if(inMovement)
+        return;
+    // do nothing if already open for adding a playlist
+    if(addingPlaylist && !detailsVisible) {
+        // also reset on reopen
+        updateDetailsMode();
+        ShowDetails(true);
+    } else if(!addingPlaylist) {
+        addingPlaylist = true;
+        RefreshDetails();
+    }
 }
 
 void PlaylistMenu::moveRightButtonPressed() {
@@ -187,20 +202,6 @@ void PlaylistMenu::moveLeftButtonPressed() {
     collectionList->Insert(oldCellIdx - 1, movedCollection);
     gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
     scrollToIndex(oldCellIdx - 1);
-}
-
-void PlaylistMenu::addButtonPressed() {
-    if(inMovement)
-        return;
-    // do nothing if already open for adding a playlist
-    if(addingPlaylist && !detailsVisible) {
-        // also reset on reopen
-        updateDetailsMode();
-        ShowDetails(true);
-    } else if(!addingPlaylist) {
-        addingPlaylist = true;
-        RefreshDetails();
-    }
 }
 
 void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
@@ -262,6 +263,11 @@ void PlaylistMenu::coverButtonPressed() {
     list->tableView->ScrollToCellWithIdx(playlist->imageIndex + 1, HMUI::TableView::ScrollPositionType::Center, false);
 }
 
+void PlaylistMenu::deleteButtonPressed() {
+    if(confirmModal)
+        confirmModal->Show(true, false, nullptr);
+}
+
 void PlaylistMenu::createButtonPressed() {
     // while the keyboard function has a check, names such as "New Playlist" may also be unavailable
     if(!AvailablePlaylistName(currentTitle)) {
@@ -300,15 +306,7 @@ void PlaylistMenu::coverSelected(int listCellIdx) {
         else
             ChangePlaylistCover(playlist, sprite, listCellIdx - 1);
         // change background pack image
-        auto trans = detailWrapper->get_transform();
-        for(int i = 0; i < trans->GetChildCount(); i++) {
-            auto child = trans->GetChild(i);
-            if(STR(child->get_name()) == "PackImage") {
-                LOG_INFO("Setting ingame image");
-                child->GetComponent<HMUI::ImageView*>()->set_sprite(sprite);
-                break;
-            }
-        }
+        packImage->set_sprite(sprite);
         // change image in playlist bar
         gameTableView->gridView->ReloadData();
     }
@@ -328,91 +326,108 @@ void PlaylistMenu::scrollListRightButtonPressed() {
 #pragma endregion
 
 custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
-    #pragma region sideButtons
-    buttonsContainer = anchorContainer(get_transform(), 0.525, 0.15, 0.65, 1);
-
-    // side menu buttons, from bottom to top
-    auto infoButton = anchorMiniButton(buttonsContainer->get_transform(), "i", "ActionButton", [this](){
-        infoButtonPressed();
-    }, -3, 0);
-    // disable all caps mode
-    infoButton->GetComponentInChildren<HMUI::CurvedTextMeshPro*>()->set_fontStyle(2);
-    BeatSaberUI::AddHoverHint(infoButton->get_gameObject(), "Playlist information");
-    
-    auto deleteButton = anchorMiniButton(buttonsContainer->get_transform(), "-", "PracticeButton", [this](){
-        deleteButtonPressed();
-    }, 0, 0.13);
-    BeatSaberUI::AddHoverHint(deleteButton->get_gameObject(), "Delete playlist");
-    
-    auto rightButton = anchorMiniButton(buttonsContainer->get_transform(), ">", "PracticeButton", [this](){
-        moveRightButtonPressed();
-    }, 0, 0.26);
-    BeatSaberUI::AddHoverHint(rightButton->get_gameObject(), "Move playlist right");
-    
-    auto leftButton = anchorMiniButton(buttonsContainer->get_transform(), "<", "PracticeButton", [this](){
-        moveLeftButtonPressed();
-    }, 0, 0.39);
-    BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
-    
-    auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
-        addButtonPressed();
-    }, 0, 0.52);
-    BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
-    #pragma endregion
-
-    co_yield nullptr;
-
     #pragma region details
+    // use pack image as a mask for details
+    packImage->get_gameObject()->AddComponent<UnityEngine::UI::Mask*>();
+
     // details container
-    detailsContainer = anchorContainer(detailWrapper->get_transform(), 1, 0, 2, 1);
-    auto bg = detailsContainer->AddComponent<Backgroundable*>();
-    bg->ApplyBackgroundWithAlpha(CSTR("round-rect-panel"), 0.96);
-    bg->background->get_transform()->set_localScale({1.012, 1.012, 1.012});
+    detailsContainer = anchorContainer(packImage->get_transform(), 1, 0, 2, 1);
+    auto detailsBackground = BeatSaberUI::CreateImage(detailsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
+    ANCHOR(detailsBackground, 0, 0.15, 1, 1);
+    detailsBackground->set_color({0.15, 0.15, 0.15, 0.93});
 
     playlistTitle = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Title", "", [this](std::string_view newValue){
         playlistTitleTyped(newValue);
     });
     playlistTitle->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
     playlistTitle->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
-    ANCHOR(playlistTitle, 0.2, 0.87, 0.8, 0.97);
+    ANCHOR(playlistTitle, 0.2, 0.89, 0.8, 0.99);
 
     playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1, 0}, [this](std::string_view newValue){
         playlistAuthorTyped(newValue);
     });
     playlistAuthor->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
     playlistAuthor->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
-    ANCHOR(playlistAuthor, 0.2, 0.72, 0.8, 0.82);
+    ANCHOR(playlistAuthor, 0.2, 0.74, 0.8, 0.84);
 
     coverButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Change Cover", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
         coverButtonPressed();
     });
-    ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
+    ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
+
+    deleteButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Delete", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
+        deleteButtonPressed();
+    });
+    deleteButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-5, 0});
+    ANCHOR(deleteButton, 0.65, 0.57, 0.73, 0.64);
 
     // description
     descriptionTitle = BeatSaberUI::CreateText(detailsContainer->get_transform(), "Description");
-    ANCHOR(descriptionTitle, 0.565, 0.32, 0.6, 0.37);
-    playlistDescription = BeatSaberUI::CreateText(detailsContainer->get_transform(), "", false, {0, 0}, {29, 8});
+    ANCHOR(descriptionTitle, 0.565, 0.37, 0.6, 0.42);
+    playlistDescription = BeatSaberUI::CreateText(detailsContainer->get_transform(), "", false, {0, 0}, {29, 5});
     playlistDescription->set_enableWordWrapping(true);
     playlistDescription->set_fontSize(3.5);
     playlistDescription->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
     playlistDescription->set_alignment(TMPro::TextAlignmentOptions::TopLeft);
-    ANCHOR(playlistDescription, 0.29, 0.05, 0.7, 0.3);
+    ANCHOR(playlistDescription, 0.29, 0.19, 0.7, 0.37);
 
-    // set to playlist sprite if playlist has been made
-    coverImage = BeatSaberUI::CreateImage(detailsContainer->get_transform(), playlist ? GetCoverImage(playlist) : nullptr, {0, 0}, {0, 0});
+    // use playlist sprite if playlist has been set
+    coverImage = BeatSaberUI::CreateImage(detailsContainer->get_transform(), playlist ? GetCoverImage(playlist) : GetDefaultCoverImage(), {0, 0}, {0, 0});
+    // set rounded corner material
+    coverImage->set_material(packImage->get_material());
     ANCHOR(coverImage, 0.05, 0.4, 0.3, 0.65);
 
     createButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Create", "ActionButton", {0, 0}, {13, 5}, [this](){
         createButtonPressed();
     });
     // of course the text isn't centered
-    createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-1.2, 0});
-    ANCHOR(createButton, 0.17, 0.1, 0.35, 0.17);
+    createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-2, 0});
+    ANCHOR(createButton, 0.17, 0.2, 0.35, 0.27);
     
     cancelButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {13, 5}, [this](){
         cancelButtonPressed();
     });
-    ANCHOR(cancelButton, 0.64, 0.1, 0.84, 0.17);
+    ANCHOR(cancelButton, 0.64, 0.2, 0.84, 0.27);
+    #pragma endregion
+    
+    co_yield nullptr;
+
+    #pragma region sideButtons
+    buttonsContainer = anchorContainer(packImage->get_transform(), 0, 0, 1, 0.15);
+    auto buttonsBackgroundImage = BeatSaberUI::CreateImage(buttonsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
+    ANCHOR(buttonsBackgroundImage, 0, 0.02, 1, 1);
+    buttonsBackgroundImage->set_color({0.15, 0.15, 0.15, 0.93});
+
+    // side menu buttons, from bottom to top
+    auto infoButton = anchorMiniButton(buttonsContainer->get_transform(), "i", "ActionButton", [this](){
+        infoButtonPressed();
+    }, 0.9, 0.5);
+    // disable all caps mode
+    infoButton->GetComponentInChildren<HMUI::CurvedTextMeshPro*>()->set_fontStyle(2);
+    BeatSaberUI::AddHoverHint(infoButton->get_gameObject(), "Playlist information");
+    
+    auto syncButton = anchorMiniButton(buttonsContainer->get_transform(), "", "ActionButton", [this](){
+        syncButtonPressed();
+    }, 0.74, 0.5);
+    auto img = BeatSaberUI::CreateImage(syncButton->get_transform(), SyncSprite(), {0, 0}, {0, 0});
+    img->set_preserveAspect(true);
+    img->get_transform()->set_localScale({0.55, 0.55, 0.55});
+    BeatSaberUI::AddHoverHint(syncButton->get_gameObject(), "Sync playlist");
+    
+    auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
+        addButtonPressed();
+    }, 0.58, 0.5);
+    BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
+    
+    auto rightButton = anchorMiniButton(buttonsContainer->get_transform(), ">", "PracticeButton", [this](){
+        moveRightButtonPressed();
+    }, 0.42, 0.5);
+    BeatSaberUI::AddHoverHint(rightButton->get_gameObject(), "Move playlist right");
+    
+    auto leftButton = anchorMiniButton(buttonsContainer->get_transform(), "<", "PracticeButton", [this](){
+        moveLeftButtonPressed();
+    }, 0.26, 0.5);
+    BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
     #pragma endregion
 
     co_yield nullptr;
@@ -439,7 +454,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(noButton, 0.63, 0.15, 0.83, 0.35);
 
     // playlist cover changing modal
-    coverModal = BeatSaberUI::CreateModal(get_transform(), {83, 17}, {-6, -13}, nullptr);
+    coverModal = BeatSaberUI::CreateModal(get_transform(), {83, 17}, {-6, -11}, nullptr);
 
     list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [this](int cellIdx){
         coverSelected(cellIdx);
@@ -467,6 +482,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
     #pragma endregion
+    
+    detailsContainer->set_active(false);
+    detailsVisible = false;
 
     co_return;
 }
@@ -474,6 +492,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
 void PlaylistMenu::updateDetailsMode() {
     descriptionTitle->get_gameObject()->set_active(!addingPlaylist);
     playlistDescription->get_gameObject()->set_active(!addingPlaylist);
+    deleteButton->get_gameObject()->set_active(!addingPlaylist);
     coverImage->get_gameObject()->set_active(addingPlaylist);
     createButton->get_gameObject()->set_active(addingPlaylist);
     cancelButton->get_gameObject()->set_active(addingPlaylist);
@@ -487,7 +506,7 @@ void PlaylistMenu::updateDetailsMode() {
         std::string desc = playlist->PlaylistDescription ? playlist->PlaylistDescription.value() : "...";
         playlistDescription->SetText(CSTR(desc));
 
-        ANCHOR(coverButton, 0.17, 0.53, 0.35, 0.6);
+        ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
     } else {
         currentTitle = "New Playlist";
         playlistTitle->SetText(CSTR(currentTitle));
@@ -504,7 +523,7 @@ void PlaylistMenu::scrollToIndex(int index) {
     gameTableView->didSelectAnnotatedBeatmapLevelCollectionEvent->Invoke(gameTableView->annotatedBeatmapLevelCollections->get_Item(index));
 }
 
-void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
+void PlaylistMenu::Init(HMUI::ImageView* packImage, BPList* list) {
     // get table view for setting selected cell
     auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>();
     if(arr.Length() < 1) {
@@ -515,9 +534,7 @@ void PlaylistMenu::Init(UnityEngine::GameObject* detailWrapper, BPList* list) {
     gameTableView = arr[0];
     playlist = list;
     coverImageIndex = playlist->imageIndex;
-    this->detailWrapper = detailWrapper;
-    // resize playlist area
-    // reinterpret_cast<UnityEngine::RectTransform*>(get_transform())->set_sizeDelta({70, 55}); doesn't fix the bug
+    this->packImage = packImage;
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(
@@ -558,14 +575,13 @@ void PlaylistMenu::RefreshDetails() {
 
 void PlaylistMenu::SetVisible(bool visible) {
     StopAllCoroutines();
+    detailsVisible = false;
     if(buttonsContainer)
         buttonsContainer->set_active(visible);
-    if(detailsContainer) {
+    if(detailsContainer)
         detailsContainer->set_active(false);
-        // once, and only once, the details menu disappeared for me during testing
-        detailsContainer->get_transform()->SetAsLastSibling();
-    }
-    detailsVisible = false;
     if(confirmModal)
         confirmModal->Hide(false, nullptr);
+    if(coverModal)
+        coverModal->Hide(false, nullptr);
 }

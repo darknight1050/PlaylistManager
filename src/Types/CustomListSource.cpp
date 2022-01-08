@@ -1,6 +1,5 @@
 #include "Main.hpp"
 #include "Types/CustomListSource.hpp"
-#include "Types/CoverTableCell.hpp"
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"

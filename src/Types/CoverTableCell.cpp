@@ -38,7 +38,7 @@ void CoverTableCell::refreshVisuals() {
 void CoverTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     // get rounded sprite
     using TableCellType = GlobalNamespace::AnnotatedBeatmapLevelCollectionCell;
-    auto cell = UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0];
+    static auto cell = UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0];
     static auto roundedSprite = cell->selectionImage->get_sprite();
     // rounded corner material for the image
     static auto roundedCornerMaterial = cell->coverImage->get_material();

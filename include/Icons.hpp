@@ -6,6 +6,7 @@
 #define ACTIVE_INACTIVE(name) UnityEngine::Sprite* name##Sprite(); UnityEngine::Sprite* name##InactiveSprite();
 
 SPRITE(White);
+SPRITE(Sync);
 SPRITE(AllPacks);
 SPRITE(DefaultPacks);
 SPRITE(CustomPacks);

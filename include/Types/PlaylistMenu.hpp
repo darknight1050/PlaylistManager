@@ -23,8 +23,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     UnityEngine::GameObject *buttonsContainer, *detailsContainer;
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
-    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton;
-    HMUI::ImageView *coverImage;
+    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton;
+    HMUI::ImageView *coverImage, *packImage;
     HMUI::ModalView *confirmModal, *coverModal;
     class CustomListSource *list;
 
@@ -35,7 +35,6 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     bool detailsVisible, inMovement, addingPlaylist;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
-    UnityEngine::GameObject* detailWrapper;
     BPList* playlist;
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);
@@ -47,13 +46,14 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     void scrollToIndex(int index);
 
     void infoButtonPressed();
-    void deleteButtonPressed();
+    void syncButtonPressed();
+    void addButtonPressed();
     void moveRightButtonPressed();
     void moveLeftButtonPressed();
-    void addButtonPressed();
     void playlistTitleTyped(std::string_view newValue);
     void playlistAuthorTyped(std::string_view newValue);
     void coverButtonPressed();
+    void deleteButtonPressed();
     void createButtonPressed();
     void cancelButtonPressed();
     void confirmDeleteButtonPressed();
@@ -66,7 +66,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     static std::function<void()> nextCloseKeyboard;
     static PlaylistMenu* menuInstance;
 
-    void Init(UnityEngine::GameObject* detailWrapper, BPList* list);
+    void Init(HMUI::ImageView* packImage, BPList* list);
     void SetPlaylist(BPList* playlist);
     void RefreshCovers();
 

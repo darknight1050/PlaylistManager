@@ -65,7 +65,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // make canvas for display
     auto canvas = BeatSaberUI::CreateCanvas();
     auto cvsTrans = canvas->get_transform();
-    cvsTrans->set_position({0, 0.02, 1});
+    cvsTrans->set_position({0, 0.02, 1.5});
     cvsTrans->set_eulerAngles({90, 0, 0});
 
     co_yield nullptr;
