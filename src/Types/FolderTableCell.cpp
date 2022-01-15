@@ -1,5 +1,6 @@
 #include "Main.hpp"
 #include "Types/FolderTableCell.hpp"
+#include "ResettableStaticPtr.hpp"
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
@@ -37,10 +38,10 @@ void FolderTableCell::refreshVisuals() {
 
 void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     // get rounded sprite
-    static auto img = ArrayUtil::Last(UnityEngine::Resources::FindObjectsOfTypeAll<HMUI::ImageView*>(), [](HMUI::ImageView* x){
+    STATIC_AUTO(img, ArrayUtil::Last(UnityEngine::Resources::FindObjectsOfTypeAll<HMUI::ImageView*>(), [](HMUI::ImageView* x){
         auto sprite = x->get_sprite();
         return sprite && STR(sprite->get_name()) == "RoundRect10";
-    });
+    }));
     // create images
     selectImage = BeatSaberUI::CreateImage(get_transform(), img->get_sprite(), {0, 0}, {15, 25});
     hoverImage = BeatSaberUI::CreateImage(get_transform(), WhiteSprite(), {0, 0}, {13, 20});

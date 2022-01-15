@@ -73,4 +73,5 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     void SetVisible(bool visible);
     void ShowDetails(bool visible);
     void RefreshDetails();
+    void Destroy();
 )

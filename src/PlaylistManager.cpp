@@ -305,6 +305,11 @@ namespace PlaylistManager {
         }
     }
 
+    void ClearLoadedImages() {
+        loadedImages.clear();
+        imageHashes.clear();
+    }
+
     bool AvailablePlaylistName(std::string title) {
         // check in constant playlists
         if(staticPacks.contains(title))
@@ -507,9 +512,16 @@ namespace PlaylistManager {
     }
 
     void DeletePlaylist(std::string title) {
-        std::string path = GetPlaylistJSON(title)->path;
+        auto iter = playlists_json.find(title);
+        if(iter == playlists_json.end())
+            return;
+        auto json = iter->second;
+        std::string path = json->path;
         // remove from loaded playlists
         path_playlists->Remove(CSTR(path));
+        // delete json object
+        playlists_json.erase(iter);
+        delete json;
         // delete file
         std::filesystem::remove(path);
         // remove name from order config

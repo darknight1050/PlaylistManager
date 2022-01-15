@@ -32,6 +32,8 @@ namespace PlaylistManager {
 
     void GetCoverImages();
 
+    void ClearLoadedImages();
+
     bool AvailablePlaylistName(std::string title);
 
     void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh = false);

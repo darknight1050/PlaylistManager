@@ -63,7 +63,7 @@ void PlaylistFilters::scrollPlaylistListRightButtonPressed() {
 
 custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // make canvas for display
-    auto canvas = BeatSaberUI::CreateCanvas();
+    canvas = BeatSaberUI::CreateCanvas();
     auto cvsTrans = canvas->get_transform();
     cvsTrans->set_position({0, 0.02, 1.5});
     cvsTrans->set_eulerAngles({90, 0, 0});
@@ -200,4 +200,11 @@ void PlaylistFilters::ReloadFolders() {
     }
     folderList->replaceTexts(folderNames);
     folderList->tableView->ReloadData();
+}
+
+void PlaylistFilters::Destroy() {
+    PlaylistFilters::filtersInstance = nullptr;
+    UnityEngine::Object::Destroy(canvas);
+    // assumes it's always allocated with new
+    delete this;
 }

@@ -1,8 +1,9 @@
+#include "ResettableStaticPtr.hpp"
 #include "questui/shared/BeatSaberUI.hpp"
 
 #define CACHED_SPRITE(name, data) const std::string name##SpriteBase64 = data; \
 UnityEngine::Sprite* name##Sprite() { \
-    static auto s = QuestUI::BeatSaberUI::Base64ToSprite(name##SpriteBase64); \
+    STATIC_AUTO(s, QuestUI::BeatSaberUI::Base64ToSprite(name##SpriteBase64)); \
     return s; \
 }
 

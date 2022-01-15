@@ -45,10 +45,9 @@ std::function<void()> PlaylistMenu::nextCloseKeyboard = nullptr;
 PlaylistMenu* PlaylistMenu::menuInstance = nullptr;
 
 UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float xmin, float ymin, float xmax, float ymax) {
-    static auto name = CSTR("BPContainer");
+    STATIC_CSTR(name, "BPContainer");
     auto go = UnityEngine::GameObject::New_ctor(name);
     go->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
-    // go->AddComponent<Backgroundable*>();
     
     auto rect = go->GetComponent<UnityEngine::RectTransform*>();
     rect->SetParent(parent, false);
@@ -584,4 +583,13 @@ void PlaylistMenu::SetVisible(bool visible) {
         confirmModal->Hide(false, nullptr);
     if(coverModal)
         coverModal->Hide(false, nullptr);
+}
+
+void PlaylistMenu::Destroy() {
+    StopAllCoroutines();
+    UnityEngine::Object::Destroy(detailsContainer);
+    UnityEngine::Object::Destroy(buttonsContainer);
+    PlaylistMenu::menuInstance = nullptr;
+    PlaylistMenu::nextCloseKeyboard = nullptr;
+    UnityEngine::Object::Destroy(this);
 }

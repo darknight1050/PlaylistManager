@@ -117,6 +117,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
 
     #pragma region buttons
     auto horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(levelDetailTransform);
+    layoutObject = horizontal->get_gameObject();
     horizontal->set_childScaleWidth(false);
     horizontal->set_childControlWidth(false);
     horizontal->set_childForceExpandWidth(false);
@@ -165,8 +166,12 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     auto left = BeatSaberUI::CreateUIButton(playlistAddModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [this](){
         scrollListLeftButtonPressed();
     });
+    LOG_INFO("Setting size delta");
     reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+    LOG_INFO("Setting button sprites");
+    LOG_INFO("Inactive sprite: %p, active sprite: %p", LeftCaratInactiveSprite(), LeftCaratSprite());
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
+    LOG_INFO("Set button sprites");
 
     auto right = BeatSaberUI::CreateUIButton(playlistAddModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [this](){
         scrollListRightButtonPressed();
@@ -193,9 +198,12 @@ void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* levelDetai
 }
 
 void ButtonsContainer::SetVisible(bool visible, bool showRemove) {
-    saveCoverButton->get_gameObject()->set_active(visible);
-    playlistAddButton->get_gameObject()->set_active(visible);
-    playlistRemoveButton->get_gameObject()->set_active(visible && showRemove);
+    if(saveCoverButton)
+        saveCoverButton->get_gameObject()->set_active(visible);
+    if(playlistAddButton)
+        playlistAddButton->get_gameObject()->set_active(visible);
+    if(playlistRemoveButton)
+        playlistRemoveButton->get_gameObject()->set_active(visible && showRemove);
 }
 
 void ButtonsContainer::SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level) {
@@ -207,6 +215,8 @@ void ButtonsContainer::SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack) {
 }
 
 void ButtonsContainer::RefreshPlaylists() {
+    if(!playlistCovers)
+        return;
     loadedPacks = PlaylistManager::GetLoadedPlaylists();
     std::vector<UnityEngine::Sprite*> newCovers;
     std::vector<std::string> newHovers;
@@ -217,4 +227,11 @@ void ButtonsContainer::RefreshPlaylists() {
     playlistCovers->replaceSprites(newCovers);
     playlistCovers->replaceTexts(newHovers);
     playlistCovers->tableView->ReloadData();
+}
+
+void ButtonsContainer::Destroy() {
+    ButtonsContainer::buttonsInstance = nullptr;
+    UnityEngine::Object::Destroy(layoutObject);
+    // assumes it's always allocated with new
+    delete this;
 }

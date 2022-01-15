@@ -9,7 +9,7 @@ namespace PlaylistManager {
 
         private:
         CustomListSource *filterList, *folderList, *playlistList;
-        UnityEngine::GameObject *folderMenu, *folderListContainer, *playlistListContainer;
+        UnityEngine::GameObject *folderMenu, *folderListContainer, *playlistListContainer, *canvas;
 
         custom_types::Helpers::Coroutine initCoroutine();
         void reloadFolderPlaylists();
@@ -27,5 +27,6 @@ namespace PlaylistManager {
         void Init();
         void SetFoldersFilters(bool filtersVisible);
         void ReloadFolders();
+        void Destroy();
     };
 }

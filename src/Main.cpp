@@ -4,6 +4,7 @@
 #include "Types/LevelButtons.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
+#include "ResettableStaticPtr.hpp"
 
 #include <chrono>
 
@@ -19,6 +20,7 @@
 #include "GlobalNamespace/StandardLevelDetailViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
+#include "GlobalNamespace/MenuTransitionsHelper.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
@@ -29,15 +31,17 @@
 #include "HMUI/ViewController_AnimationType.hpp"
 #include "HMUI/InputFieldView.hpp"
 #include "System/Tuple_2.hpp"
+#include "System/Action_1.hpp"
 #include "System/Threading/CancellationToken.hpp"
 
 using namespace GlobalNamespace;
+using namespace PlaylistManager;
 
 ModInfo modInfo;
 
 // shared config data
-PlaylistManager::PlaylistConfig playlistConfig;
-PlaylistManager::Folder* currentFolder;
+PlaylistConfig playlistConfig;
+Folder* currentFolder = nullptr;
 int folderSelectionState = 0;
 
 Logger& getLogger() {
@@ -85,18 +89,18 @@ MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCe
 
 // allow name and author changes to be made on keyboard close
 // assumes only one keyboard will be open at a time
-MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::DeactivateKeyboard, void, HMUI::InputFieldView* self, HMUI::UIKeyboard* keyboard) {
+MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::DeactivateKeyboard,
+        void, HMUI::InputFieldView* self, HMUI::UIKeyboard* keyboard) {
     InputFieldView_DeactivateKeyboard(self, keyboard);
-    if(PlaylistManager::PlaylistMenu::nextCloseKeyboard) {
-        PlaylistManager::PlaylistMenu::nextCloseKeyboard();
-        PlaylistManager::PlaylistMenu::nextCloseKeyboard = nullptr;
+    if(PlaylistMenu::nextCloseKeyboard) {
+        PlaylistMenu::nextCloseKeyboard();
+        PlaylistMenu::nextCloseKeyboard = nullptr;
     }
 }
 
 // when to show the playlist menu
 MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewController::ShowContent,
         void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, ::Il2CppString* errorText) {
-    using namespace PlaylistManager;
     LevelPackDetailViewController_ShowContent(self, contentType, errorText);
 
     if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(CSTR("custom_levelPack"))
@@ -126,7 +130,6 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
 
     auto ret = StandardLevelDetailViewController_LoadBeatmapLevelAsync(self, cancellationToken);
     
-    using namespace PlaylistManager;
     if(!ButtonsContainer::buttonsInstance) {
         ButtonsContainer::buttonsInstance = new ButtonsContainer();
         ButtonsContainer::buttonsInstance->Init(self->standardLevelDetailView);
@@ -144,11 +147,32 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
 MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::DidActivate, 
         void, MainMenuViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
     MainMenuViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
-    using namespace PlaylistManager;
     if(!PlaylistFilters::filtersInstance) {
+        LOG_INFO("creating filters");
         PlaylistFilters::filtersInstance = new PlaylistFilters();
         PlaylistFilters::filtersInstance->Init();
     }
+}
+
+// throw away objects on a soft restart
+MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::RestartGame,
+        void, MenuTransitionsHelper* self, System::Action_1<Zenject::DiContainer*>* finishCallback) {
+    if(PlaylistFilters::filtersInstance)
+        PlaylistFilters::filtersInstance->Destroy();
+    
+    if(ButtonsContainer::buttonsInstance)
+        ButtonsContainer::buttonsInstance->Destroy();
+    
+    if(PlaylistMenu::menuInstance)
+        PlaylistMenu::menuInstance->Destroy();
+    
+    ResettableStaticPtr::resetAll();
+
+    ClearLoadedImages();
+
+    LOG_INFO("deleted objects for soft restart");
+
+    MenuTransitionsHelper_RestartGame(self, finishCallback);
 }
 
 extern "C" void setup(ModInfo& info) {
@@ -166,7 +190,7 @@ extern "C" void setup(ModInfo& info) {
     
     auto configPath = GetConfigPath();
     if(fileexists(configPath)) {
-        PlaylistManager::ReadFromFile(configPath, playlistConfig);
+        ReadFromFile(configPath, playlistConfig);
     }
 }
 
@@ -179,9 +203,10 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_LoadBeatmapLevelAsync);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
+    INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
-            PlaylistManager::LoadPlaylists(customBeatmapLevelPackCollectionSO);
+            LoadPlaylists(customBeatmapLevelPackCollectionSO);
         }
     );
     LOG_INFO("Successfully installed PlaylistManager!");

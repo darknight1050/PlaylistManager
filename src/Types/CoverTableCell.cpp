@@ -1,5 +1,6 @@
 #include "Main.hpp"
 #include "Types/CoverTableCell.hpp"
+#include "ResettableStaticPtr.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 
@@ -38,11 +39,12 @@ void CoverTableCell::refreshVisuals() {
 void CoverTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     // get rounded sprite
     using TableCellType = GlobalNamespace::AnnotatedBeatmapLevelCollectionCell;
-    static auto cell = UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0];
-    static auto roundedSprite = cell->selectionImage->get_sprite();
+    // STATIC_AUTO(cell, UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0]);
+    static auto& cell = ResettableStaticPtr::registerPointer(UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0]);
+    if(!cell) cell = UnityEngine::Resources::FindObjectsOfTypeAll<TableCellType*>()[0];
+    STATIC_AUTO(roundedSprite, cell->selectionImage->get_sprite());
     // rounded corner material for the image
-    static auto roundedCornerMaterial = cell->coverImage->get_material();
-    // create images
+    STATIC_AUTO(roundedCornerMaterial, cell->coverImage->get_material());
     coverImage = BeatSaberUI::CreateImage(get_transform(), sprite, {0, 0}, {13, 13});
     coverImage->set_material(roundedCornerMaterial);
     selectedImage = BeatSaberUI::CreateImage(get_transform(), roundedSprite, {0, 0}, {20, 20});

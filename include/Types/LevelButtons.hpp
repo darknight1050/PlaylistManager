@@ -16,6 +16,7 @@ namespace PlaylistManager {
     class ButtonsContainer {
 
         private:
+        UnityEngine::GameObject* layoutObject;
         UnityEngine::UI::Button *saveCoverButton, *playlistAddButton, *playlistRemoveButton;
         HMUI::ModalView *playlistAddModal;
         class CustomListSource *playlistCovers;
@@ -43,5 +44,6 @@ namespace PlaylistManager {
         void SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
         void SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack);
         void RefreshPlaylists();
+        void Destroy();
     };
 }
