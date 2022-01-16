@@ -204,14 +204,20 @@ void ButtonsContainer::SetVisible(bool visible, bool showRemove) {
         playlistAddButton->get_gameObject()->set_active(visible);
     if(playlistRemoveButton)
         playlistRemoveButton->get_gameObject()->set_active(visible && showRemove);
+    if(playlistAddModal)
+        playlistAddModal->Hide(false, nullptr);
 }
 
 void ButtonsContainer::SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level) {
     currentLevel = level;
+    if(playlistAddModal)
+        playlistAddModal->Hide(false, nullptr);
 }
 
 void ButtonsContainer::SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack) {
     currentPack = pack;
+    if(playlistAddModal)
+        playlistAddModal->Hide(false, nullptr);
 }
 
 void ButtonsContainer::RefreshPlaylists() {

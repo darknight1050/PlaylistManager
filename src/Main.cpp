@@ -122,6 +122,11 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
     } else if(PlaylistMenu::menuInstance) {
         PlaylistMenu::menuInstance->SetVisible(false);
     }
+
+    // disable level buttons (hides modal if necessary)
+    if(ButtonsContainer::buttonsInstance) {
+        ButtonsContainer::buttonsInstance->SetVisible(false);
+    }
 }
 
 // when to show the level buttons
