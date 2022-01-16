@@ -2,8 +2,6 @@
 
 #include "custom-types/shared/coroutine.hpp"
 
-#include "Types/BPList.hpp"
-
 #include "UnityEngine/MonoBehaviour.hpp"
 
 #include "UnityEngine/Sprite.hpp"
@@ -16,6 +14,10 @@
 #include "TMPro/TextMeshProUGUI.hpp"
 
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+
+namespace PlaylistManager {
+    class Playlist;
+}
 
 DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
@@ -35,7 +37,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     bool detailsVisible, inMovement, addingPlaylist;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
-    BPList* playlist;
+    Playlist* playlist;
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);
     custom_types::Helpers::Coroutine refreshCoroutine();
@@ -66,8 +68,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     static std::function<void()> nextCloseKeyboard;
     static PlaylistMenu* menuInstance;
 
-    void Init(HMUI::ImageView* packImage, BPList* list);
-    void SetPlaylist(BPList* playlist);
+    void Init(HMUI::ImageView* packImage, Playlist* playlist);
+    void SetPlaylist(Playlist* playlist);
     void RefreshCovers();
 
     void SetVisible(bool visible);

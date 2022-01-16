@@ -40,7 +40,7 @@ void ButtonsContainer::addToPlaylistButtonPressed() {
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
-    auto json = GetPlaylistJSON(STR(currentPack->get_packName()));
+    auto playlist = GetPlaylist(STR(currentPack->get_packName()));
     auto levelArr = currentPack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
@@ -66,14 +66,14 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
     levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
     // clear selection since the selected song was just deleted
     levelListTableView->tableView->SelectCellWithIdx(0, true);
-    // update jsons
-    RemoveSongFromPlaylist(json, removeLevel);
+    // update our playlist object
+    RemoveSongFromPlaylist(playlist, removeLevel);
 }
 
 void ButtonsContainer::playlistSelected(int listCellIdx) {
     // add to playlist
     auto pack = loadedPacks[listCellIdx];
-    auto json = GetPlaylistJSON(STR(pack->get_packName()));
+    auto playlist = GetPlaylist(STR(pack->get_packName()));
     auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
@@ -99,8 +99,8 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
         levelListTableView->tableView->SelectCellWithIdx(currIndex, true);
         levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
     }
-    // update jsons
-    AddSongToPlaylist(json, reinterpret_cast<LevelType>(currentLevel));
+    // update our playlist object
+    AddSongToPlaylist(playlist, reinterpret_cast<LevelType>(currentLevel));
 }
 
 void ButtonsContainer::scrollListLeftButtonPressed() {
@@ -155,7 +155,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     playlistCovers = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(playlistAddModal->get_transform(), {70, 15}, [this](int cellIdx){
         playlistSelected(cellIdx);
     });
-    playlistCovers->setType(csTypeOf(PlaylistManager::CoverTableCell*));
+    playlistCovers->setType(csTypeOf(CoverTableCell*));
     playlistCovers->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     playlistCovers->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     RefreshPlaylists();
@@ -217,7 +217,7 @@ void ButtonsContainer::SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack) {
 void ButtonsContainer::RefreshPlaylists() {
     if(!playlistCovers)
         return;
-    loadedPacks = PlaylistManager::GetLoadedPlaylists();
+    loadedPacks = GetLoadedPlaylists();
     std::vector<UnityEngine::Sprite*> newCovers;
     std::vector<std::string> newHovers;
     for(auto pack : loadedPacks) {

@@ -171,7 +171,7 @@ void PlaylistFilters::reloadFolderPlaylists() {
     std::vector<std::string> names;
     for(std::string& name : currentFolder->PlaylistNames) {
         names.emplace_back(name);
-        covers.push_back(GetCoverImage(GetPlaylistJSON(name)));
+        covers.push_back(GetCoverImage(GetPlaylist(name)));
     }
     playlistList->replaceSprites(covers);
     playlistList->replaceTexts(names);

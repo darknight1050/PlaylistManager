@@ -106,15 +106,15 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
     if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(CSTR("custom_levelPack"))
         && !staticPacks.contains(STR(self->pack->get_packName()))) {
         // find playlist json
-        auto json = GetPlaylistJSON(STR(self->pack->get_packName()));
+        auto playlist = GetPlaylist(STR(self->pack->get_packName()));
         // create menu if necessary, if so avoid visibility calls
         bool construction = false;
         if(!PlaylistMenu::menuInstance) {
             auto playlistMenu = self->get_gameObject()->AddComponent<PlaylistMenu*>();
-            playlistMenu->Init(self->packImage, json);
+            playlistMenu->Init(self->packImage, playlist);
         } else {
-            if(json) {
-                PlaylistMenu::menuInstance->SetPlaylist(json);
+            if(playlist) {
+                PlaylistMenu::menuInstance->SetPlaylist(playlist);
                 PlaylistMenu::menuInstance->SetVisible(true);
             } else
                 PlaylistMenu::menuInstance->SetVisible(false);

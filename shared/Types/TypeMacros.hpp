@@ -93,3 +93,31 @@ for(auto member : name) { \
     name##_jsonArray.GetArray().PushBack(rapidjson::Value(member, allocator).Move(), allocator); \
 } \
 jsonObject.AddMember(#jsonName, name##_jsonArray, allocator);
+
+// functions, will be included with class definitions
+static bool ReadFromFile(std::string_view path, JSONClass& toDeserialize) {
+    if(!fileexists(path))
+        return false;
+    auto json = readfile(path);
+
+    rapidjson::Document document;
+    document.Parse(json);
+    if(document.HasParseError() || !document.IsObject())
+        return false;
+    
+    toDeserialize.Deserialize(document.GetObject());
+    return true;
+}
+
+static bool WriteToFile(std::string_view path, JSONClass& toSerialize) {
+    rapidjson::Document document;
+    document.SetObject();
+    toSerialize.Serialize(document.GetAllocator()).Swap(document);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    document.Accept(writer);
+    std::string s = buffer.GetString();
+
+    return writefile(path, s);
+}

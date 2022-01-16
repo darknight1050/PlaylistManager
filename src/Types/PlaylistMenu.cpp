@@ -170,7 +170,7 @@ void PlaylistMenu::addButtonPressed() {
 void PlaylistMenu::moveRightButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPackIndex(playlist->PlaylistTitle);
+    int configIdx = GetPackIndex(playlist->name);
     if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx < 0)
         return;
     MovePlaylist(playlist, configIdx + 1);
@@ -188,7 +188,7 @@ void PlaylistMenu::moveRightButtonPressed() {
 void PlaylistMenu::moveLeftButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPackIndex(playlist->PlaylistTitle);
+    int configIdx = GetPackIndex(playlist->name);
     if(oldCellIdx == 0 || configIdx <= 0)
         return;
     MovePlaylist(playlist, configIdx - 1);
@@ -211,7 +211,7 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
             if(!AvailablePlaylistName(currentTitle)) {
                 LOG_INFO("Resetting invalid title");
                 if(!addingPlaylist)
-                    playlistTitle->SetText(CSTR(playlist->PlaylistTitle));
+                    playlistTitle->SetText(CSTR(playlist->name));
                 else
                     playlistTitle->SetText(CSTR("New Playlist"));
                 return;
@@ -245,7 +245,7 @@ void PlaylistMenu::playlistAuthorTyped(std::string_view newValue) {
         PlaylistMenu::nextCloseKeyboard = [this](){
             LOG_INFO("Author set to %s", currentAuthor.c_str());
             if(!addingPlaylist)
-                playlist->PlaylistAuthor = currentAuthor;
+                playlist->playlistJSON.PlaylistAuthor = currentAuthor;
         };
     }
     // author cleared (x button)
@@ -286,7 +286,8 @@ void PlaylistMenu::cancelButtonPressed() {
 void PlaylistMenu::confirmDeleteButtonPressed() {
     confirmModal->Hide(true, nullptr);
     // delete playlist
-    DeletePlaylist(playlist->PlaylistTitle);
+    DeletePlaylist(playlist);
+    playlist = nullptr;
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
@@ -497,12 +498,12 @@ void PlaylistMenu::updateDetailsMode() {
     cancelButton->get_gameObject()->set_active(addingPlaylist);
 
     if(!addingPlaylist) {
-        playlistTitle->SetText(CSTR(playlist->PlaylistTitle));
+        playlistTitle->SetText(CSTR(playlist->name));
 
-        std::string auth = playlist->PlaylistAuthor ? playlist->PlaylistAuthor.value() : "";
+        std::string auth = playlist->playlistJSON.PlaylistAuthor ? playlist->playlistJSON.PlaylistAuthor.value() : "";
         playlistAuthor->SetText(CSTR(auth));
 
-        std::string desc = playlist->PlaylistDescription ? playlist->PlaylistDescription.value() : "...";
+        std::string desc = playlist->playlistJSON.PlaylistDescription ? playlist->playlistJSON.PlaylistDescription.value() : "...";
         playlistDescription->SetText(CSTR(desc));
 
         ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
@@ -522,7 +523,7 @@ void PlaylistMenu::scrollToIndex(int index) {
     gameTableView->didSelectAnnotatedBeatmapLevelCollectionEvent->Invoke(gameTableView->annotatedBeatmapLevelCollections->get_Item(index));
 }
 
-void PlaylistMenu::Init(HMUI::ImageView* packImage, BPList* list) {
+void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
     // get table view for setting selected cell
     auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>();
     if(arr.Length() < 1) {
@@ -532,8 +533,8 @@ void PlaylistMenu::Init(HMUI::ImageView* packImage, BPList* list) {
     }
     gameTableView = arr[0];
     playlist = list;
+    packImage = imageView;
     coverImageIndex = playlist->imageIndex;
-    this->packImage = packImage;
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(
@@ -542,8 +543,8 @@ void PlaylistMenu::Init(HMUI::ImageView* packImage, BPList* list) {
     PlaylistMenu::menuInstance = this;
 }
 
-void PlaylistMenu::SetPlaylist(BPList* list) {
-    LOG_INFO("Playlist set to %s", list->PlaylistTitle.c_str());
+void PlaylistMenu::SetPlaylist(Playlist* list) {
+    LOG_INFO("Playlist set to %s", list->name.c_str());
     playlist = list;
     coverImageIndex = playlist->imageIndex;
     if(coverImage)
@@ -560,7 +561,7 @@ void PlaylistMenu::RefreshCovers() {
     GetCoverImages();
     // add cover images and reload
     list->replaceSprites({GetDefaultCoverImage()});
-    list->addSprites(loadedImages);
+    list->addSprites(GetLoadedImages());
     list->tableView->ReloadData();
 }
 
