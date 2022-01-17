@@ -6,6 +6,7 @@
 #include "songloader/shared/CustomTypes/SongLoaderCustomBeatmapLevelPack.hpp"
 #include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 #include "UnityEngine/Sprite.hpp"
+#include "UnityEngine/Texture2D.hpp"
 
 namespace PlaylistManager {
 
@@ -19,7 +20,9 @@ namespace PlaylistManager {
 
     extern const std::unordered_set<std::string> staticPacks;
 
-    std::string WriteImageToFile(std::string_view pathToPng, UnityEngine::Sprite* image);
+    std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString);
+
+    void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture);
 
     int GetPackIndex(std::string title);
 

@@ -21,6 +21,7 @@
 #include "GlobalNamespace/LevelPackDetailViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
+#include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
@@ -109,7 +110,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
         auto playlist = GetPlaylist(STR(self->pack->get_packName()));
         // create menu if necessary, if so avoid visibility calls
         bool construction = false;
-        if(!PlaylistMenu::menuInstance) {
+        if(!PlaylistMenu::menuInstance && playlist) {
             auto playlistMenu = self->get_gameObject()->AddComponent<PlaylistMenu*>();
             playlistMenu->Init(self->packImage, playlist);
         } else {
@@ -125,7 +126,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
     // disable level buttons (hides modal if necessary)
     if(ButtonsContainer::buttonsInstance) {
-        ButtonsContainer::buttonsInstance->SetVisible(false);
+        ButtonsContainer::buttonsInstance->SetVisible(false, false);
     }
 }
 
@@ -146,6 +147,16 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
     ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
     ButtonsContainer::buttonsInstance->SetPack(reinterpret_cast<CustomBeatmapLevelPack*>(self->pack));
     return ret;
+}
+
+// highlight set level difficulties in a playlist
+MAKE_HOOK_MATCH(BeatmapDifficultySegmentedControlController_SetData, &BeatmapDifficultySegmentedControlController::SetData,
+        void, BeatmapDifficultySegmentedControlController* self, ArrayW<IDifficultyBeatmap*> difficultyBeatmaps, BeatmapDifficulty selectedDifficulty) {
+    BeatmapDifficultySegmentedControlController_SetData(self, difficultyBeatmaps, selectedDifficulty);
+
+    if(ButtonsContainer::buttonsInstance) {
+        ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
+    }
 }
 
 // when to set up the folders
@@ -207,6 +218,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_LoadBeatmapLevelAsync);
+    INSTALL_HOOK(getLogger(), BeatmapDifficultySegmentedControlController_SetData);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(

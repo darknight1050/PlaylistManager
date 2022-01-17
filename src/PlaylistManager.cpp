@@ -16,9 +16,25 @@
 #include "System/Convert.hpp"
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/ImageConversion.hpp"
+#include "UnityEngine/RenderTexture.hpp"
 #include "GlobalNamespace/CustomLevelLoader.hpp"
 
 using namespace RuntimeSongLoader;
+
+std::string GetBase64ImageType(std::string& base64) {
+    if(base64.length() < 3)
+        return "";
+    std::string sub = base64.substr(0, 3);
+    if(sub == "iVB")
+        return ".png";
+    if(sub == "/9j")
+        return ".jpg";
+    if(sub == "R0l")
+        return ".gif";
+    if(sub == "Qk1")
+        return ".bmp";
+    return "";
+}
 
 std::string SanitizeFileName(std::string fileName) {
     std::string newName;
@@ -69,7 +85,7 @@ std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
     auto wipIndex = id.find(" WIP");
     if(wipIndex != std::string::npos)
         id = id.substr(0, wipIndex);
-    std::transform(id.begin(), id.end(), id.begin(), toupper);
+    LOWER(id);
     return id;
 }
 
@@ -78,14 +94,11 @@ namespace PlaylistManager {
     std::unordered_map<std::string, Playlist*> name_playlists;
     std::unordered_map<std::string, Playlist*> path_playlists;
 
-    // map from playlist names to json objects
-    // std::unordered_map<std::string, BPList*> playlists_json;
-    // map from file paths to songloader playlists
-    // SafePtr<System::Collections::Generic::Dictionary_2<Il2CppString*, SongLoaderCustomBeatmapLevelPack*>> path_playlists;
-    // keep track of images to avoid loading duplicates
     std::hash<std::string> hasher;
     std::unordered_map<std::size_t, int> imageHashes;
     
+    // desired image size
+    const int imageSize = 256;
     // array of all loaded images
     std::vector<UnityEngine::Sprite*> loadedImages;
     // all unusable playlists
@@ -110,26 +123,46 @@ namespace PlaylistManager {
         "WIP Levels"
     };
     
-    std::string GetBase64ImageType(std::string& base64) {
-        if(base64.length() < 3)
+    std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString) {
+        // check texture size and resize if necessary
+        int width = texture->get_width();
+        int height = texture->get_height();
+        if(width > imageSize && height > imageSize) {
+            // resize (https://gist.github.com/gszauer/7799899 modified for only downscaling)
+            auto texColors = texture->GetPixels();
+            ArrayW<UnityEngine::Color> newColors(imageSize * imageSize);
+            float ratio_x = ((float) width - 1) / imageSize;
+            float ratio_y = ((float) height - 1) / imageSize;
+
+            for(int y = 0; y < imageSize; y++) {
+                int offset_from_y = y * imageSize;
+
+                int old_texture_y = floor(y * ratio_y);
+                int old_texture_offset_from_y = old_texture_y * width;
+                
+                for(int x = 0; x < imageSize; x++) {
+                    int old_texture_x = floor(x * ratio_x);
+
+                    newColors[offset_from_y + x] = texColors[old_texture_offset_from_y + old_texture_x];
+                }
+            }
+            texture->Resize(imageSize, imageSize);
+            texture->SetPixels(newColors);
+            texture->Apply();
+        }
+        if(!returnPngString)
             return "";
-        std::string sub = base64.substr(0, 3);
-        if(sub == "iVB")
-            return ".png";
-        if(sub == "/9j")
-            return ".jpg";
-        if(sub == "R0l")
-            return ".gif";
-        if(sub == "Qk1")
-            return ".bmp";
-        return "";
+        // convert to png if necessary
+        // can sometimes need two passes to reach a fixed result
+        // but I don't want to to it twice for every cover, so it will just normalize itself after another restart
+        // and it shouldn't be a problem through ingame cover management
+        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(texture);
+        return STR(System::Convert::ToBase64String(bytes));
     }
 
-    // returns base 64 string of png as well
-    std::string WriteImageToFile(std::string_view pathToPng, UnityEngine::Sprite* image) {
-        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(image->get_texture());
+    void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture) {
+        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(texture);
         writefile(pathToPng, std::string(reinterpret_cast<char*>(bytes.begin()), bytes.Length()));
-        return STR(System::Convert::ToBase64String(bytes));
     }
     
     int GetPackIndex(std::string title) {
@@ -174,11 +207,9 @@ namespace PlaylistManager {
             }
             // get and write sprite
             auto sprite = QuestUI::BeatSaberUI::Base64ToSprite(imageBase64);
-            // compare sanitized hash
-            // can sometimes need two passes?? idk but I don't want to add to the lag and do it on every playlist, so just restart I guess
-            auto bytes = UnityEngine::ImageConversion::EncodeToPNG(sprite->get_texture());
+            // process texture size and png string and check hash for changes
             std::size_t oldHash = imgHash;
-            imageBase64 = STR(System::Convert::ToBase64String(bytes));
+            imageBase64 = ProcessImage(sprite->get_texture(), true);
             imgHash = hasher(imageBase64);
             // write to playlist if changed
             if(imgHash != oldHash) {
@@ -193,8 +224,10 @@ namespace PlaylistManager {
             }
             // save image as file and return
             LOG_INFO("Writing image with hash %lu", imgHash);
-            std::string imgPath = GetCoversPath() + "/" + playlist->name + "_" + std::to_string(imgHash) + ".png";
-            writefile(imgPath, std::string(reinterpret_cast<char*>(bytes.begin()), bytes.Length()));
+            // reuse playlist file name
+            std::string playlistPathName = std::filesystem::path(playlist->path).stem();
+            std::string imgPath = GetCoversPath() + "/" + playlistPathName + ".png";
+            WriteImageToFile(imgPath, sprite->get_texture());
             imageHashes.insert({imgHash, loadedImages.size()});
             playlist->imageIndex = loadedImages.size();
             loadedImages.emplace_back(sprite);
@@ -234,7 +267,10 @@ namespace PlaylistManager {
                 }
                 // sanatize hash by converting to png
                 auto sprite = QuestUI::BeatSaberUI::ArrayToSprite(bytes);
-                imgHash = hasher(WriteImageToFile(path.string(), sprite));
+                std::size_t oldHash = imgHash;
+                imgHash = hasher(ProcessImage(sprite->get_texture(), true));
+                if(imgHash != oldHash)
+                    WriteImageToFile(path.string(), sprite->get_texture());
                 // check hash with loaded images
                 if(imageHashes.contains(imgHash)) {
                     LOG_INFO("Skipping loading image with hash %lu", imgHash);
@@ -242,11 +278,12 @@ namespace PlaylistManager {
                 }
                 LOG_INFO("Loading image with hash %lu", imgHash);
                 // rename file with hash for identification (coolImage -> coolImage_1987238271398)
-                auto searchIndex = path.stem().string().rfind("_") + 1;
-                if(path.stem().string().substr(searchIndex) != std::to_string(imgHash)) {
-                    LOG_INFO("Renaming image file with hash %lu", imgHash);
-                    std::filesystem::rename(path, path.parent_path() / (path.stem().string() + "_" + std::to_string(imgHash) + ".png"));
-                }
+                // could be useful if images from playlist files are loaded first, but atm they are not
+                // auto searchIndex = path.stem().string().rfind("_") + 1;
+                // if(path.stem().string().substr(searchIndex) != std::to_string(imgHash)) {
+                //     LOG_INFO("Renaming image file with hash %lu", imgHash);
+                //     std::filesystem::rename(path, path.parent_path() / (path.stem().string() + "_" + std::to_string(imgHash) + ".png"));
+                // }
                 imageHashes.insert({imgHash, loadedImages.size()});
                 loadedImages.emplace_back(sprite);
             }
@@ -361,7 +398,7 @@ namespace PlaylistManager {
         std::vector<GlobalNamespace::CustomBeatmapLevelPack*> ret(playlistConfig.Order.size());
         for(auto& pair : name_playlists) {
             auto& playlist = pair.second;
-            auto pack = playlist->playlistCS;
+            auto& pack = playlist->playlistCS;
             if(pack) {
                 int idx = GetPackIndex(playlist->name);
                 if(idx >= 0)
@@ -456,7 +493,7 @@ namespace PlaylistManager {
             }
         }
         // rename playlist ingame
-        auto levelPack = playlist->playlistCS;
+        auto& levelPack = playlist->playlistCS;
         if(levelPack) {
             auto nameCS = CSTR(playlist->name);
             levelPack->packName = nameCS;
@@ -479,7 +516,7 @@ namespace PlaylistManager {
             isDefault = true;
         }
         playlist->imageIndex = coverIndex;
-        auto json = playlist->playlistJSON;
+        auto& json = playlist->playlistJSON;
         if(isDefault)
             json.ImageString = std::nullopt;
         else {
@@ -533,7 +570,7 @@ namespace PlaylistManager {
     }
 
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
-        auto json = playlist->playlistJSON;
+        auto& json = playlist->playlistJSON;
         // add a blank song
         json.Songs.emplace_back(BPSong());
         // set info
@@ -545,13 +582,12 @@ namespace PlaylistManager {
     }
 
     void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
-        auto json = playlist->playlistJSON;
+        auto& json = playlist->playlistJSON;
         // find song by hash (since the field is required) and remove
         auto levelHash = GetLevelHash(level);
         for(auto itr = json.Songs.begin(); itr != json.Songs.end(); ++itr) {
             auto& song = *itr;
-            std::transform(song.Hash.begin(), song.Hash.end(), song.Hash.begin(), toupper);
-            std::transform(levelHash.begin(), levelHash.end(), levelHash.begin(), toupper);
+            LOWER(song.Hash);
             if(song.Hash == levelHash) {
                 json.Songs.erase(itr);
                 // only erase

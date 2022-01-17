@@ -13,6 +13,8 @@
 #define CSTR(string) il2cpp_utils::newcsstr(string)
 #define STATIC_CSTR(name, string) static auto name = il2cpp_utils::newcsstr<il2cpp_utils::CreationType::Manual>(string)
 
+#define LOWER(string) std::transform(string.begin(), string.end(), string.begin(), tolower)
+
 #include "beatsaber-hook/shared/utils/utils.h"
 Logger& getLogger();
 

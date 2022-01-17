@@ -31,14 +31,18 @@ name = jsonValue[#jsonName].Get##type();
 #define DESERIALIZE_VALUE_OPTIONAL(name, jsonName, type) \
 if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].Is##type()) { \
     name = jsonValue[#jsonName].Get##type(); \
-} else { \
-    name = std::nullopt; \
-}
+} else name = std::nullopt;
 
 #define DESERIALIZE_CLASS(name, jsonName) \
 if (!jsonValue.HasMember(#jsonName)) throw #jsonName " not found"; \
 if (!jsonValue[#jsonName].IsObject()) throw #jsonName ", type expected was: JsonObject"; \
 name.Deserialize(jsonValue[#jsonName]);
+
+#define DESERIALIZE_CLASS_OPTIONAL(name, jsonName) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsObject()) { \
+    if(!name.has_value()) name.emplace(); \
+    name->Deserialize(jsonValue[#jsonName]); \
+} else name = std::nullopt;
 
 // seems to assume vector is of another json class
 #define DESERIALIZE_VECTOR(name, jsonName, type) \
@@ -47,11 +51,23 @@ name.clear(); \
 auto& jsonName = jsonValue[#jsonName]; \
 if(jsonName.IsArray()) { \
     for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
-        type value; \
+        type value{}; \
         value.Deserialize(*it); \
         name.push_back(value); \
     } \
 } else throw #jsonName ", type expected was: JsonArray";
+
+#define DESERIALIZE_VECTOR_OPTIONAL(name, jsonName, type) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
+    if(!name.has_value()) name.emplace(); \
+    else name->clear(); \
+    auto& jsonName = jsonValue[#jsonName]; \
+    for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
+        type value{}; \
+        value.Deserialize(*it); \
+        name->push_back(value); \
+    } \
+} else name = std::nullopt;
 
 #define DESERIALIZE_VECTOR_BASIC(name, jsonName, type) \
 if (!jsonValue.HasMember(#jsonName)) throw #jsonName " not found"; \
@@ -62,6 +78,16 @@ if(jsonName.IsArray()) { \
         name.push_back(it->Get##type()); \
     } \
 } else throw #jsonName ", type expected was: JsonArray";
+
+#define DESERIALIZE_VECTOR_BASIC_OPTIONAL(name, jsonName, type) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
+    if(!name.has_value()) name.emplace(); \
+    else name->clear(); \
+    auto& jsonName = jsonValue[#jsonName]; \
+    for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
+        name.push_back(it->Get##type()); \
+    } \
+} else name = std::nullopt;
 
 #define SERIALIZE_METHOD(namespaze, name, impl) \
 rapidjson::Value namespaze::name::Serialize(rapidjson::Document::AllocatorType& allocator) { \
@@ -79,6 +105,9 @@ if(name) jsonObject.AddMember(#jsonName, name.value(), allocator);
 #define SERIALIZE_CLASS(name, jsonName) \
 jsonObject.AddMember(#jsonName, name.Serialize(allocator), allocator);
 
+#define SERIALIZE_CLASS_OPTIONAL(name, jsonName) \
+if(name) jsonObject.AddMember(#jsonName, name->Serialize(allocator), allocator);
+
 // assumes vector is of json serializables
 #define SERIALIZE_VECTOR(name, jsonName) \
 rapidjson::Value name##_jsonArray(rapidjson::kArrayType); \
@@ -87,12 +116,30 @@ for(auto jsonClass : name) { \
 } \
 jsonObject.AddMember(#jsonName, name##_jsonArray, allocator);
 
+#define SERIALIZE_VECTOR_OPTIONAL(name, jsonName) \
+if(name) { \
+    rapidjson::Value name##_jsonArray(rapidjson::kArrayType); \
+    for(auto jsonClass : name.value()) { \
+        name##_jsonArray.GetArray().PushBack(jsonClass.Serialize(allocator), allocator); \
+    } \
+    jsonObject.AddMember(#jsonName, name##_jsonArray, allocator);\
+}
+
 #define SERIALIZE_VECTOR_BASIC(name, jsonName) \
 rapidjson::Value name##_jsonArray(rapidjson::kArrayType); \
 for(auto member : name) { \
     name##_jsonArray.GetArray().PushBack(rapidjson::Value(member, allocator).Move(), allocator); \
 } \
 jsonObject.AddMember(#jsonName, name##_jsonArray, allocator);
+
+#define SERIALIZE_VECTOR_BASIC_OPTIONAL(name, jsonName) \
+if(name) { \
+    rapidjson::Value name##_jsonArray(rapidjson::kArrayType); \
+    for(auto member : name.value()) { \
+        name##_jsonArray.GetArray().PushBack(rapidjson::Value(member, allocator).Move(), allocator); \
+    } \
+    jsonObject.AddMember(#jsonName, name##_jsonArray, allocator); \
+}
 
 // functions, will be included with class definitions
 static bool ReadFromFile(std::string_view path, JSONClass& toDeserialize) {
@@ -105,7 +152,11 @@ static bool ReadFromFile(std::string_view path, JSONClass& toDeserialize) {
     if(document.HasParseError() || !document.IsObject())
         return false;
     
-    toDeserialize.Deserialize(document.GetObject());
+    try {
+        toDeserialize.Deserialize(document.GetObject());
+    } catch (...) {
+        return false;
+    }
     return true;
 }
 

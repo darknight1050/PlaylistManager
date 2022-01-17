@@ -15,6 +15,8 @@
 #include "UnityEngine/Rect.hpp"
 #include "UnityEngine/UI/Mask.hpp"
 
+#include "UnityEngine/Networking/UnityWebRequest.hpp"
+
 #include "HMUI/CurvedTextMeshPro.hpp"
 #include "HMUI/UIKeyboard.hpp"
 #include "HMUI/ScrollView.hpp"
@@ -150,7 +152,7 @@ void PlaylistMenu::infoButtonPressed() {
 }
 
 void PlaylistMenu::syncButtonPressed() {
-    // sync
+    // auto webRequest = UnityEngine::Networking::UnityWebRequest::New_ctor()
 }
 
 void PlaylistMenu::addButtonPressed() {

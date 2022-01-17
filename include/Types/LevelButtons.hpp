@@ -44,6 +44,7 @@ namespace PlaylistManager {
         void SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
         void SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack);
         void RefreshPlaylists();
+        void RefreshHighlightedDifficulties();
         void Destroy();
     };
 }

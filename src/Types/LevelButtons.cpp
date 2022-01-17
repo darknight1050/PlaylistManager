@@ -10,8 +10,12 @@
 
 #include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
+#include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
+#include "GlobalNamespace/BeatmapCharacteristicSegmentedControlController.hpp"
+#include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
 
 #include "HMUI/ScrollView.hpp"
+#include "HMUI/TextSegmentedControl.hpp"
 
 #include "UnityEngine/Resources.hpp"
 
@@ -28,8 +32,14 @@ void ButtonsContainer::saveCoverButtonPressed() {
     // get cover image (blocking async, yay)
     auto levelData = reinterpret_cast<GlobalNamespace::IPreviewBeatmapLevel*>(levelDetailView->level);
     auto sprite = levelData->GetCoverImageAsync(System::Threading::CancellationToken::get_None())->get_Result();
+    if(!sprite)
+        return;
+    // copy sprite texture for downscaling
+    auto newTexture = UnityEngine::Texture2D::New_ctor(sprite->get_texture()->get_width(), sprite->get_texture()->get_height());
+    newTexture->SetPixels(sprite->get_texture()->GetPixels());
     // save to file
-    WriteImageToFile(GetCoversPath() + "/" + STR(levelData->get_songName()) + "_cover.png", sprite);
+    ProcessImage(newTexture, false);
+    WriteImageToFile(GetCoversPath() + "/" + STR(levelData->get_songName()) + "_cover.png", newTexture);
     // reload from file
     if(PlaylistMenu::menuInstance)
         PlaylistMenu::menuInstance->RefreshCovers();
@@ -41,6 +51,8 @@ void ButtonsContainer::addToPlaylistButtonPressed() {
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
     auto playlist = GetPlaylist(STR(currentPack->get_packName()));
+    if(!playlist)
+        return;
     auto levelArr = currentPack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
@@ -233,6 +245,50 @@ void ButtonsContainer::RefreshPlaylists() {
     playlistCovers->replaceSprites(newCovers);
     playlistCovers->replaceTexts(newHovers);
     playlistCovers->tableView->ReloadData();
+}
+
+void ButtonsContainer::RefreshHighlightedDifficulties() {
+    // get / check for current playlist
+    auto playlist = GetPlaylist(STR(currentPack->get_packName()));
+    if(!playlist)
+        return;
+    // get difficulty display object
+    auto segmentedController = levelDetailView->beatmapDifficultySegmentedControlController;
+    auto cells = segmentedController->difficultySegmentedControl->cells;
+    // get selected characteristic
+    std::string characteristic = STR(levelDetailView->beatmapCharacteristicSegmentedControlController->selectedBeatmapCharacteristic->serializedName);
+    LOWER(characteristic);
+    // set highlighted or not based on values
+    auto difficulties = playlist->playlistJSON.Difficulties;
+    if(difficulties.has_value()) {
+        for(auto& difficulty : difficulties.value()) {
+            LOWER(difficulty.Characteristic);
+            if(difficulty.Characteristic == characteristic) {
+                // attempt to find difficulty
+                LOWER(difficulty.Name);
+                int diff = -1;
+                static const std::vector<std::string> diffNames = {"easy", "normal", "hard", "expert", "expertPlus"};
+                for(int i = 0; i < diffNames.size(); i++) {
+                    if(diffNames[i] == difficulty.Name) {
+                        diff = i;
+                        break;
+                    }
+                } if(diff < 0)
+                    continue;
+                // get closest index for pc parity
+                auto text = cells->get_Item(segmentedController->GetClosestDifficultyIndex(diff))->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
+                if(text)
+                    text->set_faceColor({1, 1, 0, 1});
+            }
+        }
+    } else {
+        // unhighlight all cells
+        // for(int i = 0; i < cells->Length(); i++) {
+        //     auto text = cells->get_Item(i)->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
+        //     if(text)
+        //         text->set_faceColor({1, 1, 1, 1});
+        // }
+    }
 }
 
 void ButtonsContainer::Destroy() {
