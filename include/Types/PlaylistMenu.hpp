@@ -41,6 +41,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);
     custom_types::Helpers::Coroutine refreshCoroutine();
+    custom_types::Helpers::Coroutine syncCoroutine();
 
     custom_types::Helpers::Coroutine initCoroutine();
 

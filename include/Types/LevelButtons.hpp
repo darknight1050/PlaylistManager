@@ -13,6 +13,8 @@
 #include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
 
 namespace PlaylistManager {
+    class Playlist;
+
     class ButtonsContainer {
 
         private:
@@ -23,9 +25,9 @@ namespace PlaylistManager {
         GlobalNamespace::StandardLevelDetailView *levelDetailView;
         GlobalNamespace::LevelCollectionTableView *levelListTableView;
         GlobalNamespace::IPreviewBeatmapLevel* currentLevel;
-        GlobalNamespace::CustomBeatmapLevelPack* currentPack;
+        Playlist* currentPlaylist;
 
-        std::vector<GlobalNamespace::CustomBeatmapLevelPack*> loadedPacks;
+        std::vector<Playlist*> loadedPlaylists;
 
         custom_types::Helpers::Coroutine initCoroutine();
 
@@ -42,7 +44,7 @@ namespace PlaylistManager {
         void Init(GlobalNamespace::StandardLevelDetailView* levelDetailView);
         void SetVisible(bool visible, bool showRemove);
         void SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
-        void SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack);
+        void SetPlaylist(Playlist* playlist);
         void RefreshPlaylists();
         void RefreshHighlightedDifficulties();
         void Destroy();

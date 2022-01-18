@@ -16,6 +16,8 @@
 #include "UnityEngine/UI/Mask.hpp"
 
 #include "UnityEngine/Networking/UnityWebRequest.hpp"
+#include "UnityEngine/Networking/UnityWebRequest_UnityWebRequestError.hpp"
+#include "UnityEngine/Networking/DownloadHandler.hpp"
 
 #include "HMUI/CurvedTextMeshPro.hpp"
 #include "HMUI/UIKeyboard.hpp"
@@ -135,6 +137,46 @@ custom_types::Helpers::Coroutine PlaylistMenu::refreshCoroutine() {
     co_return;
 }
 
+custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
+    LOG_INFO("syncing");
+    auto& customData = playlist->playlistJSON.CustomData;
+    if(!customData.has_value())
+        co_return;
+    LOG_INFO("has custom data");
+    auto& syncUrl = customData->SyncURL;
+    if(!syncUrl.has_value())
+        co_return;
+    LOG_INFO("sending request");
+    auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(CSTR(syncUrl.value()));
+
+    co_yield (System::Collections::IEnumerator*) webRequest->SendWebRequest();
+
+    if(webRequest->GetError() != UnityEngine::Networking::UnityWebRequest::UnityWebRequestError::OK) {
+        LOG_ERROR("Sync request failed! Error: %s", STR(webRequest->GetWebErrorString(webRequest->GetError())).c_str());
+        co_return;
+    }
+
+    auto index = GetPackIndex(playlist->name);
+    auto path = playlist->path;
+    // delete outdated playlist so that the new one can be fully reloaded
+    DeletePlaylist(playlist);
+    // save synced playlist
+    auto text = STR(webRequest->get_downloadHandler()->GetText());
+    writefile(path, text);
+    // reload playlists
+    RefreshPlaylists();
+    // playlist should be at the end, since it was removed from the config on deletion
+    auto newPlaylist = *(GetLoadedPlaylists().end() - 1);
+    // move playlist to correct index
+    MovePlaylist(newPlaylist, index);
+    scrollToIndex(index);
+    // update playlist in level buttons
+    if(ButtonsContainer::buttonsInstance)
+        ButtonsContainer::buttonsInstance->RefreshPlaylists();
+
+    co_return;
+}
+
 #pragma region uiFunctions
 void PlaylistMenu::infoButtonPressed() {
     if(inMovement)
@@ -152,7 +194,9 @@ void PlaylistMenu::infoButtonPressed() {
 }
 
 void PlaylistMenu::syncButtonPressed() {
-    // auto webRequest = UnityEngine::Networking::UnityWebRequest::New_ctor()
+    LOG_INFO("syncButtonPressed");
+    SharedCoroutineStarter::get_instance()->StartCoroutine(
+        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(syncCoroutine())));
 }
 
 void PlaylistMenu::addButtonPressed() {
@@ -277,6 +321,7 @@ void PlaylistMenu::createButtonPressed() {
     }
     // create new playlist based on fields
     AddPlaylist(currentTitle, currentAuthor, coverImage->get_sprite());
+    RefreshPlaylists();
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
@@ -290,6 +335,7 @@ void PlaylistMenu::confirmDeleteButtonPressed() {
     // delete playlist
     DeletePlaylist(playlist);
     playlist = nullptr;
+    RefreshPlaylists();
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }

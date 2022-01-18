@@ -50,10 +50,8 @@ void ButtonsContainer::addToPlaylistButtonPressed() {
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
-    auto playlist = GetPlaylist(STR(currentPack->get_packName()));
-    if(!playlist)
-        return;
-    auto levelArr = currentPack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+    auto pack = currentPlaylist->playlistCS;
+    auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
     auto newLevels = List<LevelType>::New_ctor();
@@ -69,7 +67,7 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
             removed = true;
     }
     auto newLevelsArr = newLevels->ToArray();
-    currentPack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevelsArr;
+    pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevelsArr;
     // keep scroll position
     float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
     anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
@@ -79,13 +77,13 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
     // clear selection since the selected song was just deleted
     levelListTableView->tableView->SelectCellWithIdx(0, true);
     // update our playlist object
-    RemoveSongFromPlaylist(playlist, removeLevel);
+    RemoveSongFromPlaylist(currentPlaylist, removeLevel);
 }
 
 void ButtonsContainer::playlistSelected(int listCellIdx) {
     // add to playlist
-    auto pack = loadedPacks[listCellIdx];
-    auto playlist = GetPlaylist(STR(pack->get_packName()));
+    auto& playlist = loadedPlaylists[listCellIdx];
+    auto pack = playlist->playlistCS;
     auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     // using a list because arrays are hell
     using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
@@ -100,7 +98,7 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
     playlistCovers->tableView->ClearSelection();
     playlistAddModal->Hide(true, nullptr);
     // update playlist table if necessary
-    if(pack == currentPack) {
+    if(playlist == currentPlaylist) {
         // keep selected cell
         int currIndex = levelListTableView->selectedRow;
         // keep scroll position
@@ -226,8 +224,8 @@ void ButtonsContainer::SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level) {
         playlistAddModal->Hide(false, nullptr);
 }
 
-void ButtonsContainer::SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack) {
-    currentPack = pack;
+void ButtonsContainer::SetPlaylist(Playlist* playlist) {
+    currentPlaylist = playlist;
     if(playlistAddModal)
         playlistAddModal->Hide(false, nullptr);
 }
@@ -235,12 +233,12 @@ void ButtonsContainer::SetPack(GlobalNamespace::CustomBeatmapLevelPack* pack) {
 void ButtonsContainer::RefreshPlaylists() {
     if(!playlistCovers)
         return;
-    loadedPacks = GetLoadedPlaylists();
+    loadedPlaylists = GetLoadedPlaylists();
     std::vector<UnityEngine::Sprite*> newCovers;
     std::vector<std::string> newHovers;
-    for(auto pack : loadedPacks) {
-        newCovers.emplace_back(pack->get_coverImage());
-        newHovers.emplace_back(STR(pack->get_packName()));
+    for(auto& playlist : loadedPlaylists) {
+        newCovers.emplace_back(GetCoverImage(playlist));
+        newHovers.emplace_back(playlist->name);
     }
     playlistCovers->replaceSprites(newCovers);
     playlistCovers->replaceTexts(newHovers);
@@ -248,10 +246,6 @@ void ButtonsContainer::RefreshPlaylists() {
 }
 
 void ButtonsContainer::RefreshHighlightedDifficulties() {
-    // get / check for current playlist
-    auto playlist = GetPlaylist(STR(currentPack->get_packName()));
-    if(!playlist)
-        return;
     // get difficulty display object
     auto segmentedController = levelDetailView->beatmapDifficultySegmentedControlController;
     auto cells = segmentedController->difficultySegmentedControl->cells;
@@ -259,7 +253,7 @@ void ButtonsContainer::RefreshHighlightedDifficulties() {
     std::string characteristic = STR(levelDetailView->beatmapCharacteristicSegmentedControlController->selectedBeatmapCharacteristic->serializedName);
     LOWER(characteristic);
     // set highlighted or not based on values
-    auto difficulties = playlist->playlistJSON.Difficulties;
+    auto difficulties = currentPlaylist->playlistJSON.Difficulties;
     if(difficulties.has_value()) {
         for(auto& difficulty : difficulties.value()) {
             LOWER(difficulty.Characteristic);

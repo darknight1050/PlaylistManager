@@ -311,6 +311,13 @@ namespace PlaylistManager {
         return true;
     }
 
+    std::string GetPath(std::string title) {
+        std::string fileTitle = SanitizeFileName(title);
+        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
+            fileTitle += "_";
+        return GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json";
+    }
+
     void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh) {
         // load images if none are loaded
         if(loadedImages.size() < 1)
@@ -333,11 +340,11 @@ namespace PlaylistManager {
             if(!entry.is_directory()) {
                 // check if playlist has been loaded already
                 auto path = entry.path().string();
-                auto iter = path_playlists.find(path);
-                if(iter != path_playlists.end()) {
+                auto path_iter = path_playlists.find(path);
+                if(path_iter != path_playlists.end()) {
                     LOG_INFO("Loading playlist file %s from cache", path.c_str());
                     // check if playlist should be added
-                    auto playlist = iter->second;
+                    auto playlist = path_iter->second;
                     if(ShouldAddPack(playlist->name)) {
                         int packPosition = GetPackIndex(playlist->name);
                         // add if new (idk how)
@@ -393,19 +400,16 @@ namespace PlaylistManager {
         }
     }
 
-    std::vector<GlobalNamespace::CustomBeatmapLevelPack*> GetLoadedPlaylists() {
+    std::vector<Playlist*> GetLoadedPlaylists() {
         // create return vector with base size
-        std::vector<GlobalNamespace::CustomBeatmapLevelPack*> ret(playlistConfig.Order.size());
+        std::vector<Playlist*> ret(playlistConfig.Order.size());
         for(auto& pair : name_playlists) {
             auto& playlist = pair.second;
-            auto& pack = playlist->playlistCS;
-            if(pack) {
-                int idx = GetPackIndex(playlist->name);
-                if(idx >= 0)
-                    ret[idx] = pack;
-                else
-                    ret.push_back(pack);
-            }
+            int idx = GetPackIndex(playlist->name);
+            if(idx >= 0)
+                ret[idx] = playlist;
+            else
+                ret.push_back(playlist);
         }
         // remove empty slots
         int i = 0;
@@ -435,11 +439,8 @@ namespace PlaylistManager {
         auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
         newPlaylist.ImageString = STR(System::Convert::ToBase64String(bytes));
         // save playlist
-        std::string fileTitle = SanitizeFileName(title);
-        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
-            fileTitle += "_";
-        WriteToFile(GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json", newPlaylist);
-        RefreshPlaylists(); // load it, with the others because I'm lazy
+        std::string path = GetPath(title);
+        WriteToFile(path, newPlaylist);
     }
 
     void MovePlaylist(Playlist* playlist, int index) {
@@ -473,10 +474,7 @@ namespace PlaylistManager {
             LOG_ERROR("Could not find playlist by path");
             return;
         }
-        std::string fileTitle = SanitizeFileName(title);
-        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
-            fileTitle += "_";
-        std::string newPath = GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json";
+        std::string newPath = GetPath(title);
         // edit variables
         playlistConfig.Order[orderIndex] = title;
         playlist->name = title;
@@ -558,8 +556,6 @@ namespace PlaylistManager {
             playlistConfig.Order.erase(playlistConfig.Order.end() - 1);
         // delete playlist object
         delete playlist;
-        // reload because I am again lazy
-        RefreshPlaylists();
     }
 
     void RefreshPlaylists() {

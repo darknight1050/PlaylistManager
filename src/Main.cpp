@@ -145,7 +145,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
     bool customSong = customPack || name == "Custom Levels" || name == "Custom WIP Levels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
     ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
-    ButtonsContainer::buttonsInstance->SetPack(reinterpret_cast<CustomBeatmapLevelPack*>(self->pack));
+    ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(STR(self->pack->get_packName())));
     return ret;
 }
 

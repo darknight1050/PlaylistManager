@@ -38,9 +38,11 @@ namespace PlaylistManager {
 
     bool AvailablePlaylistName(std::string title);
 
+    std::string GetPath(std::string title);
+
     void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh = false);
 
-    std::vector<GlobalNamespace::CustomBeatmapLevelPack*> GetLoadedPlaylists();
+    std::vector<Playlist*> GetLoadedPlaylists();
 
     Playlist* GetPlaylist(std::string title);
 
