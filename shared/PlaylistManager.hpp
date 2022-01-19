@@ -30,6 +30,8 @@ namespace PlaylistManager {
 
     UnityEngine::Sprite* GetCoverImage(Playlist* playlist);
 
+    void DeleteLoadedImage(UnityEngine::Sprite* image);
+
     void GetCoverImages();
 
     std::vector<UnityEngine::Sprite*>& GetLoadedImages();
@@ -56,7 +58,7 @@ namespace PlaylistManager {
 
     void DeletePlaylist(Playlist* playlist);
 
-    void RefreshPlaylists();
+    void RefreshPlaylists(bool fullRefresh = false);
     
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
 

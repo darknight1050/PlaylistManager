@@ -4,6 +4,7 @@
 #include "Types/LevelButtons.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
+#include "Settings.hpp"
 #include "ResettableStaticPtr.hpp"
 
 #include <chrono>
@@ -92,7 +93,9 @@ MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCe
 // assumes only one keyboard will be open at a time
 MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::DeactivateKeyboard,
         void, HMUI::InputFieldView* self, HMUI::UIKeyboard* keyboard) {
+
     InputFieldView_DeactivateKeyboard(self, keyboard);
+
     if(PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard();
         PlaylistMenu::nextCloseKeyboard = nullptr;
@@ -102,7 +105,11 @@ MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::Deacti
 // when to show the playlist menu
 MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewController::ShowContent,
         void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, ::Il2CppString* errorText) {
+    
     LevelPackDetailViewController_ShowContent(self, contentType, errorText);
+
+    if(!playlistConfig.Management)
+        return;
 
     if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(CSTR("custom_levelPack"))
         && !staticPacks.contains(STR(self->pack->get_packName()))) {
@@ -135,6 +142,9 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
         System::Threading::Tasks::Task*, StandardLevelDetailViewController* self, System::Threading::CancellationToken cancellationToken) {\
 
     auto ret = StandardLevelDetailViewController_LoadBeatmapLevelAsync(self, cancellationToken);
+
+    if(!playlistConfig.Management)
+        return ret;
     
     if(!ButtonsContainer::buttonsInstance) {
         ButtonsContainer::buttonsInstance = new ButtonsContainer();
@@ -152,6 +162,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
 // highlight set level difficulties in a playlist
 MAKE_HOOK_MATCH(BeatmapDifficultySegmentedControlController_SetData, &BeatmapDifficultySegmentedControlController::SetData,
         void, BeatmapDifficultySegmentedControlController* self, ArrayW<IDifficultyBeatmap*> difficultyBeatmaps, BeatmapDifficulty selectedDifficulty) {
+    
     BeatmapDifficultySegmentedControlController_SetData(self, difficultyBeatmaps, selectedDifficulty);
 
     if(ButtonsContainer::buttonsInstance) {
@@ -162,9 +173,13 @@ MAKE_HOOK_MATCH(BeatmapDifficultySegmentedControlController_SetData, &BeatmapDif
 // when to set up the folders
 MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::DidActivate, 
         void, MainMenuViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+    
     MainMenuViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
+
+    if(!playlistConfig.Management)
+        return;
+
     if(!PlaylistFilters::filtersInstance) {
-        LOG_INFO("creating filters");
         PlaylistFilters::filtersInstance = new PlaylistFilters();
         PlaylistFilters::filtersInstance->Init();
     }
@@ -173,14 +188,8 @@ MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::Did
 // throw away objects on a soft restart
 MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::RestartGame,
         void, MenuTransitionsHelper* self, System::Action_1<Zenject::DiContainer*>* finishCallback) {
-    if(PlaylistFilters::filtersInstance)
-        PlaylistFilters::filtersInstance->Destroy();
     
-    if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->Destroy();
-    
-    if(PlaylistMenu::menuInstance)
-        PlaylistMenu::menuInstance->Destroy();
+    DestroyUI();
     
     ResettableStaticPtr::resetAll();
 
@@ -205,15 +214,17 @@ extern "C" void setup(ModInfo& info) {
         mkpath(coversPath);
     
     auto configPath = GetConfigPath();
-    if(fileexists(configPath)) {
+    if(fileexists(configPath))
         ReadFromFile(configPath, playlistConfig);
-    }
+    else
+        WriteToFile(configPath, playlistConfig);
 }
 
 extern "C" void load() {
     LOG_INFO("Starting PlaylistManager installation...");
     il2cpp_functions::Init();
     QuestUI::Init();
+    QuestUI::Register::RegisterModSettingsViewController(modInfo, "PlaylistManager", &ModSettingsDidActivate);
     INSTALL_HOOK(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);

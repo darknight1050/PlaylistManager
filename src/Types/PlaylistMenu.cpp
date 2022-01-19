@@ -1,4 +1,5 @@
 #include "Main.hpp"
+#include "Types/Config.hpp"
 #include "Types/PlaylistMenu.hpp"
 #include "Types/LevelButtons.hpp"
 #include "Types/CustomListSource.hpp"
@@ -156,20 +157,31 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         co_return;
     }
 
-    auto index = GetPackIndex(playlist->name);
-    auto path = playlist->path;
+    int configIdx = GetPackIndex(playlist->name);
+    int tableIdx = gameTableView->selectedCellIndex;
+    std::string path = playlist->path;
     // delete outdated playlist so that the new one can be fully reloaded
     DeletePlaylist(playlist);
     // save synced playlist
-    auto text = STR(webRequest->get_downloadHandler()->GetText());
+    std::string text = STR(webRequest->get_downloadHandler()->GetText());
     writefile(path, text);
     // reload playlists
     RefreshPlaylists();
     // playlist should be at the end, since it was removed from the config on deletion
     auto newPlaylist = *(GetLoadedPlaylists().end() - 1);
     // move playlist to correct index
-    MovePlaylist(newPlaylist, index);
-    scrollToIndex(index);
+    MovePlaylist(newPlaylist, configIdx);
+    // move playlist in table
+    using CollectionType = IAnnotatedBeatmapLevelCollection*;
+    using EnumerableType = System::Collections::Generic::IEnumerable_1<CollectionType>*;
+    // janky casting
+    auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<EnumerableType>(gameTableView->annotatedBeatmapLevelCollections));
+    int length = collectionList->get_Count();
+    auto movedCollection = collectionList->get_Item(length - 1);
+    collectionList->RemoveAt(length - 1);
+    collectionList->Insert(tableIdx, movedCollection);
+    gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+    scrollToIndex(tableIdx);
     // update playlist in level buttons
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
@@ -217,7 +229,9 @@ void PlaylistMenu::moveRightButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
     int configIdx = GetPackIndex(playlist->name);
-    if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx < 0)
+    if(configIdx == -1)
+        configIdx = playlistConfig.Order.size() - 1;
+    if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx >= playlistConfig.Order.size() - 1)
         return;
     MovePlaylist(playlist, configIdx + 1);
     // move playlist in table
@@ -235,7 +249,9 @@ void PlaylistMenu::moveLeftButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
     int configIdx = GetPackIndex(playlist->name);
-    if(oldCellIdx == 0 || configIdx <= 0)
+    if(configIdx == -1)
+        configIdx = playlistConfig.Order.size() - 1;
+    if(oldCellIdx <= 1 || configIdx == 0)
         return;
     MovePlaylist(playlist, configIdx - 1);
     // move playlist in table
@@ -302,10 +318,12 @@ void PlaylistMenu::playlistAuthorTyped(std::string_view newValue) {
 }
 
 void PlaylistMenu::coverButtonPressed() {
+    RefreshCovers();
     coverModal->Show(true, false, nullptr);
     // have correct cover selected and shown
-    list->tableView->SelectCellWithIdx(addingPlaylist ? coverImageIndex + 1 : playlist->imageIndex + 1, false);
-    list->tableView->ScrollToCellWithIdx(playlist->imageIndex + 1, HMUI::TableView::ScrollPositionType::Center, false);
+    auto index = addingPlaylist ? coverImageIndex + 1 : playlist->imageIndex + 1;
+    list->tableView->SelectCellWithIdx(index, false);
+    list->tableView->ScrollToCellWithIdx(index, HMUI::TableView::ScrollPositionType::Center, false);
 }
 
 void PlaylistMenu::deleteButtonPressed() {
@@ -454,13 +472,17 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     infoButton->GetComponentInChildren<HMUI::CurvedTextMeshPro*>()->set_fontStyle(2);
     BeatSaberUI::AddHoverHint(infoButton->get_gameObject(), "Playlist information");
     
-    auto syncButton = anchorMiniButton(buttonsContainer->get_transform(), "", "ActionButton", [this](){
+    syncButton = anchorMiniButton(buttonsContainer->get_transform(), "", "ActionButton", [this](){
         syncButtonPressed();
     }, 0.74, 0.5);
     auto img = BeatSaberUI::CreateImage(syncButton->get_transform(), SyncSprite(), {0, 0}, {0, 0});
     img->set_preserveAspect(true);
     img->get_transform()->set_localScale({0.55, 0.55, 0.55});
     BeatSaberUI::AddHoverHint(syncButton->get_gameObject(), "Sync playlist");
+    bool syncActive = false;
+    if(playlist->playlistJSON.CustomData.has_value())
+        sync_active = playlist->playlistJSON.CustomData->SyncURL.has_value();
+    syncButton->set_interactable(syncActive);
     
     auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
         addButtonPressed();
@@ -507,7 +529,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [this](int cellIdx){
         coverSelected(cellIdx);
     });
-    list->setType(csTypeOf(PlaylistManager::CoverTableCell*));
+    list->setType(csTypeOf(CoverTableCell*));
     list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
 
@@ -573,15 +595,11 @@ void PlaylistMenu::scrollToIndex(int index) {
 
 void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
     // get table view for setting selected cell
-    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>();
-    if(arr.Length() < 1) {
-        PlaylistMenu::menuInstance = nullptr;
-        UnityEngine::Object::Destroy(this);
-        return;
-    }
-    gameTableView = arr[0];
+    gameTableView = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>()[0];
     playlist = list;
     packImage = imageView;
+    // make sure playlist cover image is present
+    GetCoverImage(playlist);
     coverImageIndex = playlist->imageIndex;
     
     // don't let it get stopped by set visible
@@ -594,13 +612,21 @@ void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
 void PlaylistMenu::SetPlaylist(Playlist* list) {
     LOG_INFO("Playlist set to %s", list->name.c_str());
     playlist = list;
+    // ensure cover is present
+    auto cover = GetCoverImage(playlist);
     coverImageIndex = playlist->imageIndex;
     if(coverImage)
-        coverImage->set_sprite(GetCoverImage(playlist));
+        coverImage->set_sprite(cover);
     if(coverModal)
         coverModal->Hide(true, nullptr);
     if(confirmModal)
         confirmModal->Hide(true, nullptr);
+    if(syncButton) {
+        bool syncActive = false;
+        if(playlist->playlistJSON.CustomData.has_value())
+            sync_active = playlist->playlistJSON.CustomData->SyncURL.has_value();
+        syncButton->set_interactable(syncActive);
+    }
 }
 
 void PlaylistMenu::RefreshCovers() {

@@ -8,7 +8,6 @@
 
 #include "questui/shared/BeatSaberUI.hpp"
 
-#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSegmentedControlController.hpp"
@@ -50,50 +49,22 @@ void ButtonsContainer::addToPlaylistButtonPressed() {
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
-    auto pack = currentPlaylist->playlistCS;
-    auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
-    // using a list because arrays are hell
-    using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
-    auto newLevels = List<LevelType>::New_ctor();
-    LevelType removeLevel = reinterpret_cast<LevelType>(currentLevel);
-    // remove only one level if duplicates
-    bool removed = false;
-    for(int i = 0; i < levelArr.Length(); i++) {
-        // comparison should work
-        auto level = levelArr[i];
-        if(removed || level != removeLevel)
-            newLevels->Add(level);
-        else
-            removed = true;
-    }
-    auto newLevelsArr = newLevels->ToArray();
-    pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevelsArr;
+    RemoveSongFromPlaylist(currentPlaylist, (GlobalNamespace::CustomPreviewBeatmapLevel*) currentLevel);
     // keep scroll position
     float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
     anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-    auto newLevelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &newLevelsArr);
-    levelListTableView->SetData(newLevelsArrCast, levelListTableView->favoriteLevelIds, false);
+    auto levelsArr = currentPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+    auto levelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &levelsArr);
+    levelListTableView->SetData(levelsArrCast, levelListTableView->favoriteLevelIds, false);
     levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
     // clear selection since the selected song was just deleted
     levelListTableView->tableView->SelectCellWithIdx(0, true);
-    // update our playlist object
-    RemoveSongFromPlaylist(currentPlaylist, removeLevel);
 }
 
 void ButtonsContainer::playlistSelected(int listCellIdx) {
     // add to playlist
     auto& playlist = loadedPlaylists[listCellIdx];
-    auto pack = playlist->playlistCS;
-    auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
-    // using a list because arrays are hell
-    using LevelType = GlobalNamespace::CustomPreviewBeatmapLevel*;
-    auto newLevels = List<LevelType>::New_ctor();
-    for(int i = 0; i < levelArr.Length(); i++) {
-        newLevels->Add(levelArr[i]);
-    }
-    newLevels->Add(reinterpret_cast<LevelType>(currentLevel));
-    auto newLevelsArr = newLevels->ToArray();
-    pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevelsArr;
+    AddSongToPlaylist(playlist, (GlobalNamespace::CustomPreviewBeatmapLevel*) currentLevel);
     // set cells deselected
     playlistCovers->tableView->ClearSelection();
     playlistAddModal->Hide(true, nullptr);
@@ -104,13 +75,12 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
         // keep scroll position
         float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
         anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-        auto newLevelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &newLevelsArr);
-        levelListTableView->SetData(newLevelsArrCast, levelListTableView->favoriteLevelIds, false);
+        auto levelsArr = playlist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+        auto levelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &levelsArr);
+        levelListTableView->SetData(levelsArrCast, levelListTableView->favoriteLevelIds, false);
         levelListTableView->tableView->SelectCellWithIdx(currIndex, true);
         levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
     }
-    // update our playlist object
-    AddSongToPlaylist(playlist, reinterpret_cast<LevelType>(currentLevel));
 }
 
 void ButtonsContainer::scrollListLeftButtonPressed() {
@@ -246,6 +216,8 @@ void ButtonsContainer::RefreshPlaylists() {
 }
 
 void ButtonsContainer::RefreshHighlightedDifficulties() {
+    if(!currentPlaylist)
+        return;
     // get difficulty display object
     auto segmentedController = levelDetailView->beatmapDifficultySegmentedControlController;
     auto cells = segmentedController->difficultySegmentedControl->cells;

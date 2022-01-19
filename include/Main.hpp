@@ -1,7 +1,5 @@
 #pragma once
 
-#define USE_CODEGEN_FIELDS
-
 //#define LOG_INFO(value...)
 #define LOG_INFO(value...) getLogger().info(value) 
 #define LOG_DEBUG(value...)

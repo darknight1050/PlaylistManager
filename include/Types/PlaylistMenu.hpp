@@ -25,7 +25,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     UnityEngine::GameObject *buttonsContainer, *detailsContainer;
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
-    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton;
+    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
     HMUI::ImageView *coverImage, *packImage;
     HMUI::ModalView *confirmModal, *coverModal;
     class CustomListSource *list;

@@ -4,6 +4,7 @@
 #include "shared/Types/Folder.hpp"
 
 DECLARE_JSON_CLASS(PlaylistManager, PlaylistConfig,
+    bool Management = false;
     std::vector<std::string> Order;
     std::vector<Folder> Folders;
 )

@@ -3,6 +3,7 @@
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "ResettableStaticPtr.hpp"
+#include "Settings.hpp"
 
 #include <filesystem>
 #include <fstream>
@@ -18,6 +19,7 @@
 #include "UnityEngine/ImageConversion.hpp"
 #include "UnityEngine/RenderTexture.hpp"
 #include "GlobalNamespace/CustomLevelLoader.hpp"
+#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 
 using namespace RuntimeSongLoader;
 
@@ -93,6 +95,7 @@ namespace PlaylistManager {
     
     std::unordered_map<std::string, Playlist*> name_playlists;
     std::unordered_map<std::string, Playlist*> path_playlists;
+    std::unordered_map<UnityEngine::Sprite*, std::string> image_paths;
 
     std::hash<std::string> hasher;
     std::unordered_map<std::size_t, int> imageHashes;
@@ -174,6 +177,7 @@ namespace PlaylistManager {
         }
         // add to end of config if not found
         playlistConfig.Order.push_back(title);
+        WriteToFile(GetConfigPath(), playlistConfig);
         return -1;
     }
     
@@ -229,11 +233,47 @@ namespace PlaylistManager {
             std::string imgPath = GetCoversPath() + "/" + playlistPathName + ".png";
             WriteImageToFile(imgPath, sprite->get_texture());
             imageHashes.insert({imgHash, loadedImages.size()});
+            image_paths.insert({sprite, imgPath});
             playlist->imageIndex = loadedImages.size();
             loadedImages.emplace_back(sprite);
             return sprite;
         }
         return GetDefaultCoverImage();
+    }
+
+    void DeleteLoadedImage(UnityEngine::Sprite* image) {
+        // get path
+        auto foundItr = image_paths.find(image);
+        if (foundItr == image_paths.end())
+            return;
+        // find image index
+        for(int i = 0; i < loadedImages.size(); i++) {
+            if(loadedImages[i] == image) {
+                // update image indices of playlists
+                for(auto& playlist : GetLoadedPlaylists()) {
+                    if(playlist->imageIndex == i)
+                        playlist->imageIndex = -1;
+                    if(playlist->imageIndex > i)
+                        playlist->imageIndex--;
+                }
+                // remove from loaded images
+                loadedImages.erase(loadedImages.begin() + i);
+                // remove from image hashes
+                std::unordered_map<std::size_t, int>::iterator removeItr;
+                for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
+                    if(itr->second == i) {
+                        removeItr = itr;
+                    }
+                    // decrement all indices later than i
+                    if(itr->second > i) {
+                        itr->second--;
+                    }
+                }
+                imageHashes.erase(removeItr);
+                break;
+            }
+        }
+        std::filesystem::remove(foundItr->second);
     }
 
     void GetCoverImages() {
@@ -285,6 +325,7 @@ namespace PlaylistManager {
                 //     std::filesystem::rename(path, path.parent_path() / (path.stem().string() + "_" + std::to_string(imgHash) + ".png"));
                 // }
                 imageHashes.insert({imgHash, loadedImages.size()});
+                image_paths.insert({sprite, path});
                 loadedImages.emplace_back(sprite);
             }
         }
@@ -296,6 +337,7 @@ namespace PlaylistManager {
 
     void ClearLoadedImages() {
         loadedImages.clear();
+        image_paths.clear();
         imageHashes.clear();
     }
 
@@ -558,14 +600,31 @@ namespace PlaylistManager {
         delete playlist;
     }
 
-    void RefreshPlaylists() {
+    void RefreshPlaylists(bool fullRefresh) {
         bool showDefaults = folderSelectionState == 0 || folderSelectionState == 1;
         if(folderSelectionState == 3 && currentFolder)
             showDefaults = currentFolder->ShowDefaults;
+        if(fullRefresh) {
+            for(auto& pair : name_playlists)
+                delete pair.second;
+            name_playlists.clear();
+            path_playlists.clear();
+        }
         API::RefreshPacks(showDefaults);
     }
 
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        // add song to cs object
+        auto pack = playlist->playlistCS;
+        auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+        // can use an array since we know its length
+        ArrayW<GlobalNamespace::CustomPreviewBeatmapLevel*> newLevels(levelArr.Length() + 1);
+        for(int i = 0; i < levelArr.Length(); i++) {
+            newLevels[i] = levelArr[i];
+        }
+        newLevels[newLevels.Length()] = (GlobalNamespace::CustomPreviewBeatmapLevel*) level;
+        pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevels;
+        // update json object
         auto& json = playlist->playlistJSON;
         // add a blank song
         json.Songs.emplace_back(BPSong());
@@ -578,6 +637,27 @@ namespace PlaylistManager {
     }
 
     void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        // remove song from cs object
+        auto pack = playlist->playlistCS;
+        if(!pack)
+            return;
+        auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+        // can use an array since we know its length
+        ArrayW<GlobalNamespace::CustomPreviewBeatmapLevel*> newLevels(levelArr.Length() - 1);
+        // remove only one level if duplicates
+        bool removed = false;
+        for(int i = 0; i < levelArr.Length(); i++) {
+            // comparison should work
+            auto currentLevel = levelArr[i];
+            if(removed)
+                newLevels[i - 1] = currentLevel;
+            else if(currentLevel != level)
+                newLevels[i] = currentLevel;
+            else
+                removed = true;
+        }
+        pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevels;
+        // update json object
         auto& json = playlist->playlistJSON;
         // find song by hash (since the field is required) and remove
         auto levelHash = GetLevelHash(level);
