@@ -1,17 +1,5 @@
 #include "Types/BPList.hpp"
 
-DESERIALIZE_METHOD(PlaylistManager, BPSong,
-    DESERIALIZE_VALUE(Hash, hash, String);
-    DESERIALIZE_VALUE_OPTIONAL(SongName, songName, String);
-    DESERIALIZE_VALUE_OPTIONAL(Key, key, String);
-)
-
-SERIALIZE_METHOD(PlaylistManager, BPSong,
-    SERIALIZE_VALUE(Hash, hash);
-    SERIALIZE_VALUE_OPTIONAL(SongName, songName);
-    SERIALIZE_VALUE_OPTIONAL(Key, key);
-)
-
 DESERIALIZE_METHOD(PlaylistManager, Difficulty,
     DESERIALIZE_VALUE(Characteristic, characteristic, String);
     DESERIALIZE_VALUE(Name, name, String);
@@ -20,6 +8,20 @@ DESERIALIZE_METHOD(PlaylistManager, Difficulty,
 SERIALIZE_METHOD(PlaylistManager, Difficulty,
     SERIALIZE_VALUE(Characteristic, characteristic);
     SERIALIZE_VALUE(Name, name);
+)
+
+DESERIALIZE_METHOD(PlaylistManager, BPSong,
+    DESERIALIZE_VALUE(Hash, hash, String);
+    DESERIALIZE_VALUE_OPTIONAL(SongName, songName, String);
+    DESERIALIZE_VALUE_OPTIONAL(Key, key, String);
+    DESERIALIZE_VECTOR_OPTIONAL(Difficulties, difficulties, Difficulty);
+)
+
+SERIALIZE_METHOD(PlaylistManager, BPSong,
+    SERIALIZE_VALUE(Hash, hash);
+    SERIALIZE_VALUE_OPTIONAL(SongName, songName);
+    SERIALIZE_VALUE_OPTIONAL(Key, key);
+    SERIALIZE_VECTOR_OPTIONAL(Difficulties, difficulties);
 )
 
 DESERIALIZE_METHOD(PlaylistManager, CustomData,
@@ -43,7 +45,6 @@ DESERIALIZE_METHOD(PlaylistManager, BPList,
     DESERIALIZE_VECTOR(Songs, songs, BPSong);
     DESERIALIZE_VALUE_OPTIONAL(ImageString, image, String);
     DESERIALIZE_CLASS_OPTIONAL(CustomData, customData);
-    DESERIALIZE_VECTOR_OPTIONAL(Difficulties, difficulties, Difficulty);
 )
 
 SERIALIZE_METHOD(PlaylistManager, BPList,
@@ -53,5 +54,4 @@ SERIALIZE_METHOD(PlaylistManager, BPList,
     SERIALIZE_VECTOR(Songs, songs);
     SERIALIZE_VALUE_OPTIONAL(ImageString, image);
     SERIALIZE_CLASS_OPTIONAL(CustomData, customData);
-    SERIALIZE_VECTOR_OPTIONAL(Difficulties, difficulties);
 )

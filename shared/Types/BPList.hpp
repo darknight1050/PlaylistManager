@@ -2,15 +2,16 @@
 
 #include "TypeMacros.hpp"
 
+DECLARE_JSON_CLASS(PlaylistManager, Difficulty,
+    std::string Characteristic;
+    std::string Name;
+)
+
 DECLARE_JSON_CLASS(PlaylistManager, BPSong,
     std::string Hash;
     std::optional<std::string> SongName;
     std::optional<std::string> Key;
-)
-
-DECLARE_JSON_CLASS(PlaylistManager, Difficulty,
-    std::string Characteristic;
-    std::string Name;
+    std::optional<std::vector<PlaylistManager::Difficulty>> Difficulties;
 )
 
 DECLARE_JSON_CLASS(PlaylistManager, CustomData,
@@ -27,5 +28,4 @@ DECLARE_JSON_CLASS(PlaylistManager, BPList,
     std::vector<PlaylistManager::BPSong> Songs;
     std::optional<std::string> ImageString;
     std::optional<PlaylistManager::CustomData> CustomData;
-    std::optional<std::vector<PlaylistManager::Difficulty>> Difficulties;
 )

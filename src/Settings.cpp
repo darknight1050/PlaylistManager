@@ -19,6 +19,9 @@ using namespace QuestUI;
 namespace PlaylistManager {
 
     void ModSettingsDidActivate(HMUI::ViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+        
+        using Vec = UnityEngine::Vector2;
+
         if(!firstActivation)
             return;
 
@@ -26,28 +29,22 @@ namespace PlaylistManager {
 
         auto container = BeatSaberUI::CreateScrollableSettingsContainer(self->get_transform());
         auto parent = container->get_transform();
+        
+        auto horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
+        horizontal->set_childControlWidth(false);
+        horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        auto reloadNewButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload New Playlists", Vec{0, 0}, Vec{40, 10}, [](){
+            RefreshPlaylists(false);
+        });
+        BeatSaberUI::AddHoverHint(reloadNewButton->get_gameObject(), "Reloads new playlists from the playlist folder");
 
-        auto reloadButton = BeatSaberUI::CreateUIButton(parent, "Reload Playlists", [](){
+        horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
+        horizontal->set_childControlWidth(false);
+        horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        auto reloadAllButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload All Playlists", Vec{0, 0}, Vec{40, 10}, [](){
             RefreshPlaylists(true);
         });
-        // BeatSaberUI::AddHoverHint(reloadButton->get_gameObject(), "Reloads all playlists from the playlist folder");
-
-        auto uiButton = BeatSaberUI::CreateUIButton(parent, "Reset UI", [](){
-            DestroyUI();
-            CreateUI();
-        });
-        // BeatSaberUI::AddHoverHint(uiButton->get_gameObject(), "Resets all UI instances");
-        uiButton->set_interactable(playlistConfig.Management);
-
-        BeatSaberUI::CreateToggle(parent, "Enable playlist management", playlistConfig.Management, [uiButton](bool enabled){
-            uiButton->set_interactable(enabled);
-            playlistConfig.Management = enabled;
-            WriteToFile(GetConfigPath(), playlistConfig);
-            if(enabled)
-                CreateUI();
-            else
-                DestroyUI();
-        });
+        BeatSaberUI::AddHoverHint(reloadAllButton->get_gameObject(), "Reloads all playlists from the playlist folder");
 
         auto coverModal = BeatSaberUI::CreateModal(self->get_transform(), {83, 17}, nullptr);
         
@@ -72,14 +69,39 @@ namespace PlaylistManager {
         reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
         BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
 
-        auto imageButton = BeatSaberUI::CreateUIButton(parent, "Delete Saved Image", [list, coverModal](){
+        horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
+        horizontal->set_childControlWidth(false);
+        horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        auto imageButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Delete Saved Image", Vec{0, 0}, Vec{40, 10}, [list, coverModal](){
             // reload covers from folder
             GetCoverImages();
             // add cover images and reload
             list->replaceSprites(GetLoadedImages());
             list->tableView->ReloadData();
+            list->tableView->ClearSelection();
             coverModal->Show(true, false, nullptr);
         });
+
+        horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
+        horizontal->set_childControlWidth(false);
+        horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        auto uiButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reset UI", Vec{0, 0}, Vec{40, 10}, [](){
+            DestroyUI();
+            CreateUI();
+        });
+        BeatSaberUI::AddHoverHint(uiButton->get_gameObject(), "Resets all UI instances");
+        uiButton->set_interactable(playlistConfig.Management);
+
+        auto toggle = BeatSaberUI::CreateToggle(parent, "Enable playlist management", playlistConfig.Management, [uiButton](bool enabled){
+            uiButton->set_interactable(enabled);
+            playlistConfig.Management = enabled;
+            WriteToFile(GetConfigPath(), playlistConfig);
+            if(enabled)
+                CreateUI();
+            else
+                DestroyUI();
+        });
+        toggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
     }
 
     void DestroyUI() {

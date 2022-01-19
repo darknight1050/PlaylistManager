@@ -4,6 +4,7 @@
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
+#include "Utils.hpp"
 #include "Icons.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
@@ -146,12 +147,8 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     auto left = BeatSaberUI::CreateUIButton(playlistAddModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [this](){
         scrollListLeftButtonPressed();
     });
-    LOG_INFO("Setting size delta");
     reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
-    LOG_INFO("Setting button sprites");
-    LOG_INFO("Inactive sprite: %p, active sprite: %p", LeftCaratInactiveSprite(), LeftCaratSprite());
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
-    LOG_INFO("Set button sprites");
 
     auto right = BeatSaberUI::CreateUIButton(playlistAddModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [this](){
         scrollListRightButtonPressed();
@@ -218,43 +215,53 @@ void ButtonsContainer::RefreshPlaylists() {
 void ButtonsContainer::RefreshHighlightedDifficulties() {
     if(!currentPlaylist)
         return;
+    // update current level based on level detail view, due to function order for hooks
+    currentLevel = (GlobalNamespace::IPreviewBeatmapLevel*) levelDetailView->level;
     // get difficulty display object
     auto segmentedController = levelDetailView->beatmapDifficultySegmentedControlController;
     auto cells = segmentedController->difficultySegmentedControl->cells;
     // get selected characteristic
-    std::string characteristic = STR(levelDetailView->beatmapCharacteristicSegmentedControlController->selectedBeatmapCharacteristic->serializedName);
+    auto selected = levelDetailView->beatmapCharacteristicSegmentedControlController->selectedBeatmapCharacteristic;
+    // might not be selected at first
+    if(!selected)
+        return;
+    std::string characteristic = STR(selected->serializedName);
     LOWER(characteristic);
-    // set highlighted or not based on values
-    auto difficulties = currentPlaylist->playlistJSON.Difficulties;
-    if(difficulties.has_value()) {
-        for(auto& difficulty : difficulties.value()) {
-            LOWER(difficulty.Characteristic);
-            if(difficulty.Characteristic == characteristic) {
-                // attempt to find difficulty
-                LOWER(difficulty.Name);
-                int diff = -1;
-                static const std::vector<std::string> diffNames = {"easy", "normal", "hard", "expert", "expertPlus"};
-                for(int i = 0; i < diffNames.size(); i++) {
-                    if(diffNames[i] == difficulty.Name) {
-                        diff = i;
-                        break;
-                    }
-                } if(diff < 0)
-                    continue;
-                // get closest index for pc parity
-                auto text = cells->get_Item(segmentedController->GetClosestDifficultyIndex(diff))->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
-                if(text)
-                    text->set_faceColor({1, 1, 0, 1});
-            }
+    // get current song difficulties
+    auto& songs = currentPlaylist->playlistJSON.Songs;
+    auto currentHash = GetLevelHash((GlobalNamespace::CustomPreviewBeatmapLevel*) currentLevel);
+    std::vector<Difficulty> difficulties;
+    for(auto& song : songs) {
+        LOWER(song.Hash);
+        if(song.Hash == currentHash && song.Difficulties.has_value()) {
+            difficulties = song.Difficulties.value();
+            break;
         }
-    } else {
-        // unhighlight all cells
-        // for(int i = 0; i < cells->Length(); i++) {
-        //     auto text = cells->get_Item(i)->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
-        //     if(text)
-        //         text->set_faceColor({1, 1, 1, 1});
-        // }
     }
+    if(difficulties.size() == 0)
+        return;
+    // set highlights based on found difficulties
+    for(auto& difficulty : difficulties) {
+        LOWER(difficulty.Characteristic);
+        if(difficulty.Characteristic == characteristic) {
+            // attempt to find difficulty
+            LOWER(difficulty.Name);
+            int diff = -1;
+            static const std::vector<std::string> diffNames = {"easy", "normal", "hard", "expert", "expertPlus"};
+            for(int i = 0; i < diffNames.size(); i++) {
+                if(diffNames[i] == difficulty.Name) {
+                    diff = i;
+                    break;
+                }
+            } if(diff < 0)
+                continue;
+            // get closest index for pc parity
+            auto text = cells->get_Item(segmentedController->GetClosestDifficultyIndex(diff))->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
+            if(text)
+                text->set_faceColor({255, 255, 0, 255});
+        }
+    }
+    
 }
 
 void ButtonsContainer::Destroy() {

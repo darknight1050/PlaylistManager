@@ -20,10 +20,6 @@ namespace PlaylistManager {
 
     extern const std::unordered_set<std::string> staticPacks;
 
-    std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString);
-
-    void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture);
-
     int GetPackIndex(std::string title);
 
     UnityEngine::Sprite* GetDefaultCoverImage();

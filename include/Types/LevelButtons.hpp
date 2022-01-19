@@ -25,7 +25,7 @@ namespace PlaylistManager {
         GlobalNamespace::StandardLevelDetailView *levelDetailView;
         GlobalNamespace::LevelCollectionTableView *levelListTableView;
         GlobalNamespace::IPreviewBeatmapLevel* currentLevel;
-        Playlist* currentPlaylist;
+        Playlist* currentPlaylist = nullptr;
 
         std::vector<Playlist*> loadedPlaylists;
 

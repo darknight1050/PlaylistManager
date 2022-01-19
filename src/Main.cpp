@@ -34,7 +34,6 @@
 #include "HMUI/InputFieldView.hpp"
 #include "System/Tuple_2.hpp"
 #include "System/Action_1.hpp"
-#include "System/Threading/CancellationToken.hpp"
 
 using namespace GlobalNamespace;
 using namespace PlaylistManager;
@@ -138,13 +137,13 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 }
 
 // when to show the level buttons
-MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &StandardLevelDetailViewController::LoadBeatmapLevelAsync, 
-        System::Threading::Tasks::Task*, StandardLevelDetailViewController* self, System::Threading::CancellationToken cancellationToken) {\
+MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDetailViewController::ShowContent, 
+        void, StandardLevelDetailViewController* self, StandardLevelDetailViewController::ContentType contentType, Il2CppString* errorText, float downloadingProgress, Il2CppString* downloadingText) {
 
-    auto ret = StandardLevelDetailViewController_LoadBeatmapLevelAsync(self, cancellationToken);
+    StandardLevelDetailViewController_ShowContent(self, contentType, errorText, downloadingProgress, downloadingText);
 
-    if(!playlistConfig.Management)
-        return ret;
+    if(!playlistConfig.Management || contentType != StandardLevelDetailViewController::ContentType::OwnedAndReady)
+        return;
     
     if(!ButtonsContainer::buttonsInstance) {
         ButtonsContainer::buttonsInstance = new ButtonsContainer();
@@ -156,7 +155,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_LoadBeatmapLevelAsync, &Standa
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
     ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
     ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(STR(self->pack->get_packName())));
-    return ret;
+    ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
 }
 
 // highlight set level difficulties in a playlist
@@ -165,9 +164,8 @@ MAKE_HOOK_MATCH(BeatmapDifficultySegmentedControlController_SetData, &BeatmapDif
     
     BeatmapDifficultySegmentedControlController_SetData(self, difficultyBeatmaps, selectedDifficulty);
 
-    if(ButtonsContainer::buttonsInstance) {
+    if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
-    }
 }
 
 // when to set up the folders
@@ -224,11 +222,11 @@ extern "C" void load() {
     LOG_INFO("Starting PlaylistManager installation...");
     il2cpp_functions::Init();
     QuestUI::Init();
-    QuestUI::Register::RegisterModSettingsViewController(modInfo, "PlaylistManager", &ModSettingsDidActivate);
+    QuestUI::Register::RegisterModSettingsViewController(modInfo, "Playlist Manager", ModSettingsDidActivate);
     INSTALL_HOOK(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
-    INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_LoadBeatmapLevelAsync);
+    INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), BeatmapDifficultySegmentedControlController_SetData);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
