@@ -481,7 +481,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     BeatSaberUI::AddHoverHint(syncButton->get_gameObject(), "Sync playlist");
     bool syncActive = false;
     if(playlist->playlistJSON.CustomData.has_value())
-        sync_active = playlist->playlistJSON.CustomData->SyncURL.has_value();
+        syncActive = playlist->playlistJSON.CustomData->SyncURL.has_value();
     syncButton->set_interactable(syncActive);
     
     auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
@@ -624,7 +624,7 @@ void PlaylistMenu::SetPlaylist(Playlist* list) {
     if(syncButton) {
         bool syncActive = false;
         if(playlist->playlistJSON.CustomData.has_value())
-            sync_active = playlist->playlistJSON.CustomData->SyncURL.has_value();
+            syncActive = playlist->playlistJSON.CustomData->SyncURL.has_value();
         syncButton->set_interactable(syncActive);
     }
 }
