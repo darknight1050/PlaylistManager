@@ -394,10 +394,15 @@ void PlaylistMenu::scrollListRightButtonPressed() {
 custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     #pragma region details
     // use pack image as a mask for details
-    packImage->get_gameObject()->AddComponent<UnityEngine::UI::Mask*>();
+    auto maskImage = BeatSaberUI::CreateImage(packImage->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
+    auto rectTrans = (UnityEngine::RectTransform*) maskImage->get_transform();
+    rectTrans->set_anchorMin({0, 0});
+    rectTrans->set_anchorMax({1, 1});
+    maskImage->set_material(packImage->get_material());
+    maskImage->get_gameObject()->AddComponent<UnityEngine::UI::Mask*>()->set_showMaskGraphic(false);
 
     // details container
-    detailsContainer = anchorContainer(packImage->get_transform(), 1, 0, 2, 1);
+    detailsContainer = anchorContainer(maskImage->get_transform(), 1, 0, 2, 1);
     auto detailsBackground = BeatSaberUI::CreateImage(detailsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
     ANCHOR(detailsBackground, 0, 0.15, 1, 1);
     detailsBackground->set_color({0.15, 0.15, 0.15, 0.93});
@@ -459,7 +464,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     co_yield nullptr;
 
     #pragma region sideButtons
-    buttonsContainer = anchorContainer(packImage->get_transform(), 0, 0, 1, 0.15);
+    buttonsContainer = anchorContainer(maskImage->get_transform(), 0, 0, 1, 0.15);
     auto buttonsBackgroundImage = BeatSaberUI::CreateImage(buttonsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
     ANCHOR(buttonsBackgroundImage, 0, 0.02, 1, 1);
     buttonsBackgroundImage->set_color({0.15, 0.15, 0.15, 0.93});

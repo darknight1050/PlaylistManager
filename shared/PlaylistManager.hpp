@@ -12,7 +12,7 @@ namespace PlaylistManager {
 
     struct Playlist {
         BPList playlistJSON;
-        GlobalNamespace::CustomBeatmapLevelPack* playlistCS;
+        SafePtr<GlobalNamespace::CustomBeatmapLevelPack> playlistCS;
         std::string name;
         std::string path;
         int imageIndex = -1;

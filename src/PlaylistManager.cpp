@@ -18,6 +18,7 @@
 #include "System/Convert.hpp"
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/ImageConversion.hpp"
+#include "UnityEngine/SpriteMeshType.hpp"
 #include "GlobalNamespace/CustomLevelLoader.hpp"
 #include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 
@@ -107,11 +108,12 @@ namespace PlaylistManager {
                 LOG_ERROR("Unsupported image type %s", imgType.c_str());
                 return GetDefaultCoverImage();
             }
-            // get and write sprite
-            auto sprite = QuestUI::BeatSaberUI::Base64ToSprite(imageBase64);
+            // get and write texture
+            auto texture = UnityEngine::Texture2D::New_ctor(0, 0, UnityEngine::TextureFormat::RGBA32, false, false);
+            UnityEngine::ImageConversion::LoadImage(texture, System::Convert::FromBase64String(CSTR(imageBase64)));
             // process texture size and png string and check hash for changes
             std::size_t oldHash = imgHash;
-            imageBase64 = ProcessImage(sprite->get_texture(), true);
+            imageBase64 = ProcessImage(texture, true);
             imgHash = hasher(imageBase64);
             // write to playlist if changed
             if(imgHash != oldHash) {
@@ -129,8 +131,9 @@ namespace PlaylistManager {
             // reuse playlist file name
             std::string playlistPathName = std::filesystem::path(playlist->path).stem();
             std::string imgPath = GetCoversPath() + "/" + playlistPathName + ".png";
-            WriteImageToFile(imgPath, sprite->get_texture());
+            WriteImageToFile(imgPath, texture);
             imageHashes.insert({imgHash, loadedImages.size()});
+            auto sprite = UnityEngine::Sprite::Create(texture, UnityEngine::Rect(0, 0, texture->get_width(), texture->get_height()), {0.5, 0.5}, 1024, 1, UnityEngine::SpriteMeshType::FullRect, {0, 0, 0, 0}, false);
             image_paths.insert({sprite, imgPath});
             playlist->imageIndex = loadedImages.size();
             loadedImages.emplace_back(sprite);
@@ -204,11 +207,12 @@ namespace PlaylistManager {
                     continue;
                 }
                 // sanatize hash by converting to png
-                auto sprite = QuestUI::BeatSaberUI::ArrayToSprite(bytes);
+                auto texture = UnityEngine::Texture2D::New_ctor(0, 0, UnityEngine::TextureFormat::RGBA32, false, false);
+                UnityEngine::ImageConversion::LoadImage(texture, bytes);
                 std::size_t oldHash = imgHash;
-                imgHash = hasher(ProcessImage(sprite->get_texture(), true));
+                imgHash = hasher(ProcessImage(texture, true));
                 if(imgHash != oldHash)
-                    WriteImageToFile(path.string(), sprite->get_texture());
+                    WriteImageToFile(path.string(), texture);
                 // check hash with loaded images
                 if(imageHashes.contains(imgHash)) {
                     LOG_INFO("Skipping loading image with hash %lu", imgHash);
@@ -223,6 +227,7 @@ namespace PlaylistManager {
                 //     std::filesystem::rename(path, path.parent_path() / (path.stem().string() + "_" + std::to_string(imgHash) + ".png"));
                 // }
                 imageHashes.insert({imgHash, loadedImages.size()});
+                auto sprite = UnityEngine::Sprite::Create(texture, UnityEngine::Rect(0, 0, texture->get_width(), texture->get_height()), {0.5, 0.5}, 1024, 1, UnityEngine::SpriteMeshType::FullRect, {0, 0, 0, 0}, false);
                 image_paths.insert({sprite, path});
                 loadedImages.emplace_back(sprite);
             }
@@ -291,7 +296,7 @@ namespace PlaylistManager {
                         if(packPosition < 0)
                             sortedPlaylists.emplace_back(playlist->playlistCS);
                         else
-                            sortedPlaylists[packPosition] = playlist->playlistCS;
+                            sortedPlaylists[packPosition] = (GlobalNamespace::CustomBeatmapLevelPack*) playlist->playlistCS;
                     }
                 } else {
                     LOG_INFO("Loading playlist file %s", path.c_str());
@@ -310,7 +315,8 @@ namespace PlaylistManager {
                         name_playlists.insert({playlist->name, playlist});
                         path_playlists.insert({playlist->path, playlist});
                         // create playlist object
-                        SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(playlist->name, playlist->name, GetCoverImage(playlist));
+                        // SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(playlist->name, playlist->name, GetCoverImage(playlist));
+                        auto songloaderBeatmapLevelPack = *il2cpp_utils::New<SongLoaderCustomBeatmapLevelPack*>(CSTR("custom_levelPack_" + playlist->name), CSTR(playlist->name), GetCoverImage(playlist));
                         playlist->playlistCS = songloaderBeatmapLevelPack->CustomLevelsPack;
                         // add all songs to the playlist object
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
@@ -334,11 +340,13 @@ namespace PlaylistManager {
                 }
             }
         }
+        LOG_INFO("Adding playlists");
         // add playlists to game in sorted order
         for(auto customBeatmapLevelPack : sortedPlaylists) {
             if(customBeatmapLevelPack)
                 customBeatmapLevelPackCollectionSO->AddLevelPack(customBeatmapLevelPack);
         }
+        LOG_INFO("Playlists loaded");
     }
 
     std::vector<Playlist*> GetLoadedPlaylists() {

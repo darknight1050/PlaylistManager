@@ -112,7 +112,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     co_yield nullptr;
 
     #pragma region folderMenuLists
-    folderListContainer = createContainer(cvsTrans);
+    folderListContainer = createContainer(folderMenu->get_transform());
     // set up list
     folderList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(folderListContainer->get_transform(), {0, -10}, {75, 30}, [this](int cellIdx){
         folderSelected(cellIdx);
@@ -186,7 +186,6 @@ void PlaylistFilters::Init() {
 
 void PlaylistFilters::SetFoldersFilters(bool filtersVisible) {
     filterList->get_transform()->GetParent()->get_gameObject()->SetActive(filtersVisible);
-    folderList->get_transform()->GetParent()->get_gameObject()->SetActive(!filtersVisible);
     folderMenu->SetActive(!filtersVisible);
     playlistListContainer->SetActive(false);
 }
