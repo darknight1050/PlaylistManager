@@ -418,7 +418,7 @@ namespace PlaylistManager {
             return;
         }
         // also update path
-        auto path_iter = path_playlists.find(playlist->name);
+        auto path_iter = path_playlists.find(playlist->path);
         if(path_iter == path_playlists.end()) {
             LOG_ERROR("Could not find playlist by path");
             return;

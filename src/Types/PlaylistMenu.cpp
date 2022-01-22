@@ -241,7 +241,9 @@ void PlaylistMenu::moveRightButtonPressed() {
     auto movedCollection = collectionList->get_Item(oldCellIdx);
     collectionList->RemoveAt(oldCellIdx);
     collectionList->Insert(oldCellIdx + 1, movedCollection);
-    gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+    // SetData causes the page control to reset, causing scrolling flashes
+    gameTableView->annotatedBeatmapLevelCollections = reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly());
+    gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx + 1);
 }
 
@@ -261,7 +263,9 @@ void PlaylistMenu::moveLeftButtonPressed() {
     auto movedCollection = collectionList->get_Item(oldCellIdx);
     collectionList->RemoveAt(oldCellIdx);
     collectionList->Insert(oldCellIdx - 1, movedCollection);
-    gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+    // SetData causes the page control to reset, causing scrolling flashes
+    gameTableView->annotatedBeatmapLevelCollections = reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly());
+    gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx - 1);
 }
 
@@ -306,8 +310,10 @@ void PlaylistMenu::playlistAuthorTyped(std::string_view newValue) {
     if(!PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard = [this](){
             LOG_INFO("Author set to %s", currentAuthor.c_str());
-            if(!addingPlaylist)
+            if(!addingPlaylist) {
                 playlist->playlistJSON.PlaylistAuthor = currentAuthor;
+                WriteToFile(playlist->path, playlist->playlistJSON);
+            }
         };
     }
     // author cleared (x button)

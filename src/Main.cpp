@@ -193,8 +193,6 @@ MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::Resta
 
     ClearLoadedImages();
 
-    LOG_INFO("deleted objects for soft restart");
-
     MenuTransitionsHelper_RestartGame(self, finishCallback);
 }
 
