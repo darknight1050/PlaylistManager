@@ -47,6 +47,7 @@ void ButtonsContainer::saveCoverButtonPressed() {
 
 void ButtonsContainer::addToPlaylistButtonPressed() {
     playlistAddModal->Show(true, true, nullptr);
+    playlistAddModal->get_transform()->set_localPosition({40, -10, 0});
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
