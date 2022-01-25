@@ -42,30 +42,12 @@ namespace PlaylistManager {
 
     std::hash<std::string> hasher;
     std::unordered_map<std::size_t, int> imageHashes;
-    
     // array of all loaded images
     std::vector<UnityEngine::Sprite*> loadedImages;
+
+    bool hasLoaded = false;
     // all unusable playlists
-    const std::unordered_set<std::string> staticPacks = {
-        "Original Soundtrack Vol. 1",
-        "Original Soundtrack Vol. 2",
-        "Original Soundtrack Vol. 3",
-        "Original Soundtrack Vol. 4",
-        "Extras",
-        "Camellia Music Pack",
-        "Skrillex Music Pack",
-        "Interscope Mixtape",
-        "BTS Music Pack",
-        "Linkin Park Music Pack",
-        "Timbaland Music Pack",
-        "Green Day Music Pack",
-        "Rocket League x Monstercat Music Pack",
-        "Panic! At The Disco Music Pack",
-        "Imagine Dragons Music Pack",
-        "Monstercat Music Pack Vol. 1",
-        "Custom Levels",
-        "WIP Levels"
-    };
+    std::unordered_set<std::string> staticPacks = {};
     
     int GetPackIndex(std::string title) {
         // find index of playlist title in config
@@ -346,6 +328,11 @@ namespace PlaylistManager {
             if(customBeatmapLevelPack)
                 customBeatmapLevelPackCollectionSO->AddLevelPack(customBeatmapLevelPack);
         }
+        bool hadLoaded = hasLoaded;
+        hasLoaded = true;
+        // refresh playlists, on the off chance that someone modified the filter menu while songs were loading
+        if(!hadLoaded && folderSelectionState != 0)
+            RefreshPlaylists();
         LOG_INFO("Playlists loaded");
     }
 
@@ -508,6 +495,8 @@ namespace PlaylistManager {
     }
 
     void RefreshPlaylists(bool fullRefresh) {
+        if(!hasLoaded)
+            return;
         bool showDefaults = folderSelectionState == 0 || folderSelectionState == 1;
         if(folderSelectionState == 3 && currentFolder)
             showDefaults = currentFolder->ShowDefaults;
@@ -529,7 +518,7 @@ namespace PlaylistManager {
         for(int i = 0; i < levelArr.Length(); i++) {
             newLevels[i] = levelArr[i];
         }
-        newLevels[newLevels.Length()] = (GlobalNamespace::CustomPreviewBeatmapLevel*) level;
+        newLevels[levelArr.Length()] = level;
         pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevels;
         // update json object
         auto& json = playlist->playlistJSON;

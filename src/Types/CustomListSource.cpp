@@ -126,7 +126,7 @@ void CustomListSource::ScrollListRight(CustomListSource* list, int numCells) {
     // int idx = tableView->get_scrolledRow();
     // idx += tableView->get_scrollDistance();
     int idx = std::min((int)(tableView->get_contentTransform()->get_anchoredPosition().x / tableView->get_cellSize())*-1, tableView->get_numberOfCells() - 1);
-    idx += 4;
+    idx += numCells;
     int max = tableView->get_dataSource()->NumberOfCells();
     idx = idx < max ? idx : max - 1;
     tableView->ScrollToCellWithIdx(idx, HMUI::TableView::ScrollPositionType::Beginning, true);

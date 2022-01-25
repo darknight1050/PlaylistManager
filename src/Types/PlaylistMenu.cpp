@@ -275,13 +275,12 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
         PlaylistMenu::nextCloseKeyboard = [this](){
             // check for valid title
             if(!AvailablePlaylistName(currentTitle)) {
-                LOG_INFO("Resetting invalid title");
-                if(!addingPlaylist)
-                    playlistTitle->SetText(CSTR(playlist->name));
-                else
-                    playlistTitle->SetText(CSTR("New Playlist"));
+                createButton->set_interactable(false);
+                createButtonHint->set_text(CSTR("Cannot create playlists with duplicate names"));
                 return;
             }
+            createButton->set_interactable(true);
+            createButtonHint->set_text(CSTR(""));
             if(!addingPlaylist) {
                 LOG_INFO("Title set to %s", currentTitle.c_str());
                 RenamePlaylist(playlist, currentTitle);
@@ -460,6 +459,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     // of course the text isn't centered
     createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-2, 0});
     ANCHOR(createButton, 0.17, 0.2, 0.35, 0.27);
+    createButtonHint = BeatSaberUI::AddHoverHint(createButton->get_gameObject(), "");
     
     cancelButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {13, 5}, [this](){
         cancelButtonPressed();
@@ -588,6 +588,7 @@ void PlaylistMenu::updateDetailsMode() {
         playlistDescription->SetText(CSTR(desc));
 
         ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
+        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(CSTR("Change Cover"));
     } else {
         currentTitle = "New Playlist";
         playlistTitle->SetText(CSTR(currentTitle));
@@ -596,6 +597,7 @@ void PlaylistMenu::updateDetailsMode() {
         playlistDescription->SetText(CSTR(""));
 
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
+        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(CSTR("Select Cover"));
     }
 }
 

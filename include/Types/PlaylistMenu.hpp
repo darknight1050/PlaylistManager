@@ -10,6 +10,7 @@
 #include "HMUI/ImageView.hpp"
 #include "HMUI/InputFieldView.hpp"
 #include "HMUI/ModalView.hpp"
+#include "HMUI/HoverHint.hpp"
 
 #include "TMPro/TextMeshProUGUI.hpp"
 
@@ -26,6 +27,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
     UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
+    HMUI::HoverHint *createButtonHint;
     HMUI::ImageView *coverImage, *packImage;
     HMUI::ModalView *confirmModal, *coverModal;
     class CustomListSource *list;

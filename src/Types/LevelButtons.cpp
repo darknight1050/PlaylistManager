@@ -46,7 +46,7 @@ void ButtonsContainer::saveCoverButtonPressed() {
 }
 
 void ButtonsContainer::addToPlaylistButtonPressed() {
-    playlistAddModal->Show(true, false, nullptr);
+    playlistAddModal->Show(true, true, nullptr);
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {

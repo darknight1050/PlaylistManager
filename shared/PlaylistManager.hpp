@@ -18,7 +18,9 @@ namespace PlaylistManager {
         int imageIndex = -1;
     };
 
-    extern const std::unordered_set<std::string> staticPacks;
+    extern bool hasLoaded;
+
+    extern std::unordered_set<std::string> staticPacks;
 
     int GetPackIndex(std::string title);
 

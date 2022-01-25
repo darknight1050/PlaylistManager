@@ -23,6 +23,8 @@
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionCell.hpp"
+#include "GlobalNamespace/LevelFilteringNavigationController.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
@@ -98,6 +100,31 @@ MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::Deacti
     if(PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard();
         PlaylistMenu::nextCloseKeyboard = nullptr;
+    }
+}
+
+// find all official level packs
+MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &LevelFilteringNavigationController::SetupBeatmapLevelPacks,
+        void, LevelFilteringNavigationController* self) {
+    
+    LevelFilteringNavigationController_SetupBeatmapLevelPacks(self);
+
+    staticPacks = { "Custom Levels", "WIP Levels" };
+    for(auto& levelPack : self->allOfficialBeatmapLevelPacks) {
+        staticPacks.emplace(STR(levelPack->get_packName()));
+    }
+}
+
+// prevent download icon showing up on empty custom playlists
+MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &AnnotatedBeatmapLevelCollectionCell::RefreshAvailabilityAsync,
+        void, AnnotatedBeatmapLevelCollectionCell* self, AdditionalContentModel* contentModel) {
+    
+    AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync(self, contentModel);
+
+    auto pack = il2cpp_utils::try_cast<IBeatmapLevelPack>(self->annotatedBeatmapLevelCollection);
+    if(pack.has_value()) {
+        if(!staticPacks.contains(STR(pack.value()->get_packName())))
+            self->SetDownloadIconVisible(false);
     }
 }
 
@@ -193,6 +220,8 @@ MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::Resta
 
     ClearLoadedImages();
 
+    hasLoaded = false;
+
     MenuTransitionsHelper_RestartGame(self, finishCallback);
 }
 
@@ -223,6 +252,8 @@ extern "C" void load() {
     QuestUI::Register::RegisterModSettingsViewController(modInfo, "Playlist Manager", ModSettingsDidActivate);
     INSTALL_HOOK(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
+    INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_SetupBeatmapLevelPacks);
+    INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), BeatmapDifficultySegmentedControlController_SetData);
