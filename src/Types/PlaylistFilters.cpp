@@ -23,7 +23,8 @@ using namespace QuestUI;
 PlaylistFilters* PlaylistFilters::filtersInstance = nullptr;
 
 UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
-    auto go = UnityEngine::GameObject::New_ctor(CSTR("PlaylistManagerUIContainer"));
+    STATIC_CSTR(name, "PlaylistManagerUIContainer");
+    auto go = UnityEngine::GameObject::New_ctor(name);
     go->get_transform()->SetParent(parent, false);
     go->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
     return go;

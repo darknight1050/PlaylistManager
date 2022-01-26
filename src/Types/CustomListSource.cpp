@@ -18,7 +18,7 @@ void CustomListSource::ctor() {
     INVOKE_CTOR();
     expandCell = false;
     tableView = nullptr;
-    reuseIdentifier = CSTR("PlaylistManagerListCell");
+    reuseIdentifier = il2cpp_utils::newcsstr<il2cpp_utils::CreationType::Manual>("PlaylistManagerListCell");
 }
 
 void CustomListSource::dtor() {
@@ -36,7 +36,8 @@ HMUI::TableCell* CustomListSource::CellForIdx(HMUI::TableView* tableView, int id
     CustomTableCell* reusableCell = reinterpret_cast<CustomTableCell*>(tableView->DequeueReusableCellForIdentifier(reuseIdentifier));
     if(!reusableCell) {
         // create a new cell
-        auto cellObject = UnityEngine::GameObject::New_ctor(CSTR("CustomCellGameObject"));
+        STATIC_CSTR(name, "CustomCellGameObject");
+        auto cellObject = UnityEngine::GameObject::New_ctor(name);
         auto rectTransform = cellObject->AddComponent<UnityEngine::RectTransform*>();
         rectTransform->set_sizeDelta({15, 15});
         reusableCell = reinterpret_cast<CustomTableCell*>(cellObject->AddComponent(type));

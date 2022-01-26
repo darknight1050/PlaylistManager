@@ -67,7 +67,9 @@ UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float x
 UnityEngine::UI::Button* anchorMiniButton(UnityEngine::Transform* parent, std::string_view buttonText, std::string_view buttonTemplate, std::function<void()> onClick, float x, float y) {
     auto button = BeatSaberUI::CreateUIButton(parent, buttonText, buttonTemplate, {0, 0}, {8, 8}, onClick);
 
-    UnityEngine::GameObject::Destroy(button->get_transform()->Find(CSTR("Content"))->GetComponent<UnityEngine::UI::LayoutElement*>());
+    STATIC_CSTR(contentName, "Content");
+
+    UnityEngine::GameObject::Destroy(button->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     button->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-0.8, 0});
 
     ANCHOR(button, x, y, x, y);
@@ -276,11 +278,13 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
             // check for valid title
             if(!AvailablePlaylistName(currentTitle)) {
                 createButton->set_interactable(false);
-                createButtonHint->set_text(CSTR("Cannot create playlists with duplicate names"));
+                STATIC_CSTR(nameError, "Cannot create playlists with duplicate names");
+                createButtonHint->set_text(nameError);
                 return;
             }
             createButton->set_interactable(true);
-            createButtonHint->set_text(CSTR(""));
+            STATIC_CSTR(empty, "");
+            createButtonHint->set_text(empty);
             if(!addingPlaylist) {
                 LOG_INFO("Title set to %s", currentTitle.c_str());
                 RenamePlaylist(playlist, currentTitle);
@@ -587,17 +591,22 @@ void PlaylistMenu::updateDetailsMode() {
         std::string desc = playlist->playlistJSON.PlaylistDescription ? playlist->playlistJSON.PlaylistDescription.value() : "...";
         playlistDescription->SetText(CSTR(desc));
 
+        STATIC_CSTR(changeText, "Change Cover");
         ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
-        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(CSTR("Change Cover"));
+        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(changeText);
     } else {
         currentTitle = "New Playlist";
-        playlistTitle->SetText(CSTR(currentTitle));
+        STATIC_CSTR(title, "New Playlist");
+        playlistTitle->SetText(title);
         currentAuthor = "Playlist Manager";
-        playlistAuthor->SetText(CSTR(currentAuthor));
-        playlistDescription->SetText(CSTR(""));
+        STATIC_CSTR(author, "Playlist Manager");
+        playlistAuthor->SetText(author);
+        STATIC_CSTR(empty, "");
+        playlistDescription->SetText(empty);
 
+        STATIC_CSTR(selectText, "Select Cover");
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
-        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(CSTR("Select Cover"));
+        coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(selectText);
     }
 }
 

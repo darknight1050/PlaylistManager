@@ -137,7 +137,9 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
     if(!playlistConfig.Management)
         return;
 
-    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(CSTR("custom_levelPack"))
+    STATIC_CSTR(customPackName, "custom_levelPack");
+
+    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName)
         && !staticPacks.contains(STR(self->pack->get_packName()))) {
         // find playlist json
         auto playlist = GetPlaylist(STR(self->pack->get_packName()));
