@@ -246,9 +246,7 @@ namespace PlaylistManager {
     }
 
     void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh) {
-        // load images if none are loaded
-        if(loadedImages.size() < 1)
-            GetCoverImages();
+        GetCoverImages();
         // clear playlists if requested
         if(fullRefresh) {
             for(auto& pair : name_playlists)
@@ -547,12 +545,15 @@ namespace PlaylistManager {
             auto currentLevel = levelArr[i];
             if(removed)
                 newLevels[i - 1] = currentLevel;
-            else if(currentLevel != level)
+            else if(STR(currentLevel->get_levelID()) != STR(level->get_levelID()))
                 newLevels[i] = currentLevel;
             else
                 removed = true;
         }
-        pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevels;
+        if(removed)
+            pack->customBeatmapLevelCollection->customPreviewBeatmapLevels = newLevels;
+        else
+            LOG_ERROR("Could not find song to be removed!");
         // update json object
         auto& json = playlist->playlistJSON;
         // find song by hash (since the field is required) and remove

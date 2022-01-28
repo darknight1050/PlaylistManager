@@ -178,12 +178,13 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
         ButtonsContainer::buttonsInstance = new ButtonsContainer();
         ButtonsContainer::buttonsInstance->Init(self->standardLevelDetailView);
     }
+    // note: pack is simply the first level pack it finds that contains the level, if selected from all songs etc.
     std::string name = STR(self->pack->get_packName());
     bool customPack = !staticPacks.contains(name);
-    bool customSong = customPack || name == "Custom Levels" || name == "Custom WIP Levels";
+    bool customSong = customPack || name == "Custom Levels" || name == "WIP Levels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
-    ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
-    ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(STR(self->pack->get_packName())));
+    ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
+    ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(name));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
 }
 

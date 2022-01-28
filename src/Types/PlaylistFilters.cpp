@@ -33,10 +33,10 @@ UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
 #pragma region uiFunctions
 void PlaylistFilters::filterSelected(int filter) {
     folderSelectionState = filter;
-    RefreshPlaylists();
-    if(filter == 3) {
+    if(filter == 3)
         SetFoldersFilters(false);
-    }
+    else
+        RefreshPlaylists();
 }
 
 void PlaylistFilters::folderSelected(int listCellIdx) {

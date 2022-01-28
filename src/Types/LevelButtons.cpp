@@ -47,6 +47,7 @@ void ButtonsContainer::saveCoverButtonPressed() {
 
 void ButtonsContainer::addToPlaylistButtonPressed() {
     playlistAddModal->Show(true, true, nullptr);
+    // needed because of parenting shenanigans or something
     playlistAddModal->get_transform()->set_localPosition({40, -10, 0});
 }
 
@@ -55,7 +56,7 @@ void ButtonsContainer::removeFromPlaylistButtonPressed() {
     // keep scroll position
     float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
     anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-    auto levelsArr = currentPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels;
+    auto& levelsArr = currentPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels;
     auto levelsArrCast = *((ArrayW<GlobalNamespace::IPreviewBeatmapLevel*>*) &levelsArr);
     levelListTableView->SetData(levelsArrCast, levelListTableView->favoriteLevelIds, false);
     levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
@@ -216,8 +217,6 @@ void ButtonsContainer::RefreshPlaylists() {
 void ButtonsContainer::RefreshHighlightedDifficulties() {
     if(!currentPlaylist)
         return;
-    // update current level based on level detail view, due to function order for hooks
-    currentLevel = (GlobalNamespace::IPreviewBeatmapLevel*) levelDetailView->level;
     // get difficulty display object
     auto segmentedController = levelDetailView->beatmapDifficultySegmentedControlController;
     auto cells = segmentedController->difficultySegmentedControl->cells;
