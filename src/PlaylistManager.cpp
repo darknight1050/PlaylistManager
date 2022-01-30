@@ -403,20 +403,20 @@ namespace PlaylistManager {
             return;
         }
         // also update path
-        auto path_iter = path_playlists.find(playlist->path);
-        if(path_iter == path_playlists.end()) {
-            LOG_ERROR("Could not find playlist by path");
-            return;
-        }
-        std::string newPath = GetPath(title);
+        // auto path_iter = path_playlists.find(playlist->path);
+        // if(path_iter == path_playlists.end()) {
+        //     LOG_ERROR("Could not find playlist by path");
+        //     return;
+        // }
+        // std::string newPath = GetPath(title);
         // edit variables
         playlistConfig.Order[orderIndex] = title;
         playlist->name = title;
         playlist->playlistJSON.PlaylistTitle = title;
         name_playlists.erase(name_iter);
         name_playlists.insert({title, playlist});
-        path_playlists.erase(path_iter);
-        path_playlists.insert({newPath, playlist});
+        // path_playlists.erase(path_iter);
+        // path_playlists.insert({newPath, playlist});
         // change name in all folders
         for(auto& folder : playlistConfig.Folders) {
             for(int i = 0; i < folder.PlaylistNames.size(); i++) {
@@ -435,8 +435,8 @@ namespace PlaylistManager {
         WriteToFile(GetConfigPath(), playlistConfig);
         WriteToFile(oldPath, playlist->playlistJSON);
         // rename file
-        std::filesystem::rename(oldPath, newPath);
-        playlist->path = newPath;
+        // std::filesystem::rename(oldPath, newPath);
+        // playlist->path = newPath;
     }
 
     void ChangePlaylistCover(Playlist* playlist, UnityEngine::Sprite* newCover, int coverIndex) {
@@ -488,6 +488,7 @@ namespace PlaylistManager {
             playlistConfig.Order.erase(playlistConfig.Order.begin() + orderIndex);
         else
             playlistConfig.Order.erase(playlistConfig.Order.end() - 1);
+        WriteToFile(GetConfigPath(), playlistConfig);
         // delete playlist object
         delete playlist;
     }
