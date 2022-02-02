@@ -53,7 +53,7 @@ namespace PlaylistManager {
         void filterSelected(int filter);
         void folderSelected(int listCellIdx);
         void backButtonPressed();
-        void folderTitleTyped(std::string_view newTitle);
+        void folderTitleTyped(std::string newTitle);
         void editButtonPressed();
         void deleteButtonPressed();
         void createButtonPressed();

@@ -42,7 +42,7 @@ using namespace GlobalNamespace;
 
 DEFINE_TYPE(PlaylistManager, PlaylistMenu);
 
-#define ANCHOR(component, xmin, ymin, xmax, ymax) auto component##_rect = reinterpret_cast<UnityEngine::RectTransform*>(component->get_transform()); \
+#define ANCHOR(component, xmin, ymin, xmax, ymax) auto component##_rect = (UnityEngine::RectTransform*) component->get_transform(); \
 component##_rect->set_anchorMin({xmin, ymin}); \
 component##_rect->set_anchorMax({xmax, ymax});
 
@@ -50,7 +50,7 @@ std::function<void()> PlaylistMenu::nextCloseKeyboard = nullptr;
 PlaylistMenu* PlaylistMenu::menuInstance = nullptr;
 
 UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float xmin, float ymin, float xmax, float ymax) {
-    STATIC_CSTR(name, "BPContainer");
+    static ConstString name("BPContainer");
     auto go = UnityEngine::GameObject::New_ctor(name);
     go->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
     
@@ -67,7 +67,7 @@ UnityEngine::GameObject* anchorContainer(UnityEngine::Transform* parent, float x
 UnityEngine::UI::Button* anchorMiniButton(UnityEngine::Transform* parent, std::string_view buttonText, std::string_view buttonTemplate, std::function<void()> onClick, float x, float y) {
     auto button = BeatSaberUI::CreateUIButton(parent, buttonText, buttonTemplate, {0, 0}, {8, 8}, onClick);
 
-    STATIC_CSTR(contentName, "Content");
+    static ConstString contentName("Content");
 
     UnityEngine::GameObject::Destroy(button->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     button->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-0.8, 0});
@@ -130,13 +130,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::refreshCoroutine() {
         co_return;
     // don't close if already closed
     if(detailsVisible)
-        co_yield reinterpret_cast<System::Collections::IEnumerator*>(
-            StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(
-                custom_types::Helpers::CoroutineHelper::New(moveCoroutine(true)) )) );
+        co_yield (System::Collections::IEnumerator*) StartCoroutine(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(true)));
     updateDetailsMode();
-    co_yield reinterpret_cast<System::Collections::IEnumerator*>(
-            StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(
-                custom_types::Helpers::CoroutineHelper::New(moveCoroutine(false)) )) );
+    co_yield (System::Collections::IEnumerator*) StartCoroutine(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(false)));
     co_return;
 }
 
@@ -150,12 +146,12 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     if(!syncUrl.has_value())
         co_return;
     LOG_INFO("sending request");
-    auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(CSTR(syncUrl.value()));
+    auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());
 
     co_yield (System::Collections::IEnumerator*) webRequest->SendWebRequest();
 
     if(webRequest->GetError() != UnityEngine::Networking::UnityWebRequest::UnityWebRequestError::OK) {
-        LOG_ERROR("Sync request failed! Error: %s", STR(webRequest->GetWebErrorString(webRequest->GetError())).c_str());
+        LOG_ERROR("Sync request failed! Error: %s", webRequest->GetWebErrorString(webRequest->GetError()).operator std::string().c_str());
         co_return;
     }
 
@@ -165,7 +161,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     // delete outdated playlist so that the new one can be fully reloaded
     DeletePlaylist(playlist);
     // save synced playlist
-    std::string text = STR(webRequest->get_downloadHandler()->GetText());
+    std::string text = webRequest->get_downloadHandler()->GetText();
     writefile(path, text);
     // reload playlists
     RefreshPlaylists();
@@ -177,12 +173,12 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     using CollectionType = IAnnotatedBeatmapLevelCollection*;
     using EnumerableType = System::Collections::Generic::IEnumerable_1<CollectionType>*;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<EnumerableType>(gameTableView->annotatedBeatmapLevelCollections));
+    auto collectionList = List<CollectionType>::New_ctor((EnumerableType) gameTableView->annotatedBeatmapLevelCollections);
     int length = collectionList->get_Count();
     auto movedCollection = collectionList->get_Item(length - 1);
     collectionList->RemoveAt(length - 1);
     collectionList->Insert(tableIdx, movedCollection);
-    gameTableView->SetData(reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly()));
+    gameTableView->SetData((System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly());
     scrollToIndex(tableIdx);
     // update playlist in level buttons
     if(ButtonsContainer::buttonsInstance)
@@ -209,8 +205,7 @@ void PlaylistMenu::infoButtonPressed() {
 
 void PlaylistMenu::syncButtonPressed() {
     LOG_INFO("syncButtonPressed");
-    SharedCoroutineStarter::get_instance()->StartCoroutine(
-        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(syncCoroutine())));
+    SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(syncCoroutine()));
 }
 
 void PlaylistMenu::addButtonPressed() {
@@ -239,12 +234,12 @@ void PlaylistMenu::moveRightButtonPressed() {
     // move playlist in table
     using CollectionType = IAnnotatedBeatmapLevelCollection*;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
+    auto collectionList = List<CollectionType>::New_ctor((System::Collections::Generic::IEnumerable_1<CollectionType>*) gameTableView->annotatedBeatmapLevelCollections);
     auto movedCollection = collectionList->get_Item(oldCellIdx);
     collectionList->RemoveAt(oldCellIdx);
     collectionList->Insert(oldCellIdx + 1, movedCollection);
     // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly());
+    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly();
     gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx + 1);
 }
@@ -261,29 +256,29 @@ void PlaylistMenu::moveLeftButtonPressed() {
     // move playlist in table
     using CollectionType = IAnnotatedBeatmapLevelCollection*;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor(reinterpret_cast<System::Collections::Generic::IEnumerable_1<CollectionType>*>(gameTableView->annotatedBeatmapLevelCollections));
+    auto collectionList = List<CollectionType>::New_ctor((System::Collections::Generic::IEnumerable_1<CollectionType>*) gameTableView->annotatedBeatmapLevelCollections);
     auto movedCollection = collectionList->get_Item(oldCellIdx);
     collectionList->RemoveAt(oldCellIdx);
     collectionList->Insert(oldCellIdx - 1, movedCollection);
     // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = reinterpret_cast<System::Collections::Generic::IReadOnlyList_1<CollectionType>*>(collectionList->AsReadOnly());
+    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly();
     gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx - 1);
 }
 
-void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
+void PlaylistMenu::playlistTitleTyped(std::string newValue) {
     currentTitle = newValue.data();
     if(!PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard = [this](){
             // check for valid title
             if(!AvailablePlaylistName(currentTitle)) {
                 createButton->set_interactable(false);
-                STATIC_CSTR(nameError, "Cannot create playlists with duplicate names");
+                static ConstString nameError("Cannot create playlists with duplicate names");
                 createButtonHint->set_text(nameError);
                 return;
             }
             createButton->set_interactable(true);
-            STATIC_CSTR(empty, "");
+            static ConstString empty("");
             createButtonHint->set_text(empty);
             if(!addingPlaylist) {
                 LOG_INFO("Title set to %s", currentTitle.c_str());
@@ -295,7 +290,7 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
                 auto tableView = arr[0];
                 if(!tableView->showLevelPackHeader)
                     return;
-                tableView->headerText = CSTR(currentTitle);
+                tableView->headerText = currentTitle;
                 tableView->tableView->RefreshCells(true, true);
                 // update hover texts
                 if(ButtonsContainer::buttonsInstance)
@@ -308,7 +303,7 @@ void PlaylistMenu::playlistTitleTyped(std::string_view newValue) {
         PlaylistMenu::nextCloseKeyboard = nullptr;
 }
 
-void PlaylistMenu::playlistAuthorTyped(std::string_view newValue) {
+void PlaylistMenu::playlistAuthorTyped(std::string newValue) {
     currentAuthor = newValue.data();
     if(!PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard = [this](){
@@ -416,14 +411,14 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ANCHOR(detailsBackground, 0, 0.15, 1, 1);
     detailsBackground->set_color({0.15, 0.15, 0.15, 0.93});
 
-    playlistTitle = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Title", "", [this](std::string_view newValue){
+    playlistTitle = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Title", "", [this](StringW newValue){
         playlistTitleTyped(newValue);
     });
     playlistTitle->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
     playlistTitle->textView->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
     ANCHOR(playlistTitle, 0.2, 0.89, 0.8, 0.99);
 
-    playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1, 0}, [this](std::string_view newValue){
+    playlistAuthor = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Author", "", {0, 0}, {0, -0.1, 0}, [this](StringW newValue){
         playlistAuthorTyped(newValue);
     });
     playlistAuthor->GetComponent<UnityEngine::RectTransform*>()->set_sizeDelta({19.8, 3});
@@ -558,13 +553,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     auto left = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [this](){
         scrollListLeftButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+    ((UnityEngine::RectTransform*) left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
     auto right = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [this](){
         scrollListRightButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+    ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
     #pragma endregion
     
@@ -583,28 +578,28 @@ void PlaylistMenu::updateDetailsMode() {
     cancelButton->get_gameObject()->set_active(addingPlaylist);
 
     if(!addingPlaylist) {
-        playlistTitle->SetText(CSTR(playlist->name));
+        playlistTitle->SetText(playlist->name);
 
         std::string auth = playlist->playlistJSON.PlaylistAuthor ? playlist->playlistJSON.PlaylistAuthor.value() : "";
-        playlistAuthor->SetText(CSTR(auth));
+        playlistAuthor->SetText(auth);
 
         std::string desc = playlist->playlistJSON.PlaylistDescription ? playlist->playlistJSON.PlaylistDescription.value() : "...";
-        playlistDescription->SetText(CSTR(desc));
+        playlistDescription->SetText(desc);
 
-        STATIC_CSTR(changeText, "Change Cover");
+        static ConstString changeText("Change Cover");
         ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
         coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(changeText);
     } else {
         currentTitle = "New Playlist";
-        STATIC_CSTR(title, "New Playlist");
+        static ConstString title("New Playlist");
         playlistTitle->SetText(title);
         currentAuthor = "Playlist Manager";
-        STATIC_CSTR(author, "Playlist Manager");
+        static ConstString author("Playlist Manager");
         playlistAuthor->SetText(author);
-        STATIC_CSTR(empty, "");
+        static ConstString empty("");
         playlistDescription->SetText(empty);
 
-        STATIC_CSTR(selectText, "Select Cover");
+        static ConstString selectText("Select Cover");
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
         coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(selectText);
     }
@@ -626,7 +621,7 @@ void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(
-        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+        custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
     
     PlaylistMenu::menuInstance = this;
 }
@@ -662,11 +657,11 @@ void PlaylistMenu::RefreshCovers() {
 }
 
 void PlaylistMenu::ShowDetails(bool visible) {
-    StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(!visible))));
+    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(!visible)));
 }
 
 void PlaylistMenu::RefreshDetails() {
-    StartCoroutine(reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(refreshCoroutine())));
+    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(refreshCoroutine()));
 }
 
 void PlaylistMenu::SetVisible(bool visible) {

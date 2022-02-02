@@ -10,7 +10,7 @@
 const int imageSize = 384;
 
 std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
-    std::string id = STR(level->levelID);
+    std::string id = level->levelID;
     // should be in all songloader levels
     auto prefixIndex = id.find("custom_level_");
     if(prefixIndex == std::string::npos)
@@ -101,7 +101,7 @@ std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString) 
     // but I don't want to to it twice for every cover, so it will just normalize itself after another restart
     // and it shouldn't be a problem through ingame cover management
     auto bytes = UnityEngine::ImageConversion::EncodeToPNG(texture);
-    return STR(System::Convert::ToBase64String(bytes));
+    return System::Convert::ToBase64String(bytes);
 }
 
 void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture) {

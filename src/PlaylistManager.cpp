@@ -93,7 +93,7 @@ namespace PlaylistManager {
             }
             // get and write texture
             auto texture = UnityEngine::Texture2D::New_ctor(0, 0, UnityEngine::TextureFormat::RGBA32, false, false);
-            UnityEngine::ImageConversion::LoadImage(texture, System::Convert::FromBase64String(CSTR(imageBase64)));
+            UnityEngine::ImageConversion::LoadImage(texture, System::Convert::FromBase64String(imageBase64));
             // process texture size and png string and check hash for changes
             std::size_t oldHash = imgHash;
             imageBase64 = ProcessImage(texture, true);
@@ -184,7 +184,7 @@ namespace PlaylistManager {
                 instream.seekg(0, instream.beg);
                 auto bytes = Array<uint8_t>::NewLength(size);
                 instream.read(reinterpret_cast<char*>(bytes->values), size);
-                std::size_t imgHash = hasher(STR(System::Convert::ToBase64String(bytes)));
+                std::size_t imgHash = hasher(System::Convert::ToBase64String(bytes));
                 if(imageHashes.contains(imgHash)) {
                     LOG_INFO("Skipping loading image with hash %lu", imgHash);
                     continue;
@@ -296,8 +296,7 @@ namespace PlaylistManager {
                         name_playlists.insert({playlist->name, playlist});
                         path_playlists.insert({playlist->path, playlist});
                         // create playlist object
-                        // SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(playlist->name, playlist->name, GetCoverImage(playlist));
-                        auto songloaderBeatmapLevelPack = *il2cpp_utils::New<SongLoaderCustomBeatmapLevelPack*>(CSTR("custom_levelPack_" + playlist->name), CSTR(playlist->name), GetCoverImage(playlist));
+                        SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::Make_New(playlist->name, playlist->name, GetCoverImage(playlist));
                         playlist->playlistCS = songloaderBeatmapLevelPack->CustomLevelsPack;
                         // add all songs to the playlist object
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
@@ -372,7 +371,7 @@ namespace PlaylistManager {
         if(author != "")
             newPlaylist.PlaylistAuthor = author;
         auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
-        newPlaylist.ImageString = STR(System::Convert::ToBase64String(bytes));
+        newPlaylist.ImageString = System::Convert::ToBase64String(bytes);
         // save playlist
         std::string path = GetPath(title);
         WriteToFile(path, newPlaylist);
@@ -428,7 +427,7 @@ namespace PlaylistManager {
         // rename playlist ingame
         auto& levelPack = playlist->playlistCS;
         if(levelPack) {
-            auto nameCS = CSTR(playlist->name);
+            auto nameCS = playlist->name;
             levelPack->packName = nameCS;
             levelPack->shortPackName = nameCS;
         }
@@ -456,7 +455,7 @@ namespace PlaylistManager {
             LOG_INFO("Changing playlist cover");
             // save image base 64
             auto bytes = UnityEngine::ImageConversion::EncodeToPNG(newCover->get_texture());
-            json.ImageString = STR(System::Convert::ToBase64String(bytes));
+            json.ImageString = System::Convert::ToBase64String(bytes);
         }
         // change cover ingame
         auto levelPack = playlist->playlistCS;
@@ -527,7 +526,7 @@ namespace PlaylistManager {
         // set info
         auto& songJson = *(json.Songs.end() - 1);
         songJson.Hash = GetLevelHash(level);
-        songJson.SongName = STR(level->songName);
+        songJson.SongName = level->songName;
         // write to file
         WriteToFile(playlist->path, json);
     }
@@ -547,7 +546,7 @@ namespace PlaylistManager {
             auto currentLevel = levelArr[i];
             if(removed)
                 newLevels[i - 1] = currentLevel;
-            else if(STR(currentLevel->get_levelID()) != STR(level->get_levelID()))
+            else if(currentLevel->get_levelID() != level->get_levelID())
                 newLevels[i] = currentLevel;
             else
                 removed = true;

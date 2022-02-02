@@ -61,5 +61,5 @@ void CoverTableCell::setSprite(UnityEngine::Sprite* sprite) {
 }
 
 void CoverTableCell::setText(std::string text) {
-    hoverHint->set_text(CSTR(text));
+    hoverHint->set_text(text);
 }

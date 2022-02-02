@@ -40,7 +40,7 @@ void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     // get rounded sprite
     STATIC_AUTO(img, ArrayUtil::Last(UnityEngine::Resources::FindObjectsOfTypeAll<HMUI::ImageView*>(), [](HMUI::ImageView* x){
         auto sprite = x->get_sprite();
-        return sprite && STR(sprite->get_name()) == "RoundRect10";
+        return sprite && sprite->get_name() == "RoundRect10";
     }));
     // create images
     selectImage = BeatSaberUI::CreateImage(get_transform(), img->get_sprite(), {0, 0}, {15, 25});
@@ -55,5 +55,5 @@ void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
 }
 
 void FolderTableCell::setText(std::string text) {
-    folderName->set_text(CSTR(text));
+    folderName->set_text(text);
 }

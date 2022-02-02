@@ -36,7 +36,7 @@ HMUI::TableCell* CustomListSource::CellForIdx(HMUI::TableView* tableView, int id
     CustomTableCell* reusableCell = reinterpret_cast<CustomTableCell*>(tableView->DequeueReusableCellForIdentifier(reuseIdentifier));
     if(!reusableCell) {
         // create a new cell
-        STATIC_CSTR(name, "CustomCellGameObject");
+        static ConstString name("CustomCellGameObject");
         auto cellObject = UnityEngine::GameObject::New_ctor(name);
         auto rectTransform = cellObject->AddComponent<UnityEngine::RectTransform*>();
         rectTransform->set_sizeDelta({15, 15});

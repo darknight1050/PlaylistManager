@@ -55,8 +55,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     void addButtonPressed();
     void moveRightButtonPressed();
     void moveLeftButtonPressed();
-    void playlistTitleTyped(std::string_view newValue);
-    void playlistAuthorTyped(std::string_view newValue);
+    void playlistTitleTyped(std::string newValue);
+    void playlistAuthorTyped(std::string newValue);
     void coverButtonPressed();
     void deleteButtonPressed();
     void createButtonPressed();

@@ -28,7 +28,7 @@ HMUI::TableView* PlaylistFilters::monitoredTable;
 std::function<void(int)> PlaylistFilters::deselectCallback;
 
 UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
-    STATIC_CSTR(name, "PlaylistManagerUIContainer");
+    static ConstString name("PlaylistManagerUIContainer");
     auto go = UnityEngine::GameObject::New_ctor(name);
     go->get_transform()->SetParent(parent, false);
     go->AddComponent<UnityEngine::RectTransform*>();
@@ -94,7 +94,7 @@ void PlaylistFilters::backButtonPressed() {
     }
 }
 
-void PlaylistFilters::folderTitleTyped(std::string_view newTitle) {
+void PlaylistFilters::folderTitleTyped(std::string newTitle) {
     currentTitle = newTitle;
     if(state == State::editing) {
         currentFolder->FolderName = newTitle;
@@ -251,7 +251,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     topLayout->set_childControlWidth(true);
     topLayout->set_spacing(2);
 
-    STATIC_CSTR(contentName, "Content");
+    static ConstString contentName("Content");
 
     auto backButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "<", "ActionButton", [this](){
         backButtonPressed();
@@ -313,7 +313,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    titleField = BeatSaberUI::CreateStringSetting(topLayout->get_transform(), "Folder Name", "", [this](std::string_view newTitle){
+    titleField = BeatSaberUI::CreateStringSetting(topLayout->get_transform(), "Folder Name", "", [this](StringW newTitle){
         folderTitleTyped(newTitle);
     });
     titleField->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(41);
@@ -422,17 +422,17 @@ void PlaylistFilters::setFolderEdit(bool editing) {
             setFoldersFilters(false);
             return;
         }
-        STATIC_CSTR(backText, "<");
+        static ConstString backText("<");
         editBackButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(backText);
-        titleField->set_text(CSTR(currentFolder->FolderName));
+        titleField->set_text(currentFolder->FolderName);
         subfoldersToggle->set_isOn(currentFolder->HasSubfolders);
         defaultsToggle->set_isOn(currentFolder->ShowDefaults);
         playlistListContainer->SetActive(!currentFolder->HasSubfolders);
         reloadFolderPlaylists();
     } else {
-        STATIC_CSTR(createText, "+");
+        static ConstString createText("+");
         editBackButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(createText);
-        STATIC_CSTR(empty, "");
+        static ConstString empty("");
         titleField->set_text(empty);
         subfoldersToggle->set_isOn(false);
         defaultsToggle->set_isOn(false);
@@ -475,8 +475,7 @@ void PlaylistFilters::deselectFolder() {
 
 void PlaylistFilters::Init() {
     // start coroutine
-    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
-        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
 void PlaylistFilters::ReloadFolders() {
