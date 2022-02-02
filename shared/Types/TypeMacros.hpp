@@ -18,9 +18,9 @@ namespace namespaze { \
     }; \
 }
 
-#define DESERIALIZE_METHOD(namespaze, name, impl) \
+#define DESERIALIZE_METHOD(namespaze, name, ...) \
 void namespaze::name::Deserialize(const rapidjson::Value& jsonValue) { \
-    impl \
+    __VA_ARGS__ \
 }
 
 #define DESERIALIZE_VALUE(name, jsonName, type) \
@@ -33,6 +33,11 @@ if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].Is##type()) { \
     name = jsonValue[#jsonName].Get##type(); \
 } else name = std::nullopt;
 
+#define DESERIALIZE_VALUE_DEFAULT(name, jsonName, type, def) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].Is##type()) { \
+    name = jsonValue[#jsonName].Get##type(); \
+} else name = def;
+
 #define DESERIALIZE_CLASS(name, jsonName) \
 if (!jsonValue.HasMember(#jsonName)) throw #jsonName " not found"; \
 if (!jsonValue[#jsonName].IsObject()) throw #jsonName ", type expected was: JsonObject"; \
@@ -43,6 +48,11 @@ if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsObject()) { \
     if(!name.has_value()) name.emplace(); \
     name->Deserialize(jsonValue[#jsonName]); \
 } else name = std::nullopt;
+
+#define DESERIALIZE_CLASS_DEFAULT(name, jsonName, def) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsObject()) { \
+    name.Deserialize(jsonValue[#jsonName]); \
+} else name = def;
 
 // seems to assume vector is of another json class
 #define DESERIALIZE_VECTOR(name, jsonName, type) \
@@ -69,6 +79,17 @@ if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
     } \
 } else name = std::nullopt;
 
+#define DESERIALIZE_VECTOR_DEFAULT(name, jsonName, type, def) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
+    name.clear(); \
+    auto& jsonName = jsonValue[#jsonName]; \
+    for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
+        type value{}; \
+        value.Deserialize(*it); \
+        name.push_back(value); \
+    } \
+} else name = def;
+
 #define DESERIALIZE_VECTOR_BASIC(name, jsonName, type) \
 if (!jsonValue.HasMember(#jsonName)) throw #jsonName " not found"; \
 name.clear(); \
@@ -85,14 +106,23 @@ if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
     else name->clear(); \
     auto& jsonName = jsonValue[#jsonName]; \
     for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
-        name.push_back(it->Get##type()); \
+        name->push_back(it->Get##type()); \
     } \
 } else name = std::nullopt;
 
-#define SERIALIZE_METHOD(namespaze, name, impl) \
+#define DESERIALIZE_VECTOR_BASIC_DEFAULT(name, jsonName, type, def) \
+if(jsonValue.HasMember(#jsonName) && jsonValue[#jsonName].IsArray()) { \
+    name.clear(); \
+    auto& jsonName = jsonValue[#jsonName]; \
+    for (auto it = jsonName.Begin(); it != jsonName.End(); ++it) { \
+        name.push_back(it->Get##type()); \
+    } \
+} else name = def;
+
+#define SERIALIZE_METHOD(namespaze, name, ...) \
 rapidjson::Value namespaze::name::Serialize(rapidjson::Document::AllocatorType& allocator) { \
     rapidjson::Value jsonObject(rapidjson::kObjectType); \
-    impl \
+    __VA_ARGS__ \
     return jsonObject; \
 }
 
@@ -154,7 +184,7 @@ static bool ReadFromFile(std::string_view path, JSONClass& toDeserialize) {
     
     try {
         toDeserialize.Deserialize(document.GetObject());
-    } catch (...) {
+    } catch(...) {
         return false;
     }
     return true;

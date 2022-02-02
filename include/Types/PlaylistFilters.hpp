@@ -1,21 +1,66 @@
 #pragma once
 
 #include "Types/CustomListSource.hpp"
+#include "Types/Folder.hpp"
 
 #include "custom-types/shared/coroutine.hpp"
 
+#include "UnityEngine/UI/Button.hpp"
+#include "UnityEngine/UI/Toggle.hpp"
+#include "TMPro/TextMeshProUGUI.hpp"
+#include "HMUI/InputFieldView.hpp"
+
 namespace PlaylistManager {
+    
+    class Playlist;
+
     class PlaylistFilters {
+
+        enum struct State {
+            filters,
+            folders,
+            editing,
+            creating
+        };
 
         private:
         CustomListSource *filterList, *folderList, *playlistList;
-        UnityEngine::GameObject *folderMenu, *folderListContainer, *playlistListContainer, *canvas;
+        UnityEngine::GameObject *folderMenu, *folderEditMenu, *playlistListContainer, *canvas;
+        UnityEngine::UI::Button *editButton, *deleteButton, *editBackButton;
+        HMUI::InputFieldView *titleField;
+        UnityEngine::UI::Toggle *subfoldersToggle, *defaultsToggle;
+        TMPro::TextMeshProUGUI *folderTitle;
+
+        bool currentSubfolders, currentDefaults;
+        std::string currentTitle;
+        std::vector<std::string> currentPlaylists;
+
+        std::vector<Folder*> parentFolders;
+        std::vector<Folder*> currentFolderList;
+
+        std::vector<Playlist*> loadedPlaylists;
+
+        State state;
 
         custom_types::Helpers::Coroutine initCoroutine();
         void reloadFolderPlaylists();
+        
+        void setFoldersFilters(bool filtersVisible);
+        void setFolderEdit(bool editing);
+        void selectFolder(Folder& folder);
+        void deselectFolder();
 
         void filterSelected(int filter);
         void folderSelected(int listCellIdx);
+        void backButtonPressed();
+        void folderTitleTyped(std::string_view newTitle);
+        void editButtonPressed();
+        void deleteButtonPressed();
+        void createButtonPressed();
+        void subfoldersToggled(bool enabled);
+        void defaultsToggled(bool enabled);
+        void playlistSelected(int cellIdx);
+        void playlistDeselected(int cellIdx);
         void scrollFolderListLeftButtonPressed();
         void scrollFolderListRightButtonPressed();
         void scrollPlaylistListLeftButtonPressed();
@@ -24,9 +69,12 @@ namespace PlaylistManager {
         public:
         static PlaylistFilters* filtersInstance;
 
+        static HMUI::TableView* monitoredTable;
+        static std::function<void(int)> deselectCallback;
+
         void Init();
-        void SetFoldersFilters(bool filtersVisible);
         void ReloadFolders();
+        void RefreshPlaylists();
         void Destroy();
     };
 }

@@ -213,6 +213,16 @@ MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::Did
     }
 }
 
+// hook to apply changes when deselecting a cell in a multi select
+MAKE_HOOK_MATCH(TableView_HandleCellSelectionDidChange, &HMUI::TableView::HandleCellSelectionDidChange,
+        void, HMUI::TableView* self, HMUI::SelectableCell* selectableCell, HMUI::SelectableCell::TransitionType transitionType, ::Il2CppObject* changeOwner) {
+    
+    TableView_HandleCellSelectionDidChange(self, selectableCell, transitionType, changeOwner);
+
+    if(self == PlaylistFilters::monitoredTable && !selectableCell->get_selected())
+        PlaylistFilters::deselectCallback(((HMUI::TableCell*) selectableCell)->get_idx());
+}
+
 // throw away objects on a soft restart
 MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::RestartGame,
         void, MenuTransitionsHelper* self, System::Action_1<Zenject::DiContainer*>* finishCallback) {
@@ -261,6 +271,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), BeatmapDifficultySegmentedControlController_SetData);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
+    INSTALL_HOOK(getLogger(), TableView_HandleCellSelectionDidChange);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {

@@ -25,13 +25,14 @@
 using namespace RuntimeSongLoader;
 
 bool ShouldAddPack(std::string name) {
-    if(currentFolder && folderSelectionState == 3) {
+    if(folderSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders) {
         for(std::string testName : currentFolder->PlaylistNames) {
             if(name == testName)
                 return true;
         }
+        return false;
     }
-    return folderSelectionState == 0 || folderSelectionState == 2;
+    return folderSelectionState != 0;
 }
 
 namespace PlaylistManager {
@@ -496,8 +497,8 @@ namespace PlaylistManager {
     void RefreshPlaylists(bool fullRefresh) {
         if(!hasLoaded)
             return;
-        bool showDefaults = folderSelectionState == 0 || folderSelectionState == 1;
-        if(folderSelectionState == 3 && currentFolder)
+        bool showDefaults = folderSelectionState != 2;
+        if(folderSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
             showDefaults = currentFolder->ShowDefaults;
         if(fullRefresh) {
             for(auto& pair : name_playlists)

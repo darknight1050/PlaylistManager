@@ -14,6 +14,7 @@
 #define LOWER(string) std::transform(string.begin(), string.end(), string.begin(), tolower)
 
 #include "beatsaber-hook/shared/utils/utils.h"
+
 Logger& getLogger();
 
 std::string GetPlaylistsPath();
