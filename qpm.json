@@ -4,7 +4,7 @@
   "info": {
     "name": "playlistmanager",
     "id": "playlistmanager",
-    "version": "0.0.1",
+    "version": "0.2.0",
     "url": "https://github.com/darknight1050/playlistmanager",
     "additionalData": {
       "overrideSoName": "libplaylistmanager.so"
@@ -13,7 +13,27 @@
   "dependencies": [
     {
       "id": "songloader",
-      "versionRange": "^0.7.1",
+      "versionRange": "^0.8.0",
+      "additionalData": {}
+    },
+    {
+      "id": "questui",
+      "versionRange": "^0.13.1",
+      "additionalData": {}
+    },
+    {
+      "id": "codegen",
+      "versionRange": "^0.19.3",
+      "additionalData": {}
+    },
+    {
+      "id": "custom-types",
+      "versionRange": "^0.15.6",
+      "additionalData": {}
+    },
+    {
+      "id": "beatsaber-hook",
+      "versionRange": "^3.6.7",
       "additionalData": {}
     }
   ],
