@@ -52,3 +52,9 @@ Android.mk.backup
 /.vs/PlaylistManager/
 /.vs/ProjectSettings.json
 *.sqlite
+
+build
+mod.json
+qpm_defines.cmake
+extern.cmake
+*.qmod
