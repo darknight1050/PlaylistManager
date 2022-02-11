@@ -67,7 +67,7 @@ namespace PlaylistManager {
                                 imageBase64 = imageBase64.substr(searchIndex + searchString.length());
                             coverImage = QuestUI::BeatSaberUI::Base64ToSprite(imageBase64);
                         }
-                        SongLoaderCustomBeatmapLevelPack* customBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::New_ctor(list.GetPlaylistTitle(), list.GetPlaylistTitle(), coverImage);
+                        SongLoaderCustomBeatmapLevelPack* customBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::Make_New(list.GetPlaylistTitle(), list.GetPlaylistTitle(), coverImage);
                         playlists->Add(pathCS, customBeatmapLevelPack);
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
                         for(auto& song : list.GetSongs()) {
