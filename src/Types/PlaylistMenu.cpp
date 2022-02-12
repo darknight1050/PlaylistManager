@@ -27,6 +27,7 @@
 
 #include "GlobalNamespace/LevelCollectionTableView.hpp"
 #include "GlobalNamespace/LevelPackHeaderTableCell.hpp"
+#include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 
 #include "System/Threading/CancellationToken.hpp"
@@ -170,15 +171,20 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     // move playlist to correct index
     MovePlaylist(newPlaylist, configIdx);
     // move playlist in table
-    using CollectionType = IAnnotatedBeatmapLevelCollection*;
-    using EnumerableType = System::Collections::Generic::IEnumerable_1<CollectionType>*;
+    namespace Generic = System::Collections::Generic;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor((EnumerableType) gameTableView->annotatedBeatmapLevelCollections);
-    int length = collectionList->get_Count();
-    auto movedCollection = collectionList->get_Item(length - 1);
-    collectionList->RemoveAt(length - 1);
-    collectionList->Insert(tableIdx, movedCollection);
-    gameTableView->SetData((System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly());
+    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto movedCollection = packList->get_Item(packList->get_Count() - 1);
+    packList->RemoveAt(packList->get_Count() - 1);
+    packList->Insert(tableIdx, movedCollection);
+    auto packArray = packList->ToArray();
+    // update in navigation controller to avoid resetting
+    navigationController->customLevelPacks = packArray;
+    // update in levels model also to avoid resetting
+    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
+    // SetData causes the page control to reset, causing scrolling flashes
+    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
+    gameTableView->gridView->ReloadData();
     scrollToIndex(tableIdx);
     // update playlist in level buttons
     if(ButtonsContainer::buttonsInstance)
@@ -232,14 +238,19 @@ void PlaylistMenu::moveRightButtonPressed() {
         return;
     MovePlaylist(playlist, configIdx + 1);
     // move playlist in table
-    using CollectionType = IAnnotatedBeatmapLevelCollection*;
+    namespace Generic = System::Collections::Generic;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor((System::Collections::Generic::IEnumerable_1<CollectionType>*) gameTableView->annotatedBeatmapLevelCollections);
-    auto movedCollection = collectionList->get_Item(oldCellIdx);
-    collectionList->RemoveAt(oldCellIdx);
-    collectionList->Insert(oldCellIdx + 1, movedCollection);
+    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto movedCollection = packList->get_Item(oldCellIdx);
+    packList->RemoveAt(oldCellIdx);
+    packList->Insert(oldCellIdx + 1, movedCollection);
+    auto packArray = packList->ToArray();
+    // update in navigation controller to avoid resetting
+    navigationController->customLevelPacks = packArray;
+    // update in levels model also to avoid resetting
+    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
     // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly();
+    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
     gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx + 1);
 }
@@ -254,14 +265,19 @@ void PlaylistMenu::moveLeftButtonPressed() {
         return;
     MovePlaylist(playlist, configIdx - 1);
     // move playlist in table
-    using CollectionType = IAnnotatedBeatmapLevelCollection*;
+    namespace Generic = System::Collections::Generic;
     // janky casting
-    auto collectionList = List<CollectionType>::New_ctor((System::Collections::Generic::IEnumerable_1<CollectionType>*) gameTableView->annotatedBeatmapLevelCollections);
-    auto movedCollection = collectionList->get_Item(oldCellIdx);
-    collectionList->RemoveAt(oldCellIdx);
-    collectionList->Insert(oldCellIdx - 1, movedCollection);
+    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto movedCollection = packList->get_Item(oldCellIdx);
+    packList->RemoveAt(oldCellIdx);
+    packList->Insert(oldCellIdx - 1, movedCollection);
+    auto packArray = packList->ToArray();
+    // update in navigation controller to avoid resetting
+    navigationController->customLevelPacks = packArray;
+    // update in levels model also to avoid resetting
+    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
     // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<CollectionType>*) collectionList->AsReadOnly();
+    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
     gameTableView->gridView->ReloadData();
     scrollToIndex(oldCellIdx - 1);
 }
@@ -613,6 +629,8 @@ void PlaylistMenu::scrollToIndex(int index) {
 void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
     // get table view for setting selected cell
     gameTableView = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>()[0];
+    navigationController = UnityEngine::Resources::FindObjectsOfTypeAll<LevelFilteringNavigationController*>()[0];
+    levelsModel = UnityEngine::Resources::FindObjectsOfTypeAll<BeatmapLevelsModel*>()[0];
     playlist = list;
     packImage = imageView;
     // make sure playlist cover image is present

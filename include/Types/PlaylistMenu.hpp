@@ -15,6 +15,8 @@
 #include "TMPro/TextMeshProUGUI.hpp"
 
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+#include "GlobalNamespace/LevelFilteringNavigationController.hpp"
+#include "GlobalNamespace/BeatmapLevelsModel.hpp"
 
 namespace PlaylistManager {
     class Playlist;
@@ -39,6 +41,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     bool detailsVisible, inMovement, addingPlaylist;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
+    GlobalNamespace::LevelFilteringNavigationController* navigationController;
+    GlobalNamespace::BeatmapLevelsModel* levelsModel;
     Playlist* playlist;
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);
