@@ -39,7 +39,7 @@ void ButtonsContainer::saveCoverButtonPressed() {
     newTexture->SetPixels(sprite->get_texture()->GetPixels());
     // save to file
     ProcessImage(newTexture, false);
-    WriteImageToFile(GetCoversPath() + "/" + STR(levelData->get_songName()) + "_cover.png", newTexture);
+    WriteImageToFile(GetCoversPath() + "/" + levelData->get_songName().operator std::string() + "_cover.png", newTexture);
     // reload from file
     if(PlaylistMenu::menuInstance)
         PlaylistMenu::menuInstance->RefreshCovers();
@@ -173,7 +173,7 @@ void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* levelDetai
     this->levelListTableView = arr[0];
     
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
-        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+        custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
 void ButtonsContainer::SetVisible(bool visible, bool showRemove) {
@@ -225,7 +225,7 @@ void ButtonsContainer::RefreshHighlightedDifficulties() {
     // might not be selected at first
     if(!selected)
         return;
-    std::string characteristic = STR(selected->serializedName);
+    std::string characteristic = selected->serializedName;
     LOWER(characteristic);
     // get current song difficulties
     auto& songs = currentPlaylist->playlistJSON.Songs;

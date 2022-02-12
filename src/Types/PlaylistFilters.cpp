@@ -23,7 +23,7 @@ using namespace QuestUI;
 PlaylistFilters* PlaylistFilters::filtersInstance = nullptr;
 
 UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
-    STATIC_CSTR(name, "PlaylistManagerUIContainer");
+    static ConstString name("PlaylistManagerUIContainer");
     auto go = UnityEngine::GameObject::New_ctor(name);
     go->get_transform()->SetParent(parent, false);
     go->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
@@ -180,9 +180,9 @@ void PlaylistFilters::reloadFolderPlaylists() {
 }
 
 void PlaylistFilters::Init() {
+    return; // disable filter menu
     // start coroutine
-    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
-        reinterpret_cast<System::Collections::IEnumerator*>(custom_types::Helpers::CoroutineHelper::New(initCoroutine())));
+    GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
 void PlaylistFilters::SetFoldersFilters(bool filtersVisible) {
@@ -204,7 +204,7 @@ void PlaylistFilters::ReloadFolders() {
 
 void PlaylistFilters::Destroy() {
     PlaylistFilters::filtersInstance = nullptr;
-    UnityEngine::Object::Destroy(canvas);
+    // UnityEngine::Object::Destroy(canvas);
     // assumes it's always allocated with new
     delete this;
 }

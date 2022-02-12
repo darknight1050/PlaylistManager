@@ -7,10 +7,6 @@
 //#define LOG_ERROR(value...)
 #define LOG_ERROR(value...) getLogger().error(value)
 
-#define STR(il2cpp_str) to_utf8(csstrtostr(il2cpp_str))
-#define CSTR(string) il2cpp_utils::newcsstr(string)
-#define STATIC_CSTR(name, string) static auto name = il2cpp_utils::newcsstr<il2cpp_utils::CreationType::Manual>(string)
-
 #define LOWER(string) std::transform(string.begin(), string.end(), string.begin(), tolower)
 
 #include "beatsaber-hook/shared/utils/utils.h"

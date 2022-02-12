@@ -111,7 +111,7 @@ MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &Leve
 
     staticPacks = { "Custom Levels", "WIP Levels" };
     for(auto& levelPack : self->allOfficialBeatmapLevelPacks) {
-        staticPacks.emplace(STR(levelPack->get_packName()));
+        staticPacks.emplace(levelPack->get_packName());
     }
 }
 
@@ -123,26 +123,26 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
 
     auto pack = il2cpp_utils::try_cast<IBeatmapLevelPack>(self->annotatedBeatmapLevelCollection);
     if(pack.has_value()) {
-        if(!staticPacks.contains(STR(pack.value()->get_packName())))
+        if(!staticPacks.contains(pack.value()->get_packName()))
             self->SetDownloadIconVisible(false);
     }
 }
 
 // when to show the playlist menu
 MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewController::ShowContent,
-        void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, ::Il2CppString* errorText) {
+        void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, StringW errorText) {
     
     LevelPackDetailViewController_ShowContent(self, contentType, errorText);
 
     if(!playlistConfig.Management)
         return;
 
-    STATIC_CSTR(customPackName, "custom_levelPack");
+    static ConstString customPackName("custom_levelPack");
 
     if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName)
-        && !staticPacks.contains(STR(self->pack->get_packName()))) {
+        && !staticPacks.contains(self->pack->get_packName())) {
         // find playlist json
-        auto playlist = GetPlaylist(STR(self->pack->get_packName()));
+        auto playlist = GetPlaylist(self->pack->get_packName());
         // create menu if necessary, if so avoid visibility calls
         bool construction = false;
         if(!PlaylistMenu::menuInstance && playlist) {
@@ -167,7 +167,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
 // when to show the level buttons
 MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDetailViewController::ShowContent, 
-        void, StandardLevelDetailViewController* self, StandardLevelDetailViewController::ContentType contentType, Il2CppString* errorText, float downloadingProgress, Il2CppString* downloadingText) {
+        void, StandardLevelDetailViewController* self, StandardLevelDetailViewController::ContentType contentType, StringW errorText, float downloadingProgress, StringW downloadingText) {
 
     StandardLevelDetailViewController_ShowContent(self, contentType, errorText, downloadingProgress, downloadingText);
 
@@ -179,7 +179,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
         ButtonsContainer::buttonsInstance->Init(self->standardLevelDetailView);
     }
     // note: pack is simply the first level pack it finds that contains the level, if selected from all songs etc.
-    std::string name = STR(self->pack->get_packName());
+    std::string name = self->pack->get_packName();
     bool customPack = !staticPacks.contains(name);
     bool customSong = customPack || name == "Custom Levels" || name == "WIP Levels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
