@@ -7,7 +7,6 @@
 
 DECLARE_CLASS_CUSTOM(PlaylistManager, FolderTableCell, PlaylistManager::CustomTableCell,
     
-    DECLARE_INSTANCE_FIELD(HMUI::ImageView*, hoverImage);
     DECLARE_INSTANCE_FIELD(HMUI::ImageView*, selectImage);
     DECLARE_INSTANCE_FIELD(TMPro::TextMeshProUGUI*, folderName);
 

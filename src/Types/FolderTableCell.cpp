@@ -27,13 +27,10 @@ void FolderTableCell::ctor() {
 
 void FolderTableCell::refreshVisuals() {
     if(selected || highlighted) {
-        selectImage->set_color({0.5, 0.5, 0.5, (float)(highlighted ? 0.6 : 0.5)});
+        selectImage->set_color({0.5, 0.5, 0.5, (float)(highlighted ? 0.7 : 0.5)});
         selectImage->get_gameObject()->set_active(true);
-        hoverImage->get_gameObject()->set_active(highlighted);
-    } else {
+    } else
         selectImage->get_gameObject()->set_active(false);
-        hoverImage->get_gameObject()->set_active(false);
-    }
 }
 
 void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
@@ -44,12 +41,13 @@ void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     }));
     // create images
     selectImage = BeatSaberUI::CreateImage(get_transform(), img->get_sprite(), {0, 0}, {15, 25});
-    hoverImage = BeatSaberUI::CreateImage(get_transform(), WhiteSprite(), {0, 0}, {13, 20});
     auto folderIcon = BeatSaberUI::CreateImage(get_transform(), FolderSprite(), {0, 3.5}, {13, 13});
     folderName = BeatSaberUI::CreateText(get_transform(), text, {0, -3.5}, {13, 7});
-    // set colors and transparency
-    hoverImage->set_color({0.5, 0.5, 0.5, 0.6});
-    hoverImage->get_gameObject()->set_active(false);
+    folderName->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
+    folderName->set_alignment(TMPro::TextAlignmentOptions::Center);
+    folderName->set_enableWordWrapping(true);
+    folderName->set_enableAutoSizing(true);
+
     selectImage->set_type(UnityEngine::UI::Image::Type::Tiled);
     selectImage->get_gameObject()->set_active(false);
 }

@@ -32,7 +32,7 @@ bool ShouldAddPack(std::string name) {
         }
         return false;
     }
-    return folderSelectionState != 0;
+    return folderSelectionState != 1;
 }
 
 namespace PlaylistManager {

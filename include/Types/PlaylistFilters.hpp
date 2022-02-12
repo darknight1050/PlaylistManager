@@ -74,7 +74,7 @@ namespace PlaylistManager {
 
         void Init();
         void ReloadFolders();
-        void RefreshPlaylists();
+        void ReloadPlaylists();
         void Destroy();
     };
 }
