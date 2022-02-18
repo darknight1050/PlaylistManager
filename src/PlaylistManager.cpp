@@ -369,8 +369,10 @@ namespace PlaylistManager {
         newPlaylist.PlaylistTitle = title;
         if(author != "")
             newPlaylist.PlaylistAuthor = author;
-        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
-        newPlaylist.ImageString = System::Convert::ToBase64String(bytes);
+        if(coverImage) {
+            auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
+            newPlaylist.ImageString = System::Convert::ToBase64String(bytes);
+        }
         // save playlist
         std::string path = GetPath(title);
         WriteToFile(path, newPlaylist);

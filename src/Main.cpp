@@ -19,12 +19,16 @@
 
 #include "GlobalNamespace/MainMenuViewController.hpp"
 #include "GlobalNamespace/StandardLevelDetailViewController.hpp"
+#include "GlobalNamespace/LevelCollectionViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionCell.hpp"
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
+#include "GlobalNamespace/PlayerData.hpp"
+#include "GlobalNamespace/PlayerDataModel.hpp"
+#include "GlobalNamespace/SongPreviewPlayer.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
@@ -34,6 +38,7 @@
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/ViewController_AnimationType.hpp"
 #include "HMUI/InputFieldView.hpp"
+#include "Zenject/DiContainer.hpp"
 #include "System/Tuple_2.hpp"
 #include "System/Action_1.hpp"
 
@@ -70,7 +75,9 @@ std::string GetCoversPath() {
 using TupleType = System::Tuple_2<int, int>;
 
 // small fix for horizontal tables
-MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCellsIdRange, TupleType*, HMUI::TableView* self) {
+MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCellsIdRange,
+        TupleType*, HMUI::TableView* self) {
+    
     using namespace HMUI;
     UnityEngine::Rect rect = self->viewportTransform->get_rect();
 
@@ -128,6 +135,39 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
     }
 }
 
+// override header cell behavior
+MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewController::SetData,
+        void, LevelCollectionViewController* self, IBeatmapLevelCollection* beatmapLevelCollection, StringW headerText, UnityEngine::Sprite* headerSprite, bool sortLevels, UnityEngine::GameObject* noDataInfoPrefab) {
+    
+    // only check for null strings, not empty
+    // string will be null for level collections but not level packs
+    self->showHeader = (bool) headerText;
+    // copy base game method implementation
+    self->levelCollectionTableView->Init(headerText, headerSprite);
+    self->levelCollectionTableView->showLevelPackHeader = self->showHeader;
+    if(self->noDataInfoGO) {
+        UnityEngine::Object::Destroy(self->noDataInfoGO);
+        self->noDataInfoGO = nullptr;
+    }
+    // also override check for empty collection
+    if(beatmapLevelCollection) {
+        self->levelCollectionTableView->get_gameObject()->SetActive(true);
+        self->levelCollectionTableView->SetData(beatmapLevelCollection->get_beatmapLevels(), self->playerDataModel->playerData->favoritesLevelIds, sortLevels);
+        self->levelCollectionTableView->RefreshLevelsAvailability();
+    } else {
+        if(noDataInfoPrefab)
+            self->noDataInfoGO = self->container->InstantiatePrefab(noDataInfoPrefab, self->noDataInfoContainer);
+        self->levelCollectionTableView->get_gameObject()->SetActive(false);
+    }
+    if(self->get_isInViewControllerHierarchy()) {
+        if(self->showHeader)
+            self->levelCollectionTableView->SelectLevelPackHeaderCell();
+        else
+            self->levelCollectionTableView->ClearSelection();
+        self->songPreviewPlayer->CrossfadeToDefault();
+    }
+}
+
 // when to show the playlist menu
 MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewController::ShowContent,
         void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, StringW errorText) {
@@ -139,8 +179,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
     static ConstString customPackName("custom_levelPack");
 
-    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName)
-        && !staticPacks.contains(self->pack->get_packName())) {
+    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName) && !staticPacks.contains(self->pack->get_packName())) {
         // find playlist json
         auto playlist = GetPlaylist(self->pack->get_packName());
         // create menu if necessary, if so avoid visibility calls
@@ -186,16 +225,6 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
     ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
     ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(name));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
-}
-
-// highlight set level difficulties in a playlist
-MAKE_HOOK_MATCH(BeatmapDifficultySegmentedControlController_SetData, &BeatmapDifficultySegmentedControlController::SetData,
-        void, BeatmapDifficultySegmentedControlController* self, ArrayW<IDifficultyBeatmap*> difficultyBeatmaps, BeatmapDifficulty selectedDifficulty) {
-    
-    BeatmapDifficultySegmentedControlController_SetData(self, difficultyBeatmaps, selectedDifficulty);
-
-    if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
 }
 
 // when to set up the folders
@@ -253,13 +282,13 @@ extern "C" void load() {
     il2cpp_functions::Init();
     QuestUI::Init();
     QuestUI::Register::RegisterModSettingsViewController(modInfo, "Playlist Manager", ModSettingsDidActivate);
-    INSTALL_HOOK(getLogger(), TableView_GetVisibleCellsIdRange);
+    INSTALL_HOOK_ORIG(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_SetupBeatmapLevelPacks);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync);
+    INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
-    INSTALL_HOOK(getLogger(), BeatmapDifficultySegmentedControlController_SetData);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(

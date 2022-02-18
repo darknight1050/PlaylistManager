@@ -42,7 +42,7 @@
     },
     {
       "id": "songdownloader",
-      "versionRange": "^0.3.2",
+      "versionRange": "^0.4.0",
       "additionalData": {}
     }
   ],

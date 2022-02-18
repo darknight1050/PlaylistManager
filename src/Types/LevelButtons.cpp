@@ -105,7 +105,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     horizontal->set_childControlWidth(false);
     horizontal->set_childForceExpandWidth(false);
     horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleRight);
-    horizontal->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({-0.9, 16.9});
+    horizontal->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({-1, 17});
 
     saveCoverButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         saveCoverButtonPressed();

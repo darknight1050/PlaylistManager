@@ -6,9 +6,14 @@
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
 #include "Icons.hpp"
+#include "Utils.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 #include "questui/shared/CustomTypes/Components/Backgroundable.hpp"
+
+#include "songdownloader/shared/BeatSaverAPI.hpp"
+
+#include "songloader/shared/API.hpp"
 
 #include "UnityEngine/Mathf.hpp"
 #include "UnityEngine/Time.hpp"
@@ -138,29 +143,35 @@ custom_types::Helpers::Coroutine PlaylistMenu::refreshCoroutine() {
 }
 
 custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
-    LOG_INFO("syncing");
     auto& customData = playlist->playlistJSON.CustomData;
     if(!customData.has_value())
         co_return;
-    LOG_INFO("has custom data");
     auto& syncUrl = customData->SyncURL;
     if(!syncUrl.has_value())
         co_return;
-    LOG_INFO("sending request");
+    // get before co_yields to avoid a different playlist being selected
+    int tableIdx = gameTableView->selectedCellIndex;
+    auto syncingPlaylist = playlist;
+    // probably best not to sync two playlists at once
+    while(awaitingSync)
+        co_yield nullptr;
+    awaitingSync = true;
     auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());
 
     co_yield (System::Collections::IEnumerator*) webRequest->SendWebRequest();
 
     if(webRequest->GetError() != UnityEngine::Networking::UnityWebRequest::UnityWebRequestError::OK) {
         LOG_ERROR("Sync request failed! Error: %s", webRequest->GetWebErrorString(webRequest->GetError()).operator std::string().c_str());
+        awaitingSync = false;
         co_return;
     }
 
-    int configIdx = GetPackIndex(playlist->name);
-    int tableIdx = gameTableView->selectedCellIndex;
-    std::string path = playlist->path;
+    int configIdx = GetPackIndex(syncingPlaylist->name);
+    if(configIdx == -1)
+        configIdx = playlistConfig.Order.size() - 1;
+    std::string path = syncingPlaylist->path;
     // delete outdated playlist so that the new one can be fully reloaded
-    DeletePlaylist(playlist);
+    DeletePlaylist(syncingPlaylist);
     // save synced playlist
     std::string text = webRequest->get_downloadHandler()->GetText();
     writefile(path, text);
@@ -168,7 +179,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     RefreshPlaylists();
     // playlist should be at the end, since it was removed from the config on deletion
     auto newPlaylist = *(GetLoadedPlaylists().end() - 1);
-    // move playlist to correct index
+    // move playlist to correct index in config
     MovePlaylist(newPlaylist, configIdx);
     // move playlist in table
     namespace Generic = System::Collections::Generic;
@@ -186,9 +197,58 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
     gameTableView->gridView->ReloadData();
     scrollToIndex(tableIdx);
-    // update playlist in level buttons
-    if(ButtonsContainer::buttonsInstance)
+    // check for missing songs
+    bool anyMissingSongs = false;
+    // keep track of how many songs need to be downloaded
+    std::atomic_int songsLeft = 0;
+    for(auto& song : newPlaylist->playlistJSON.Songs) {
+        std::string& hash = song.Hash;
+        LOWER(hash);
+        bool hasSong = false;
+        // search in songs in playlist instead of all songs
+        for(auto& previewLevel : newPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
+            if(hash == GetLevelHash(previewLevel)) {
+                hasSong = true;
+                break;
+            }
+        }
+        if(hasSong)
+            continue;
+        anyMissingSongs = true;
+        songsLeft += 1;
+        BeatSaver::API::GetBeatmapByHashAsync(hash, [&songsLeft, &hash](std::optional<BeatSaver::Beatmap> beatmap){
+            // after beatmap is found, download if successful, but decrement songsLeft either way
+            if(beatmap.has_value()) {
+                BeatSaver::API::DownloadBeatmapAsync(beatmap.value(), [&songsLeft](bool _){
+                    songsLeft -= 1;
+                });
+            } else {
+                LOG_INFO("Beatmap with hash %s not found", hash.c_str());
+                songsLeft -= 1;
+            }
+        });
+    }
+    // reload playlists if necessary - if so then no need to update the game table manually
+    if(anyMissingSongs) {
+        // wait for downloads
+        while(songsLeft > 0)
+            co_yield nullptr;
+        bool doneRefreshing = false;
+        RuntimeSongLoader::API::RefreshSongs(false, [&doneRefreshing](std::vector<CustomPreviewBeatmapLevel*> const& _){
+            doneRefreshing = true;
+        });
+        // wait for songs to refresh
+        while(!doneRefreshing)
+            co_yield nullptr;
+        RefreshPlaylists(true);
+        scrollToIndex(tableIdx);
+    }
+    // update playlists and playlist selection in level buttons
+    if(ButtonsContainer::buttonsInstance) {
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
+        ButtonsContainer::buttonsInstance->SetPlaylist(newPlaylist);
+    }
+    awaitingSync = false;
 
     co_return;
 }
@@ -210,7 +270,6 @@ void PlaylistMenu::infoButtonPressed() {
 }
 
 void PlaylistMenu::syncButtonPressed() {
-    LOG_INFO("syncButtonPressed");
     SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(syncCoroutine()));
 }
 
@@ -304,7 +363,7 @@ void PlaylistMenu::playlistTitleTyped(std::string newValue) {
                 if(arr.Length() < 1)
                     return;
                 auto tableView = arr[0];
-                if(!tableView->showLevelPackHeader)
+                if(!tableView->showLevelPackHeader || tableView->NumberOfCells() == 0)
                     return;
                 tableView->headerText = currentTitle;
                 tableView->tableView->RefreshCells(true, true);
@@ -315,8 +374,10 @@ void PlaylistMenu::playlistTitleTyped(std::string newValue) {
         };
     }
     // title cleared (x button)
-    if(!playlistTitle->hasKeyboardAssigned && System::String::IsNullOrEmpty(playlistTitle->get_text()))
+    if(!playlistTitle->hasKeyboardAssigned && System::String::IsNullOrEmpty(playlistTitle->get_text())) {
+        PlaylistMenu::nextCloseKeyboard();
         PlaylistMenu::nextCloseKeyboard = nullptr;
+    }
 }
 
 void PlaylistMenu::playlistAuthorTyped(std::string newValue) {
@@ -358,7 +419,7 @@ void PlaylistMenu::createButtonPressed() {
         return;
     }
     // create new playlist based on fields
-    AddPlaylist(currentTitle, currentAuthor, coverImage->get_sprite());
+    AddPlaylist(currentTitle, currentAuthor, coverImageIndex >= 0 ? coverImage->get_sprite() : nullptr);
     RefreshPlaylists();
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
@@ -413,7 +474,7 @@ void PlaylistMenu::scrollListRightButtonPressed() {
 
 custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     #pragma region details
-    // use pack image as a mask for details
+    // use pack image area as a mask for details
     auto maskImage = BeatSaberUI::CreateImage(packImage->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
     auto rectTrans = (UnityEngine::RectTransform*) maskImage->get_transform();
     rectTrans->set_anchorMin({0, 0});
@@ -421,11 +482,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     maskImage->set_material(packImage->get_material());
     maskImage->get_gameObject()->AddComponent<UnityEngine::UI::Mask*>()->set_showMaskGraphic(false);
 
+    static ConstString contentName("Content");
+    UnityEngine::Color detailsBackgroundColor(0.1, 0.1, 0.1, 0.93);
     // details container
     detailsContainer = anchorContainer(maskImage->get_transform(), 1, 0, 2, 1);
     auto detailsBackground = BeatSaberUI::CreateImage(detailsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
     ANCHOR(detailsBackground, 0, 0.15, 1, 1);
-    detailsBackground->set_color({0.15, 0.15, 0.15, 0.93});
+    detailsBackground->set_color(detailsBackgroundColor);
 
     playlistTitle = BeatSaberUI::CreateStringSetting(detailsContainer->get_transform(), "Playlist Title", "", [this](StringW newValue){
         playlistTitleTyped(newValue);
@@ -444,12 +507,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     coverButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Change Cover", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
         coverButtonPressed();
     });
+    UnityEngine::Object::Destroy(coverButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(coverButton, 0.17, 0.57, 0.35, 0.64);
 
     deleteButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Delete", UnityEngine::Vector2{0, 0}, {15, 5}, [this](){
         deleteButtonPressed();
     });
-    deleteButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-5, 0});
+    UnityEngine::Object::Destroy(deleteButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(deleteButton, 0.65, 0.57, 0.73, 0.64);
 
     // description
@@ -471,24 +535,24 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     createButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Create", "ActionButton", {0, 0}, {13, 5}, [this](){
         createButtonPressed();
     });
-    // of course the text isn't centered
-    createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-2, 0});
+    UnityEngine::Object::Destroy(createButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(createButton, 0.17, 0.2, 0.35, 0.27);
     createButtonHint = BeatSaberUI::AddHoverHint(createButton->get_gameObject(), "");
     
     cancelButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {13, 5}, [this](){
         cancelButtonPressed();
     });
+    UnityEngine::Object::Destroy(cancelButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(cancelButton, 0.64, 0.2, 0.84, 0.27);
     #pragma endregion
     
     co_yield nullptr;
 
-    #pragma region sideButtons
+    #pragma region buttonsBar
     buttonsContainer = anchorContainer(maskImage->get_transform(), 0, 0, 1, 0.15);
     auto buttonsBackgroundImage = BeatSaberUI::CreateImage(buttonsContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
     ANCHOR(buttonsBackgroundImage, 0, 0.02, 1, 1);
-    buttonsBackgroundImage->set_color({0.15, 0.15, 0.15, 0.93});
+    buttonsBackgroundImage->set_color(detailsBackgroundColor);
 
     // side menu buttons, from bottom to top
     auto infoButton = anchorMiniButton(buttonsContainer->get_transform(), "i", "ActionButton", [this](){
@@ -530,7 +594,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
 
     #pragma region modals
     // confirmation modal for deletion
-    confirmModal = BeatSaberUI::CreateModal(get_transform(), {38, 20}, {-7, 0}, nullptr);
+    confirmModal = BeatSaberUI::CreateModal(get_transform(), {43, 25}, {-7, 0}, nullptr);
 
     auto confirmText = BeatSaberUI::CreateText(confirmModal->get_transform(), "Are you sure you would like to delete this playlist?", false, {0, 0}, {30, 7});
     confirmText->set_enableWordWrapping(true);
@@ -540,13 +604,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     auto yesButton = BeatSaberUI::CreateUIButton(confirmModal->get_transform(), "Delete", "ActionButton", {0, 0}, {7, 5}, [this](){
         confirmDeleteButtonPressed();
     });
-    yesButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-10, 0});
+    UnityEngine::Object::Destroy(yesButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(yesButton, 0.17, 0.15, 0.37, 0.35);
 
     auto noButton = BeatSaberUI::CreateUIButton(confirmModal->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {7, 5}, [this](){
         cancelDeleteButtonPressed();
     });
-    noButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-9.5, 0});
+    UnityEngine::Object::Destroy(noButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(noButton, 0.63, 0.15, 0.83, 0.35);
 
     // playlist cover changing modal
@@ -618,12 +682,15 @@ void PlaylistMenu::updateDetailsMode() {
         static ConstString selectText("Select Cover");
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
         coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(selectText);
+        
+        createButtonHint->set_text(empty);
+        createButton->set_interactable(true);
     }
 }
 
 void PlaylistMenu::scrollToIndex(int index) {
+    // invokes selection events
     gameTableView->SelectAndScrollToCellWithIdx(index);
-    gameTableView->didSelectAnnotatedBeatmapLevelCollectionEvent->Invoke(gameTableView->annotatedBeatmapLevelCollections->get_Item(index));
 }
 
 void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
