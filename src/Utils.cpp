@@ -7,7 +7,7 @@
 #include <filesystem>
 
 // desired image size
-const int imageSize = 384;
+const int imageSize = 512;
 
 std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
     std::string id = level->levelID;

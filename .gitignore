@@ -51,4 +51,6 @@ build/
 
 qpm.shared.json
 
+*.log
+
 *.qmod
