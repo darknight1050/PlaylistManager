@@ -104,28 +104,27 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     horizontal->set_childScaleWidth(false);
     horizontal->set_childControlWidth(false);
     horizontal->set_childForceExpandWidth(false);
-    horizontal->set_spacing(1);
     horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleRight);
-    horizontal->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({-1, 17});
+    horizontal->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({-0.9, 16.9});
 
-    saveCoverButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {4, 4}, [this](){
+    saveCoverButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         saveCoverButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(saveCoverButton->get_transform()->GetChild(0))->set_sizeDelta({4, 4});
+    reinterpret_cast<UnityEngine::RectTransform*>(saveCoverButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     saveCoverButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(saveCoverButton, SaveCoverInactiveSprite(), SaveCoverSprite());
 
-    playlistAddButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {4, 4}, [this](){
+    playlistAddButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         addToPlaylistButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(playlistAddButton->get_transform()->GetChild(0))->set_sizeDelta({4, 4});
+    reinterpret_cast<UnityEngine::RectTransform*>(playlistAddButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     playlistAddButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(playlistAddButton, AddToPlaylistInactiveSprite(), AddToPlaylistSprite());
 
-    playlistRemoveButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {4, 4}, [this](){
+    playlistRemoveButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         removeFromPlaylistButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(playlistRemoveButton->get_transform()->GetChild(0))->set_sizeDelta({4, 4});
+    reinterpret_cast<UnityEngine::RectTransform*>(playlistRemoveButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     playlistRemoveButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(playlistRemoveButton, RemoveFromPlaylistInactiveSprite(), RemoveFromPlaylistSprite());
     #pragma endregion
