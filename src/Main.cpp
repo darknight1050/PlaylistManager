@@ -34,6 +34,9 @@
 #include "UnityEngine/GameObject.hpp"
 #include "UnityEngine/Rect.hpp" // This needs to be included before RectTransform
 #include "UnityEngine/RectTransform.hpp"
+#include "UnityEngine/Events/UnityAction.hpp"
+// #include "UnityEngine/Events/InvokableCallList.hpp"
+#include "UnityEngine/UI/Button_ButtonClickedEvent.hpp"
 #include "HMUI/TableView.hpp"
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/ViewController_AnimationType.hpp"
@@ -257,6 +260,31 @@ MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::Resta
     MenuTransitionsHelper_RestartGame(self, finishCallback);
 }
 
+// override the main menu button to reload playlists
+MAKE_HOOK_FIND_CLASS_INSTANCE(MainMenuModSettingsViewController_DidActivate, "QuestUI", "MainMenuModSettingsViewController", "DidActivate",
+        void, HMUI::ViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+    
+    MainMenuModSettingsViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
+
+    if(!firstActivation)
+        return;
+
+    for(auto& button : self->GetComponentsInChildren<UnityEngine::UI::Button*>()) {
+        auto text = button->GetComponentInChildren<TMPro::TextMeshProUGUI*>();
+        if(text->get_text() == "Reload Playlists") {
+            // auto eventListener = button->get_onClick();
+            // not sure why RemoveAllListeners is stripped, but this is what it does
+            // actually the m_RuntimeCalls list has a problem with its generic so I guess we just make a new event
+            // eventListener->m_Calls->m_RuntimeCalls->Clear();
+            // eventListener->m_Calls->m_NeedsUpdate = true;
+            button->set_onClick(UnityEngine::UI::Button::ButtonClickedEvent::New_ctor());
+            button->get_onClick()->AddListener(il2cpp_utils::MakeDelegate<UnityEngine::Events::UnityAction*>((std::function<void()>) [] {
+                RefreshPlaylists(true);
+            }));
+        }
+    }
+}
+
 extern "C" void setup(ModInfo& info) {
     modInfo.id = "PlaylistManager";
     modInfo.version = VERSION;
@@ -282,6 +310,10 @@ extern "C" void load() {
     il2cpp_functions::Init();
     QuestUI::Init();
     QuestUI::Register::RegisterModSettingsViewController(modInfo, "Playlist Manager", ModSettingsDidActivate);
+    // create fake modInfo for reload playlists button
+    ModInfo fakeModInfo;
+    fakeModInfo.id = "Reload Playlists";
+    QuestUI::Register::RegisterMainMenuModSettingsViewController(fakeModInfo);
     INSTALL_HOOK_ORIG(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_SetupBeatmapLevelPacks);
@@ -291,6 +323,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
+    INSTALL_HOOK(getLogger(), MainMenuModSettingsViewController_DidActivate);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LoadPlaylists(customBeatmapLevelPackCollectionSO);
