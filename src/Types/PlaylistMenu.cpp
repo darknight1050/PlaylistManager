@@ -11,8 +11,6 @@
 #include "questui/shared/BeatSaberUI.hpp"
 #include "questui/shared/CustomTypes/Components/Backgroundable.hpp"
 
-#include "songdownloader/shared/BeatSaverAPI.hpp"
-
 #include "songloader/shared/API.hpp"
 
 #include "UnityEngine/Mathf.hpp"
@@ -196,40 +194,14 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     gameTableView->gridView->ReloadData();
     scrollToIndex(tableIdx);
     // check for missing songs
-    bool anyMissingSongs = false;
-    // keep track of how many songs need to be downloaded
-    std::atomic_int songsLeft = 0;
-    for(auto& song : syncingPlaylist->playlistJSON.Songs) {
-        std::string& hash = song.Hash;
-        LOWER(hash);
-        bool hasSong = false;
-        // search in songs in playlist instead of all songs
-        for(auto& previewLevel : syncingPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
-            if(hash == GetLevelHash(previewLevel)) {
-                hasSong = true;
-                break;
-            }
-        }
-        if(hasSong)
-            continue;
-        anyMissingSongs = true;
-        songsLeft += 1;
-        BeatSaver::API::GetBeatmapByHashAsync(hash, [&songsLeft, &hash](std::optional<BeatSaver::Beatmap> beatmap){
-            // after beatmap is found, download if successful, but decrement songsLeft either way
-            if(beatmap.has_value()) {
-                BeatSaver::API::DownloadBeatmapAsync(beatmap.value(), [&songsLeft](bool _){
-                    songsLeft -= 1;
-                });
-            } else {
-                LOG_INFO("Beatmap with hash %s not found", hash.c_str());
-                songsLeft -= 1;
-            }
-        });
-    }
+    bool downloaded = false;
+    bool downloading = DownloadMissingSongsFromPlaylist(syncingPlaylist, [&downloaded] {
+        downloaded = true;
+    });
     // reload playlists if necessary - if so then no need to update the game table manually
-    if(anyMissingSongs) {
+    if(downloading) {
         // wait for downloads
-        while(songsLeft > 0)
+        while(!downloaded)
             co_yield nullptr;
         bool doneRefreshing = false;
         RuntimeSongLoader::API::RefreshSongs(false, [&doneRefreshing](std::vector<CustomPreviewBeatmapLevel*> const& _){

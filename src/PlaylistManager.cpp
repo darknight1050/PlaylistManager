@@ -8,10 +8,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 #include "beatsaber-hook/shared/utils/il2cpp-utils.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
+
+#include "songdownloader/shared/BeatSaverAPI.hpp"
 
 #include "songloader/shared/API.hpp"
 
@@ -117,38 +120,32 @@ namespace PlaylistManager {
         return GetDefaultCoverImage();
     }
 
-    void DeleteLoadedImage(UnityEngine::Sprite* image) {
+    void DeleteLoadedImage(int index) {
         // get path
-        auto foundItr = image_paths.find(image);
+        auto foundItr = image_paths.find(loadedImages[index]);
         if (foundItr == image_paths.end())
             return;
-        // find image index
-        for(int i = 0; i < loadedImages.size(); i++) {
-            if(loadedImages[i] == image) {
-                // update image indices of playlists
-                for(auto& playlist : GetLoadedPlaylists()) {
-                    if(playlist->imageIndex == i)
-                        playlist->imageIndex = -1;
-                    if(playlist->imageIndex > i)
-                        playlist->imageIndex--;
-                }
-                // remove from loaded images
-                loadedImages.erase(loadedImages.begin() + i);
-                // remove from image hashes
-                std::unordered_map<std::size_t, int>::iterator removeItr;
-                for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
-                    if(itr->second == i) {
-                        removeItr = itr;
-                    }
-                    // decrement all indices later than i
-                    if(itr->second > i) {
-                        itr->second--;
-                    }
-                }
-                imageHashes.erase(removeItr);
-                break;
+        // update image indices of playlists
+        for(auto& playlist : GetLoadedPlaylists()) {
+            if(playlist->imageIndex == index)
+                playlist->imageIndex = -1;
+            if(playlist->imageIndex > index)
+                playlist->imageIndex--;
+        }
+        // remove from loaded images
+        loadedImages.erase(loadedImages.begin() + index);
+        // remove from image hashes
+        std::unordered_map<std::size_t, int>::iterator removeItr;
+        for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
+            if(itr->second == index) {
+                removeItr = itr;
+            }
+            // decrement all indices later than i
+            if(itr->second > index) {
+                itr->second--;
             }
         }
+        imageHashes.erase(removeItr);
         std::filesystem::remove(foundItr->second);
     }
 
@@ -261,6 +258,8 @@ namespace PlaylistManager {
                     // if one does, its contents will simply be overwritten with the reloaded data
                     if(!playlist)
                         playlist = new Playlist();
+                    else
+                        needsReloadPlaylists.erase(needsReloadPlaylists.find(playlist));
                     // get playlist object from file
                     if(ReadFromFile(path, playlist->playlistJSON)) {
                         playlist->name = playlist->playlistJSON.PlaylistTitle;
@@ -394,22 +393,22 @@ namespace PlaylistManager {
         WriteToFile(playlist->path, playlist->playlistJSON);
     }
 
-    void ChangePlaylistCover(Playlist* playlist, int coverIndex) {
+    void ChangePlaylistCover(Playlist* playlist, int index) {
         UnityEngine::Sprite* newCover = nullptr;
         // update json image string
         auto& json = playlist->playlistJSON;
-        if(coverIndex < 0) {
+        if(index < 0) {
             newCover = GetDefaultCoverImage();
             // don't save string for default cover
             json.ImageString = std::nullopt;
         } else {
-            newCover = GetLoadedImages()[coverIndex];
+            newCover = GetLoadedImages()[index];
             // save image base 64
             auto bytes = UnityEngine::ImageConversion::EncodeToPNG(newCover->get_texture());
             json.ImageString = System::Convert::ToBase64String(bytes);
 
         }
-        playlist->imageIndex = coverIndex;
+        playlist->imageIndex = index;
         // change cover ingame
         auto levelPack = playlist->playlistCS;
         if(levelPack) {
@@ -458,6 +457,49 @@ namespace PlaylistManager {
 
     void MarkPlaylistForReload(Playlist* playlist) {
         needsReloadPlaylists.insert(playlist);
+    }
+
+    bool DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback) {
+        bool anyMissingSongs = false;
+        // keep track of how many songs need to be downloaded
+        // use new so that it isn't freed when the function returns, before songs finish downloading
+        auto songsLeft = new std::atomic_int(0);
+        for(auto& song : playlist->playlistJSON.Songs) {
+            std::string& hash = song.Hash;
+            LOWER(hash);
+            bool hasSong = false;
+            // search in songs in playlist instead of all songs
+            for(auto& previewLevel : playlist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
+                if(hash == GetLevelHash(previewLevel)) {
+                    hasSong = true;
+                    break;
+                }
+            }
+            if(hasSong)
+                continue;
+            anyMissingSongs = true;
+            *songsLeft += 1;
+            BeatSaver::API::GetBeatmapByHashAsync(hash, [songsLeft, hash, finishCallback](std::optional<BeatSaver::Beatmap> beatmap){
+                // after beatmap is found, download if successful, but decrement songsLeft either way
+                if(beatmap.has_value()) {
+                    BeatSaver::API::DownloadBeatmapAsync(beatmap.value(), [songsLeft, finishCallback](bool _){
+                        *songsLeft -= 1;
+                        if(*songsLeft == 0) {
+                            delete songsLeft;
+                            finishCallback();
+                        }
+                    });
+                } else {
+                    LOG_INFO("Beatmap with hash %s not found", hash.c_str());
+                    *songsLeft -= 1;
+                    if(*songsLeft == 0) {
+                        delete songsLeft;
+                        finishCallback();
+                    }
+                }
+            });
+        }
+        return anyMissingSongs;
     }
 
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {

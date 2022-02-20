@@ -49,7 +49,7 @@ namespace PlaylistManager {
         auto coverModal = BeatSaberUI::CreateModal(self->get_transform(), {83, 17}, nullptr);
         
         auto list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [coverModal](int cellIdx){
-            DeleteLoadedImage(GetLoadedImages()[cellIdx]);
+            DeleteLoadedImage(cellIdx);
             coverModal->Hide(true, nullptr);
         });
         list->setType(csTypeOf(CoverTableCell*));
