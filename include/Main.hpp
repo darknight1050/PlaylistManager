@@ -9,6 +9,8 @@
 
 #define LOWER(string) std::transform(string.begin(), string.end(), string.begin(), tolower)
 
+#define CustomLevelPackPrefixID "custom_levelPack_"
+
 #include "beatsaber-hook/shared/utils/utils.h"
 Logger& getLogger();
 

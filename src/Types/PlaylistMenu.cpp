@@ -166,21 +166,19 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         co_return;
     }
 
-    int configIdx = GetPackIndex(syncingPlaylist->name);
+    int configIdx = GetPlaylistIndex(syncingPlaylist->path);
     if(configIdx == -1)
         configIdx = playlistConfig.Order.size() - 1;
     std::string path = syncingPlaylist->path;
-    // delete outdated playlist so that the new one can be fully reloaded
-    DeletePlaylist(syncingPlaylist);
+    // mark new playlist for full reload
+    MarkPlaylistForReload(syncingPlaylist);
     // save synced playlist
     std::string text = webRequest->get_downloadHandler()->GetText();
     writefile(path, text);
     // reload playlists
-    RefreshPlaylists();
-    // playlist should be at the end, since it was removed from the config on deletion
-    auto newPlaylist = *(GetLoadedPlaylists().end() - 1);
+    ReloadPlaylists();
     // move playlist to correct index in config
-    MovePlaylist(newPlaylist, configIdx);
+    MovePlaylist(syncingPlaylist, configIdx);
     // move playlist in table
     namespace Generic = System::Collections::Generic;
     // janky casting
@@ -201,12 +199,12 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     bool anyMissingSongs = false;
     // keep track of how many songs need to be downloaded
     std::atomic_int songsLeft = 0;
-    for(auto& song : newPlaylist->playlistJSON.Songs) {
+    for(auto& song : syncingPlaylist->playlistJSON.Songs) {
         std::string& hash = song.Hash;
         LOWER(hash);
         bool hasSong = false;
         // search in songs in playlist instead of all songs
-        for(auto& previewLevel : newPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
+        for(auto& previewLevel : syncingPlaylist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
             if(hash == GetLevelHash(previewLevel)) {
                 hasSong = true;
                 break;
@@ -240,14 +238,14 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // wait for songs to refresh
         while(!doneRefreshing)
             co_yield nullptr;
-        RefreshPlaylists(true);
+        // full reload the specific playlist only
+        MarkPlaylistForReload(syncingPlaylist);
+        ReloadPlaylists();
         scrollToIndex(tableIdx);
     }
-    // update playlists and playlist selection in level buttons
-    if(ButtonsContainer::buttonsInstance) {
+    // update playlists in level buttons
+    if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
-        ButtonsContainer::buttonsInstance->SetPlaylist(newPlaylist);
-    }
     awaitingSync = false;
 
     co_return;
@@ -290,7 +288,7 @@ void PlaylistMenu::addButtonPressed() {
 void PlaylistMenu::moveRightButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPackIndex(playlist->name);
+    int configIdx = GetPlaylistIndex(playlist->path);
     if(configIdx == -1)
         configIdx = playlistConfig.Order.size() - 1;
     if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx >= playlistConfig.Order.size() - 1)
@@ -317,7 +315,7 @@ void PlaylistMenu::moveRightButtonPressed() {
 void PlaylistMenu::moveLeftButtonPressed() {
     // use old cell idx because not all configured playlists will always be shown
     int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPackIndex(playlist->name);
+    int configIdx = GetPlaylistIndex(playlist->path);
     if(configIdx == -1)
         configIdx = playlistConfig.Order.size() - 1;
     if(oldCellIdx <= 1 || configIdx == 0)
@@ -345,32 +343,23 @@ void PlaylistMenu::playlistTitleTyped(std::string newValue) {
     currentTitle = newValue.data();
     if(!PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard = [this](){
-            // check for valid title
-            if(!AvailablePlaylistName(currentTitle)) {
-                createButton->set_interactable(false);
-                static ConstString nameError("Cannot create playlists with duplicate names");
-                createButtonHint->set_text(nameError);
+            // don't change anything with the current playlist if we aren't editing it
+            if(addingPlaylist)
                 return;
-            }
-            createButton->set_interactable(true);
-            static ConstString empty("");
-            createButtonHint->set_text(empty);
-            if(!addingPlaylist) {
-                LOG_INFO("Title set to %s", currentTitle.c_str());
-                RenamePlaylist(playlist, currentTitle);
-                // get header cell and set text
-                auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<LevelCollectionTableView*>();
-                if(arr.Length() < 1)
-                    return;
-                auto tableView = arr[0];
-                if(!tableView->showLevelPackHeader || tableView->NumberOfCells() == 0)
-                    return;
-                tableView->headerText = currentTitle;
-                tableView->tableView->RefreshCells(true, true);
-                // update hover texts
-                if(ButtonsContainer::buttonsInstance)
-                    ButtonsContainer::buttonsInstance->RefreshPlaylists();
-            }
+            LOG_INFO("Title set to %s", currentTitle.c_str());
+            RenamePlaylist(playlist, currentTitle);
+            // get header cell and set text
+            auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<LevelCollectionTableView*>();
+            if(arr.Length() < 1)
+                return;
+            auto tableView = arr[0];
+            if(!tableView->showLevelPackHeader || tableView->NumberOfCells() == 0)
+                return;
+            tableView->headerText = currentTitle;
+            tableView->tableView->RefreshCells(true, true);
+            // update hover texts
+            if(ButtonsContainer::buttonsInstance)
+                ButtonsContainer::buttonsInstance->RefreshPlaylists();
         };
     }
     // title cleared (x button)
@@ -384,11 +373,12 @@ void PlaylistMenu::playlistAuthorTyped(std::string newValue) {
     currentAuthor = newValue.data();
     if(!PlaylistMenu::nextCloseKeyboard) {
         PlaylistMenu::nextCloseKeyboard = [this](){
+            // don't change anything with the current playlist if we aren't editing it
+            if(addingPlaylist)
+                return;
             LOG_INFO("Author set to %s", currentAuthor.c_str());
-            if(!addingPlaylist) {
-                playlist->playlistJSON.PlaylistAuthor = currentAuthor;
-                WriteToFile(playlist->path, playlist->playlistJSON);
-            }
+            playlist->playlistJSON.PlaylistAuthor = currentAuthor;
+            WriteToFile(playlist->path, playlist->playlistJSON);
         };
     }
     // author cleared (x button)
@@ -413,14 +403,9 @@ void PlaylistMenu::deleteButtonPressed() {
 }
 
 void PlaylistMenu::createButtonPressed() {
-    // while the keyboard function has a check, names such as "New Playlist" may also be unavailable
-    if(!AvailablePlaylistName(currentTitle)) {
-        LOG_ERROR("Attempting to create playlist with unavailable name");
-        return;
-    }
     // create new playlist based on fields
     AddPlaylist(currentTitle, currentAuthor, coverImageIndex >= 0 ? coverImage->get_sprite() : nullptr);
-    RefreshPlaylists();
+    ReloadPlaylists();
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
@@ -434,7 +419,7 @@ void PlaylistMenu::confirmDeleteButtonPressed() {
     // delete playlist
     DeletePlaylist(playlist);
     playlist = nullptr;
-    RefreshPlaylists();
+    ReloadPlaylists();
     if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
@@ -448,17 +433,14 @@ void PlaylistMenu::coverSelected(int listCellIdx) {
     // don't set playlist cover when adding a new one
     if(!addingPlaylist) {
         // change in list and json
-        if(listCellIdx == 0)
-            ChangePlaylistCover(playlist, nullptr, listCellIdx - 1);
-        else
-            ChangePlaylistCover(playlist, sprite, listCellIdx - 1);
+        ChangePlaylistCover(playlist, listCellIdx - 1);
         // change background pack image
         packImage->set_sprite(sprite);
-        // change image in playlist bar
+        // update image in playlist bar
         gameTableView->gridView->ReloadData();
     }
     coverImage->set_sprite(sprite);
-    // one less because the default image is not included
+    // one less because the default image is not counted
     coverImageIndex = listCellIdx - 1;
     coverModal->Hide(true, nullptr);
 }
@@ -537,7 +519,6 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     });
     UnityEngine::Object::Destroy(createButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(createButton, 0.17, 0.2, 0.35, 0.27);
-    createButtonHint = BeatSaberUI::AddHoverHint(createButton->get_gameObject(), "");
     
     cancelButton = BeatSaberUI::CreateUIButton(detailsContainer->get_transform(), "Cancel", UnityEngine::Vector2{0, 0}, {13, 5}, [this](){
         cancelButtonPressed();
@@ -682,9 +663,6 @@ void PlaylistMenu::updateDetailsMode() {
         static ConstString selectText("Select Cover");
         ANCHOR(coverButton, 0.55, 0.5, 0.73, 0.57);
         coverButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(selectText);
-        
-        createButtonHint->set_text(empty);
-        createButton->set_interactable(true);
     }
 }
 
@@ -705,14 +683,11 @@ void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
     coverImageIndex = playlist->imageIndex;
     
     // don't let it get stopped by set visible
-    SharedCoroutineStarter::get_instance()->StartCoroutine(
-        custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
-    
-    PlaylistMenu::menuInstance = this;
+    SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
 void PlaylistMenu::SetPlaylist(Playlist* list) {
-    LOG_INFO("Playlist set to %s", list->name.c_str());
+    LOG_INFO("Playlist set to %s", list->path.c_str());
     playlist = list;
     // ensure cover is present
     auto cover = GetCoverImage(playlist);
@@ -734,7 +709,7 @@ void PlaylistMenu::SetPlaylist(Playlist* list) {
 void PlaylistMenu::RefreshCovers() {
     if(!list) return;
     // reload covers from folder
-    GetCoverImages();
+    LoadCoverImages();
     // add cover images and reload
     list->replaceSprites({GetDefaultCoverImage()});
     list->addSprites(GetLoadedImages());

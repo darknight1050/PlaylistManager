@@ -24,7 +24,7 @@ std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
     return id;
 }
 
-std::string SanitizeFileName(std::string fileName) {
+std::string SanitizeFileName(std::string const& fileName) {
     std::string newName;
     // yes I know not all of these are disallowed, and also that they are unlikely to end up in a name
     static const std::unordered_set<unsigned char> replacedChars = {
@@ -40,7 +40,7 @@ std::string SanitizeFileName(std::string fileName) {
     return newName;
 }
 
-bool UniqueFileName(std::string fileName, std::string compareDirectory) {
+bool UniqueFileName(std::string const& fileName, std::string const& compareDirectory) {
     if(!std::filesystem::is_directory(compareDirectory))
         return true;
     for(auto& entry : std::filesystem::directory_iterator(compareDirectory)) {
@@ -52,7 +52,14 @@ bool UniqueFileName(std::string fileName, std::string compareDirectory) {
     return true;
 }
 
-std::string GetBase64ImageType(std::string& base64) {
+std::string GetNewPlaylistPath(std::string const& title) {
+    std::string fileTitle = SanitizeFileName(title);
+    while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
+        fileTitle += "_";
+    return GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json";
+}
+
+std::string GetBase64ImageType(std::string const& base64) {
     if(base64.length() < 3)
         return "";
     std::string sub = base64.substr(0, 3);
@@ -104,7 +111,7 @@ std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString) 
     return System::Convert::ToBase64String(bytes);
 }
 
-void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture) {
+void WriteImageToFile(std::string const& pathToPng, UnityEngine::Texture2D* texture) {
     auto bytes = UnityEngine::ImageConversion::EncodeToPNG(texture);
-    writefile(pathToPng, std::string(reinterpret_cast<char*>(bytes.begin()), bytes.Length()));
+    writefile(pathToPng, std::string((char*) bytes.begin(), bytes.Length()));
 }

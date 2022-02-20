@@ -34,7 +34,7 @@ namespace PlaylistManager {
         horizontal->set_childControlWidth(false);
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto reloadNewButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload New Playlists", Vec{0, 0}, Vec{40, 10}, [](){
-            RefreshPlaylists(false);
+            ReloadPlaylists(false);
         });
         BeatSaberUI::AddHoverHint(reloadNewButton->get_gameObject(), "Reloads new playlists from the playlist folder");
 
@@ -42,7 +42,7 @@ namespace PlaylistManager {
         horizontal->set_childControlWidth(false);
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto reloadAllButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload All Playlists", Vec{0, 0}, Vec{40, 10}, [](){
-            RefreshPlaylists(true);
+            ReloadPlaylists(true);
         });
         BeatSaberUI::AddHoverHint(reloadAllButton->get_gameObject(), "Reloads all playlists from the playlist folder");
 
@@ -74,7 +74,7 @@ namespace PlaylistManager {
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto imageButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Delete Saved Image", Vec{0, 0}, Vec{40, 10}, [list, coverModal](){
             // reload covers from folder
-            GetCoverImages();
+            LoadCoverImages();
             // add cover images and reload
             list->replaceSprites(GetLoadedImages());
             list->tableView->ReloadData();

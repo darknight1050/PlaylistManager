@@ -36,7 +36,7 @@ void PlaylistFilters::filterSelected(int filter) {
     if(filter == 3)
         SetFoldersFilters(false);
     else
-        RefreshPlaylists();
+        ReloadPlaylists();
 }
 
 void PlaylistFilters::folderSelected(int listCellIdx) {

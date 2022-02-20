@@ -5,12 +5,14 @@
 
 std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level);
 
-std::string SanitizeFileName(std::string fileName);
+std::string SanitizeFileName(std::string const& fileName);
 
-bool UniqueFileName(std::string fileName, std::string compareDirectory);
+bool UniqueFileName(std::string const& fileName, std::string const& compareDirectory);
 
-std::string GetBase64ImageType(std::string& base64);
+std::string GetNewPlaylistPath(std::string const& title);
+
+std::string GetBase64ImageType(std::string const& base64);
 
 std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString);
 
-void WriteImageToFile(std::string_view pathToPng, UnityEngine::Texture2D* texture);
+void WriteImageToFile(std::string const& pathToPng, UnityEngine::Texture2D* texture);

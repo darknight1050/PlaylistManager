@@ -20,9 +20,7 @@ namespace PlaylistManager {
 
     extern bool hasLoaded;
 
-    extern std::unordered_set<std::string> staticPacks;
-
-    int GetPackIndex(std::string title);
+    extern std::unordered_set<std::string> staticPackIDs;
 
     UnityEngine::Sprite* GetDefaultCoverImage();
 
@@ -30,34 +28,36 @@ namespace PlaylistManager {
 
     void DeleteLoadedImage(UnityEngine::Sprite* image);
 
-    void GetCoverImages();
+    void LoadCoverImages();
 
     std::vector<UnityEngine::Sprite*>& GetLoadedImages();
 
     void ClearLoadedImages();
 
-    bool AvailablePlaylistName(std::string title);
-
-    std::string GetPath(std::string title);
-
-    void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh = false);
+    void LoadPlaylists(RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullReload = false);
 
     std::vector<Playlist*> GetLoadedPlaylists();
 
-    Playlist* GetPlaylist(std::string title);
+    Playlist* GetPlaylist(std::string const& path);
 
-    void AddPlaylist(std::string title, std::string author, UnityEngine::Sprite* coverImage);
+    Playlist* GetPlaylistWithPrefix(std::string const& id);
+
+    int GetPlaylistIndex(std::string const& path);
+
+    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage);
 
     void MovePlaylist(Playlist* playlist, int index);
 
-    void RenamePlaylist(Playlist* playlist, std::string title);
+    void RenamePlaylist(Playlist* playlist, std::string const& title);
 
-    void ChangePlaylistCover(Playlist* playlist, UnityEngine::Sprite* newCover, int coverIndex);
+    void ChangePlaylistCover(Playlist* playlist, int coverIndex);
 
     void DeletePlaylist(Playlist* playlist);
 
-    void RefreshPlaylists(bool fullRefresh = false);
+    void ReloadPlaylists(bool fullReload = false);
     
+    void MarkPlaylistForReload(Playlist* playlist);
+
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
 
     void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);

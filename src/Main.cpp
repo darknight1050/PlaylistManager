@@ -119,9 +119,9 @@ MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &Leve
     
     LevelFilteringNavigationController_SetupBeatmapLevelPacks(self);
 
-    staticPacks = { "Custom Levels", "WIP Levels" };
+    staticPackIDs = { CustomLevelPackPrefixID "CustomLevels", CustomLevelPackPrefixID "CustomWIPLevels" };
     for(auto& levelPack : self->allOfficialBeatmapLevelPacks) {
-        staticPacks.emplace(levelPack->get_packName());
+        staticPackIDs.insert(levelPack->get_packID());
     }
 }
 
@@ -133,7 +133,7 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
 
     auto pack = il2cpp_utils::try_cast<IBeatmapLevelPack>(self->annotatedBeatmapLevelCollection);
     if(pack.has_value()) {
-        if(!staticPacks.contains(pack.value()->get_packName()))
+        if(!staticPackIDs.contains(pack.value()->get_packID()))
             self->SetDownloadIconVisible(false);
     }
 }
@@ -180,31 +180,29 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
     if(!playlistConfig.Management)
         return;
 
-    static ConstString customPackName("custom_levelPack");
+    static ConstString customPackName(CustomLevelPackPrefixID);
 
-    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName) && !staticPacks.contains(self->pack->get_packName())) {
+    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName) && !staticPackIDs.contains(self->pack->get_packID())) {
         // find playlist json
-        auto playlist = GetPlaylist(self->pack->get_packName());
+        auto playlist = GetPlaylistWithPrefix(self->pack->get_packID());
         // create menu if necessary, if so avoid visibility calls
         bool construction = false;
         if(!PlaylistMenu::menuInstance && playlist) {
-            auto playlistMenu = self->get_gameObject()->AddComponent<PlaylistMenu*>();
-            playlistMenu->Init(self->packImage, playlist);
-        } else {
+            PlaylistMenu::menuInstance = self->get_gameObject()->AddComponent<PlaylistMenu*>();
+            PlaylistMenu::menuInstance->Init(self->packImage, playlist);
+        } else if(PlaylistMenu::menuInstance) {
             if(playlist) {
                 PlaylistMenu::menuInstance->SetPlaylist(playlist);
                 PlaylistMenu::menuInstance->SetVisible(true);
             } else
                 PlaylistMenu::menuInstance->SetVisible(false);
         }
-    } else if(PlaylistMenu::menuInstance) {
+    } else if(PlaylistMenu::menuInstance)
         PlaylistMenu::menuInstance->SetVisible(false);
-    }
 
     // disable level buttons (hides modal if necessary)
-    if(ButtonsContainer::buttonsInstance) {
+    if(ButtonsContainer::buttonsInstance)
         ButtonsContainer::buttonsInstance->SetVisible(false, false);
-    }
 }
 
 // when to show the level buttons
@@ -221,12 +219,12 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
         ButtonsContainer::buttonsInstance->Init(self->standardLevelDetailView);
     }
     // note: pack is simply the first level pack it finds that contains the level, if selected from all songs etc.
-    std::string name = self->pack->get_packName();
-    bool customPack = !staticPacks.contains(name);
-    bool customSong = customPack || name == "Custom Levels" || name == "WIP Levels";
+    std::string id = self->pack->get_packID();
+    bool customPack = !staticPackIDs.contains(id);
+    bool customSong = customPack || id == CustomLevelPackPrefixID "CustomLevels" || id == CustomLevelPackPrefixID "CustomWIPLevels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
     ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
-    ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylist(name));
+    ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylistWithPrefix(id));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
 }
 
@@ -279,7 +277,7 @@ MAKE_HOOK_FIND_CLASS_INSTANCE(MainMenuModSettingsViewController_DidActivate, "Qu
             // eventListener->m_Calls->m_NeedsUpdate = true;
             button->set_onClick(UnityEngine::UI::Button::ButtonClickedEvent::New_ctor());
             button->get_onClick()->AddListener(il2cpp_utils::MakeDelegate<UnityEngine::Events::UnityAction*>((std::function<void()>) [] {
-                RefreshPlaylists(true);
+                ReloadPlaylists(true);
             }));
         }
     }
