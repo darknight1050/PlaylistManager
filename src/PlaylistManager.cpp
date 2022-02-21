@@ -60,7 +60,7 @@ namespace PlaylistManager {
 
     UnityEngine::Sprite* GetCoverImage(Playlist* playlist) {
         // changes to playlist cover should change index as well
-        if(playlist->imageIndex > 0)
+        if(playlist->imageIndex >= 0)
             return loadedImages[playlist->imageIndex];
         // index is -1 with unloaded or default cover image
         auto& json = playlist->playlistJSON;
@@ -90,7 +90,7 @@ namespace PlaylistManager {
             UnityEngine::ImageConversion::LoadImage(texture, System::Convert::FromBase64String(imageBase64));
             // process texture size and png string and check hash for changes
             std::size_t oldHash = imgHash;
-            imageBase64 = ProcessImage(texture, true);
+            imageBase64 = std::move(ProcessImage(texture, true));
             imgHash = hasher(imageBase64);
             // write to playlist if changed
             if(imgHash != oldHash) {
@@ -258,8 +258,11 @@ namespace PlaylistManager {
                     // if one does, its contents will simply be overwritten with the reloaded data
                     if(!playlist)
                         playlist = new Playlist();
-                    else
+                    else {
                         needsReloadPlaylists.erase(needsReloadPlaylists.find(playlist));
+                        // clear cached data in playlist object
+                        playlist->imageIndex = -1;
+                    }
                     // get playlist object from file
                     if(ReadFromFile(path, playlist->playlistJSON)) {
                         playlist->name = playlist->playlistJSON.PlaylistTitle;

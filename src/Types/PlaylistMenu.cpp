@@ -148,11 +148,10 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     if(!syncUrl.has_value())
         co_return;
     // get before co_yields to avoid a different playlist being selected
-    int tableIdx = gameTableView->selectedCellIndex;
     auto syncingPlaylist = playlist;
     // probably best not to sync two playlists at once
     while(awaitingSync)
-        co_yield nullptr;
+        co_return;
     awaitingSync = true;
     auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());
 
@@ -164,34 +163,14 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         co_return;
     }
 
-    int configIdx = GetPlaylistIndex(syncingPlaylist->path);
-    if(configIdx == -1)
-        configIdx = playlistConfig.Order.size() - 1;
-    std::string path = syncingPlaylist->path;
-    // mark new playlist for full reload
-    MarkPlaylistForReload(syncingPlaylist);
     // save synced playlist
     std::string text = webRequest->get_downloadHandler()->GetText();
-    writefile(path, text);
-    // reload playlists
+    writefile(syncingPlaylist->path, text);
+    // full reload the specific playlist only
+    MarkPlaylistForReload(syncingPlaylist);
+    // reload playlists but keep selection
+    int tableIdx = gameTableView->selectedCellIndex;
     ReloadPlaylists();
-    // move playlist to correct index in config
-    MovePlaylist(syncingPlaylist, configIdx);
-    // move playlist in table
-    namespace Generic = System::Collections::Generic;
-    // janky casting
-    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
-    auto movedCollection = packList->get_Item(packList->get_Count() - 1);
-    packList->RemoveAt(packList->get_Count() - 1);
-    packList->Insert(tableIdx, movedCollection);
-    auto packArray = packList->ToArray();
-    // update in navigation controller to avoid resetting
-    navigationController->customLevelPacks = packArray;
-    // update in levels model also to avoid resetting
-    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
-    // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
-    gameTableView->gridView->ReloadData();
     scrollToIndex(tableIdx);
     // check for missing songs
     bool downloaded = false;
@@ -203,16 +182,22 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // wait for downloads
         while(!downloaded)
             co_yield nullptr;
+        // track selected table cell
+        tableIdx = gameTableView->selectedCellIndex;
+        // full reload the specific playlist only
+        MarkPlaylistForReload(syncingPlaylist);
         bool doneRefreshing = false;
         RuntimeSongLoader::API::RefreshSongs(false, [&doneRefreshing](std::vector<CustomPreviewBeatmapLevel*> const& _){
             doneRefreshing = true;
         });
         // wait for songs to refresh
-        while(!doneRefreshing)
+        while(!doneRefreshing) {
+            // update when close to done since it can take time to reload
+            if(RuntimeSongLoader::API::GetLoadingProgress() > 0.9)
+                tableIdx = gameTableView->selectedCellIndex;
             co_yield nullptr;
-        // full reload the specific playlist only
-        MarkPlaylistForReload(syncingPlaylist);
-        ReloadPlaylists();
+        }
+        // keep selection
         scrollToIndex(tableIdx);
     }
     // update playlists in level buttons
