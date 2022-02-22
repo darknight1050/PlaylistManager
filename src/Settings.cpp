@@ -34,7 +34,7 @@ namespace PlaylistManager {
         horizontal->set_childControlWidth(false);
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto reloadNewButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload New Playlists", Vec{0, 0}, Vec{40, 10}, [](){
-            RefreshPlaylists(false);
+            ReloadPlaylists(false);
         });
         BeatSaberUI::AddHoverHint(reloadNewButton->get_gameObject(), "Reloads new playlists from the playlist folder");
 
@@ -42,14 +42,14 @@ namespace PlaylistManager {
         horizontal->set_childControlWidth(false);
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto reloadAllButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reload All Playlists", Vec{0, 0}, Vec{40, 10}, [](){
-            RefreshPlaylists(true);
+            ReloadPlaylists(true);
         });
         BeatSaberUI::AddHoverHint(reloadAllButton->get_gameObject(), "Reloads all playlists from the playlist folder");
 
         auto coverModal = BeatSaberUI::CreateModal(self->get_transform(), {83, 17}, nullptr);
         
         auto list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [coverModal](int cellIdx){
-            DeleteLoadedImage(GetLoadedImages()[cellIdx]);
+            DeleteLoadedImage(cellIdx);
             coverModal->Hide(true, nullptr);
         });
         list->setType(csTypeOf(CoverTableCell*));
@@ -60,13 +60,13 @@ namespace PlaylistManager {
         auto left = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [list](){
             CustomListSource::ScrollListLeft(list, 4);
         });
-        reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+        ((UnityEngine::RectTransform*) left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
         BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
         auto right = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [list](){
             CustomListSource::ScrollListRight(list, 4);
         });
-        reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+        ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
         BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
 
         horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
@@ -74,7 +74,7 @@ namespace PlaylistManager {
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto imageButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Delete Saved Image", Vec{0, 0}, Vec{40, 10}, [list, coverModal](){
             // reload covers from folder
-            GetCoverImages();
+            LoadCoverImages();
             // add cover images and reload
             list->replaceSprites(GetLoadedImages());
             list->tableView->ReloadData();

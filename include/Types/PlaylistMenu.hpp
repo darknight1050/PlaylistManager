@@ -10,11 +10,12 @@
 #include "HMUI/ImageView.hpp"
 #include "HMUI/InputFieldView.hpp"
 #include "HMUI/ModalView.hpp"
-#include "HMUI/HoverHint.hpp"
 
 #include "TMPro/TextMeshProUGUI.hpp"
 
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+#include "GlobalNamespace/LevelFilteringNavigationController.hpp"
+#include "GlobalNamespace/BeatmapLevelsModel.hpp"
 
 namespace PlaylistManager {
     class Playlist;
@@ -27,7 +28,6 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
     UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
-    HMUI::HoverHint *createButtonHint;
     HMUI::ImageView *coverImage, *packImage;
     HMUI::ModalView *confirmModal, *coverModal;
     class CustomListSource *list;
@@ -36,9 +36,11 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     std::string currentTitle, currentAuthor;
 
-    bool detailsVisible, inMovement, addingPlaylist;
+    bool detailsVisible, inMovement, addingPlaylist, awaitingSync;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
+    GlobalNamespace::LevelFilteringNavigationController* navigationController;
+    GlobalNamespace::BeatmapLevelsModel* levelsModel;
     Playlist* playlist;
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);

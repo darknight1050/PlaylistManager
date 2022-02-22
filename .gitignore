@@ -49,6 +49,9 @@ extern/
 
 build/
 
+mod.json
 qpm.shared.json
+
+*.log
 
 *.qmod

@@ -41,7 +41,7 @@ void PlaylistFilters::filterSelected(int filter) {
     if(filter == 3)
         setFoldersFilters(false);
     else
-        RefreshPlaylists();
+        ReloadPlaylists();
 }
 
 void PlaylistFilters::folderSelected(int listCellIdx) {
@@ -496,6 +496,7 @@ void PlaylistFilters::deselectFolder() {
 }
 
 void PlaylistFilters::Init() {
+    return; // disable filter menu
     // start coroutine
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
@@ -541,7 +542,7 @@ void PlaylistFilters::ReloadPlaylists() {
 
 void PlaylistFilters::Destroy() {
     PlaylistFilters::filtersInstance = nullptr;
-    UnityEngine::Object::Destroy(canvas);
+    // UnityEngine::Object::Destroy(canvas);
     // assumes it's always allocated with new
     delete this;
 }

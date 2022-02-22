@@ -8,10 +8,13 @@
 
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 #include "beatsaber-hook/shared/utils/il2cpp-utils.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
+
+#include "songdownloader/shared/BeatSaverAPI.hpp"
 
 #include "songloader/shared/API.hpp"
 
@@ -37,7 +40,6 @@ bool ShouldAddPack(std::string name) {
 
 namespace PlaylistManager {
     
-    std::unordered_map<std::string, Playlist*> name_playlists;
     std::unordered_map<std::string, Playlist*> path_playlists;
     std::unordered_map<UnityEngine::Sprite*, std::string> image_paths;
 
@@ -48,20 +50,9 @@ namespace PlaylistManager {
 
     bool hasLoaded = false;
     // all unusable playlists
-    std::unordered_set<std::string> staticPacks = {};
-    
-    int GetPackIndex(std::string title) {
-        // find index of playlist title in config
-        int size = playlistConfig.Order.size();
-        for(int i = 0; i < size; i++) {
-            if(playlistConfig.Order[i] == title)
-                return i;
-        }
-        // add to end of config if not found
-        playlistConfig.Order.push_back(title);
-        WriteToFile(GetConfigPath(), playlistConfig);
-        return -1;
-    }
+    std::unordered_set<std::string> staticPackIDs{};
+    // playlists that need to be reloaded on the next reload
+    std::unordered_set<Playlist*> needsReloadPlaylists{};
     
     UnityEngine::Sprite* GetDefaultCoverImage() {
         STATIC_AUTO(defaultCover, UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::CustomLevelLoader*>()[0]->defaultPackCover);
@@ -69,6 +60,10 @@ namespace PlaylistManager {
     }
 
     UnityEngine::Sprite* GetCoverImage(Playlist* playlist) {
+        // changes to playlist cover should change index as well
+        if(playlist->imageIndex >= 0)
+            return loadedImages[playlist->imageIndex];
+        // index is -1 with unloaded or default cover image
         auto& json = playlist->playlistJSON;
         if(json.ImageString.has_value()) {
             std::string imageBase64 = json.ImageString.value();
@@ -96,7 +91,7 @@ namespace PlaylistManager {
             UnityEngine::ImageConversion::LoadImage(texture, System::Convert::FromBase64String(imageBase64));
             // process texture size and png string and check hash for changes
             std::size_t oldHash = imgHash;
-            imageBase64 = ProcessImage(texture, true);
+            imageBase64 = std::move(ProcessImage(texture, true));
             imgHash = hasher(imageBase64);
             // write to playlist if changed
             if(imgHash != oldHash) {
@@ -122,45 +117,40 @@ namespace PlaylistManager {
             loadedImages.emplace_back(sprite);
             return sprite;
         }
+        playlist->imageIndex = -1;
         return GetDefaultCoverImage();
     }
 
-    void DeleteLoadedImage(UnityEngine::Sprite* image) {
+    void DeleteLoadedImage(int index) {
         // get path
-        auto foundItr = image_paths.find(image);
+        auto foundItr = image_paths.find(loadedImages[index]);
         if (foundItr == image_paths.end())
             return;
-        // find image index
-        for(int i = 0; i < loadedImages.size(); i++) {
-            if(loadedImages[i] == image) {
-                // update image indices of playlists
-                for(auto& playlist : GetLoadedPlaylists()) {
-                    if(playlist->imageIndex == i)
-                        playlist->imageIndex = -1;
-                    if(playlist->imageIndex > i)
-                        playlist->imageIndex--;
-                }
-                // remove from loaded images
-                loadedImages.erase(loadedImages.begin() + i);
-                // remove from image hashes
-                std::unordered_map<std::size_t, int>::iterator removeItr;
-                for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
-                    if(itr->second == i) {
-                        removeItr = itr;
-                    }
-                    // decrement all indices later than i
-                    if(itr->second > i) {
-                        itr->second--;
-                    }
-                }
-                imageHashes.erase(removeItr);
-                break;
+        // update image indices of playlists
+        for(auto& playlist : GetLoadedPlaylists()) {
+            if(playlist->imageIndex == index)
+                playlist->imageIndex = -1;
+            if(playlist->imageIndex > index)
+                playlist->imageIndex--;
+        }
+        // remove from loaded images
+        loadedImages.erase(loadedImages.begin() + index);
+        // remove from image hashes
+        std::unordered_map<std::size_t, int>::iterator removeItr;
+        for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
+            if(itr->second == index) {
+                removeItr = itr;
+            }
+            // decrement all indices later than i
+            if(itr->second > index) {
+                itr->second--;
             }
         }
+        imageHashes.erase(removeItr);
         std::filesystem::remove(foundItr->second);
     }
 
-    void GetCoverImages() {
+    void LoadCoverImages() {
         // ensure path exists
         auto path = GetCoversPath();
         if(!std::filesystem::is_directory(path))
@@ -227,33 +217,12 @@ namespace PlaylistManager {
         imageHashes.clear();
     }
 
-    bool AvailablePlaylistName(std::string title) {
-        // check in constant playlists
-        if(staticPacks.contains(title))
-            return false;
-        // check in custom playlists
-        for(auto& pair : name_playlists) {
-            if(pair.second->name == title)
-                return false;
-        }
-        return true;
-    }
-
-    std::string GetPath(std::string title) {
-        std::string fileTitle = SanitizeFileName(title);
-        while(!UniqueFileName(fileTitle + ".bplist_BMBF.json", GetPlaylistsPath()))
-            fileTitle += "_";
-        return GetPlaylistsPath() + "/" + fileTitle + ".bplist_BMBF.json";
-    }
-
-    void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullRefresh) {
-        GetCoverImages();
+    void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullReload) {
+        LoadCoverImages();
         // clear playlists if requested
-        if(fullRefresh) {
-            for(auto& pair : name_playlists)
-                delete pair.second;
-            name_playlists.clear();
-            path_playlists.clear();
+        if(fullReload) {
+            for(auto& pair : path_playlists)
+                MarkPlaylistForReload(pair.second);
         }
         // ensure path exists
         auto path = GetPlaylistsPath();
@@ -264,15 +233,19 @@ namespace PlaylistManager {
         // iterate through all playlist files
         for(const auto& entry : std::filesystem::directory_iterator(path)) {
             if(!entry.is_directory()) {
+                Playlist* playlist = nullptr;
                 // check if playlist has been loaded already
                 auto path = entry.path().string();
                 auto path_iter = path_playlists.find(path);
-                if(path_iter != path_playlists.end()) {
+                if(path_iter != path_playlists.end())
+                    playlist = path_iter->second;
+                // load from cache without reload
+                if(playlist && !needsReloadPlaylists.contains(playlist)) {
                     LOG_INFO("Loading playlist file %s from cache", path.c_str());
                     // check if playlist should be added
-                    auto playlist = path_iter->second;
-                    if(ShouldAddPack(playlist->name)) {
-                        int packPosition = GetPackIndex(playlist->name);
+                    // check if playlist needs to be reloaded
+                    if(ShouldAddPack(playlist->path)) {
+                        int packPosition = GetPlaylistIndex(playlist->path);
                         // add if new (idk how)
                         if(packPosition < 0)
                             sortedPlaylists.emplace_back(playlist->playlistCS);
@@ -281,22 +254,22 @@ namespace PlaylistManager {
                     }
                 } else {
                     LOG_INFO("Loading playlist file %s", path.c_str());
+                    // only create a new playlist if one doesn't exist
+                    // if one does, its contents will simply be overwritten with the reloaded data
+                    if(!playlist)
+                        playlist = new Playlist();
+                    else {
+                        needsReloadPlaylists.erase(needsReloadPlaylists.find(playlist));
+                        // clear cached data in playlist object
+                        playlist->imageIndex = -1;
+                    }
                     // get playlist object from file
-                    Playlist* playlist = new Playlist();
                     if(ReadFromFile(path, playlist->playlistJSON)) {
                         playlist->name = playlist->playlistJSON.PlaylistTitle;
                         playlist->path = path;
-                        // check for duplicate name
-                        while(name_playlists.find(playlist->name) != name_playlists.end()) {
-                            LOG_INFO("Duplicate playlist name!");
-                            playlist->name = playlist->name + ".";
-                            playlist->playlistJSON.PlaylistTitle = playlist->name;
-                            WriteToFile(path, playlist->playlistJSON);
-                        }
-                        name_playlists.insert({playlist->name, playlist});
                         path_playlists.insert({playlist->path, playlist});
                         // create playlist object
-                        SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::Make_New(playlist->name, playlist->name, GetCoverImage(playlist));
+                        SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::Make_New(playlist->path, playlist->name, GetCoverImage(playlist));
                         playlist->playlistCS = songloaderBeatmapLevelPack->CustomLevelsPack;
                         // add all songs to the playlist object
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
@@ -307,8 +280,8 @@ namespace PlaylistManager {
                         }
                         songloaderBeatmapLevelPack->SetCustomPreviewBeatmapLevels(foundSongs->ToArray());
                         // add the playlist to the sorted array
-                        if(ShouldAddPack(playlist->name)) {
-                            int packPosition = GetPackIndex(playlist->name);
+                        if(ShouldAddPack(playlist->path)) {
+                            int packPosition = GetPlaylistIndex(playlist->path);
                             // add if new
                             if(packPosition < 0)
                                 sortedPlaylists.emplace_back(songloaderBeatmapLevelPack->CustomLevelsPack);
@@ -320,7 +293,6 @@ namespace PlaylistManager {
                 }
             }
         }
-        LOG_INFO("Adding playlists");
         // add playlists to game in sorted order
         for(auto customBeatmapLevelPack : sortedPlaylists) {
             if(customBeatmapLevelPack)
@@ -328,135 +300,117 @@ namespace PlaylistManager {
         }
         bool hadLoaded = hasLoaded;
         hasLoaded = true;
-        // refresh playlists, on the off chance that someone modified the filter menu while songs were loading
+        // reload playlists, on the off chance that someone modified the filter menu while songs were loading
         if(!hadLoaded && folderSelectionState != 0)
-            RefreshPlaylists();
+            ReloadPlaylists();
         LOG_INFO("Playlists loaded");
     }
 
     std::vector<Playlist*> GetLoadedPlaylists() {
         // create return vector with base size
-        std::vector<Playlist*> ret(playlistConfig.Order.size());
-        for(auto& pair : name_playlists) {
+        std::vector<Playlist*> playlistArray(playlistConfig.Order.size());
+        for(auto& pair : path_playlists) {
             auto& playlist = pair.second;
-            int idx = GetPackIndex(playlist->name);
+            int idx = GetPlaylistIndex(playlist->path);
             if(idx >= 0)
-                ret[idx] = playlist;
+                playlistArray[idx] = playlist;
             else
-                ret.push_back(playlist);
+                playlistArray.push_back(playlist);
         }
         // remove empty slots
         int i = 0;
-        for(auto itr = ret.begin(); itr != ret.end(); itr++) {
+        for(auto itr = playlistArray.begin(); itr != playlistArray.end(); itr++) {
             if(*itr == nullptr) {
-                ret.erase(itr);
+                playlistArray.erase(itr);
                 itr--;
             }
             i++;
         }
-        return ret;
+        return playlistArray;
     }
 
-    Playlist* GetPlaylist(std::string title) {
-        auto iter = name_playlists.find(title);
-        if(iter == name_playlists.end())
+    Playlist* GetPlaylist(std::string const& path) {
+        auto iter = path_playlists.find(path);
+        if(iter == path_playlists.end())
             return nullptr;
         return iter->second;
     }
+    
+    Playlist* GetPlaylistWithPrefix(std::string const& id) {
+        static const int prefixLength = std::string(CustomLevelPackPrefixID).length();
+        if(id.starts_with(CustomLevelPackPrefixID))
+            return GetPlaylist(id.substr(prefixLength));
+        return nullptr;
+    }
 
-    void AddPlaylist(std::string title, std::string author, UnityEngine::Sprite* coverImage) {
+    int GetPlaylistIndex(std::string const& path) {
+        // find index of playlist title in config
+        int size = playlistConfig.Order.size();
+        for(int i = 0; i < size; i++) {
+            if(playlistConfig.Order[i] == path)
+                return i;
+        }
+        // add to end of config if not found
+        playlistConfig.Order.push_back(path);
+        WriteToFile(GetConfigPath(), playlistConfig);
+        return -1;
+    }
+
+    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage) {
         // create playlist with info
         auto newPlaylist = BPList();
         newPlaylist.PlaylistTitle = title;
         if(author != "")
             newPlaylist.PlaylistAuthor = author;
-        auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
-        newPlaylist.ImageString = System::Convert::ToBase64String(bytes);
+        if(coverImage) {
+            auto bytes = UnityEngine::ImageConversion::EncodeToPNG(coverImage->get_texture());
+            newPlaylist.ImageString = System::Convert::ToBase64String(bytes);
+        }
         // save playlist
-        std::string path = GetPath(title);
+        std::string path = GetNewPlaylistPath(title);
         WriteToFile(path, newPlaylist);
     }
 
     void MovePlaylist(Playlist* playlist, int index) {
-        int originalIndex = GetPackIndex(playlist->name);
+        int originalIndex = GetPlaylistIndex(playlist->path);
         if(originalIndex < 0) {
             LOG_ERROR("Attempting to move unloaded playlist");
             return;
         }
         playlistConfig.Order.erase(playlistConfig.Order.begin() + originalIndex);
-        playlistConfig.Order.insert(playlistConfig.Order.begin() + index, playlist->name);
+        playlistConfig.Order.insert(playlistConfig.Order.begin() + index, playlist->path);
         WriteToFile(GetConfigPath(), playlistConfig);
     }
 
-    void RenamePlaylist(Playlist* playlist, std::string title) {
-        std::string oldName = playlist->name;
-        std::string oldPath = playlist->path;
-        int orderIndex = GetPackIndex(playlist->name);
-        if(orderIndex < 0) {
-            LOG_ERROR("Attempting to rename unloaded playlist");
-            return;
-        }
-        // update name in map
-        auto name_iter = name_playlists.find(playlist->name);
-        if(name_iter == name_playlists.end()) {
-            LOG_ERROR("Could not find playlist by name");
-            return;
-        }
-        // also update path
-        // auto path_iter = path_playlists.find(playlist->path);
-        // if(path_iter == path_playlists.end()) {
-        //     LOG_ERROR("Could not find playlist by path");
-        //     return;
-        // }
-        // std::string newPath = GetPath(title);
+    void RenamePlaylist(Playlist* playlist, std::string const& title) {
         // edit variables
-        playlistConfig.Order[orderIndex] = title;
         playlist->name = title;
         playlist->playlistJSON.PlaylistTitle = title;
-        name_playlists.erase(name_iter);
-        name_playlists.insert({title, playlist});
-        // path_playlists.erase(path_iter);
-        // path_playlists.insert({newPath, playlist});
-        // change name in all folders
-        for(auto& folder : playlistConfig.Folders) {
-            for(int i = 0; i < folder.PlaylistNames.size(); i++) {
-                if(folder.PlaylistNames[i] == oldName)
-                    folder.PlaylistNames[i] = title;
-            }
-        }
         // rename playlist ingame
         auto& levelPack = playlist->playlistCS;
         if(levelPack) {
-            auto nameCS = playlist->name;
-            levelPack->packName = nameCS;
-            levelPack->shortPackName = nameCS;
+            levelPack->packName = title;
+            levelPack->shortPackName = title;
         }
         // save changes
-        WriteToFile(GetConfigPath(), playlistConfig);
-        WriteToFile(oldPath, playlist->playlistJSON);
-        // rename file
-        // std::filesystem::rename(oldPath, newPath);
-        // playlist->path = newPath;
+        WriteToFile(playlist->path, playlist->playlistJSON);
     }
 
-    void ChangePlaylistCover(Playlist* playlist, UnityEngine::Sprite* newCover, int coverIndex) {
-        // don't save string for default cover
-        bool isDefault = false;
-        if(!newCover) {
-            LOG_INFO("Changing playlist cover to default");
-            newCover = GetDefaultCoverImage();
-            isDefault = true;
-        }
-        playlist->imageIndex = coverIndex;
+    void ChangePlaylistCover(Playlist* playlist, int index) {
+        UnityEngine::Sprite* newCover = nullptr;
+        // update json image string
         auto& json = playlist->playlistJSON;
-        if(isDefault)
+        if(index < 0) {
+            newCover = GetDefaultCoverImage();
+            // don't save string for default cover
             json.ImageString = std::nullopt;
-        else {
-            LOG_INFO("Changing playlist cover");
+        } else {
+            newCover = GetLoadedImages()[index];
             // save image base 64
             auto bytes = UnityEngine::ImageConversion::EncodeToPNG(newCover->get_texture());
             json.ImageString = System::Convert::ToBase64String(bytes);
         }
+        playlist->imageIndex = index;
         // change cover ingame
         auto levelPack = playlist->playlistCS;
         if(levelPack) {
@@ -467,23 +421,17 @@ namespace PlaylistManager {
     }
 
     void DeletePlaylist(Playlist* playlist) {
-        // remove from maps
-        auto name_iter = name_playlists.find(playlist->name);
-        if(name_iter == name_playlists.end()) {
-            LOG_ERROR("Could not find playlist by name");
-            return;
-        }
+        // remove from map
         auto path_iter = path_playlists.find(playlist->path);
         if(path_iter == path_playlists.end()) {
             LOG_ERROR("Could not find playlist by path");
             return;
         }
-        name_playlists.erase(name_iter);
         path_playlists.erase(path_iter);
         // delete file
         std::filesystem::remove(playlist->path);
         // remove name from order config
-        int orderIndex = GetPackIndex(playlist->name);
+        int orderIndex = GetPlaylistIndex(playlist->path);
         if(orderIndex >= 0)
             playlistConfig.Order.erase(playlistConfig.Order.begin() + orderIndex);
         else
@@ -493,24 +441,75 @@ namespace PlaylistManager {
         delete playlist;
     }
 
-    void RefreshPlaylists(bool fullRefresh) {
+    void ReloadPlaylists(bool fullReload) {
         if(!hasLoaded)
             return;
         bool showDefaults = folderSelectionState != 2;
         if(folderSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
             showDefaults = currentFolder->ShowDefaults;
-        if(fullRefresh) {
-            for(auto& pair : name_playlists)
-                delete pair.second;
-            name_playlists.clear();
-            path_playlists.clear();
+        // handle full reload here since songloader's full refesh isn't carried through
+        // also, we don't want to always full reload songs at the same time as playlists
+        if(fullReload) {
+            for(auto& pair : path_playlists)
+                MarkPlaylistForReload(pair.second);
         }
         API::RefreshPacks(showDefaults);
     }
 
+    void MarkPlaylistForReload(Playlist* playlist) {
+        needsReloadPlaylists.insert(playlist);
+    }
+
+    bool DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback) {
+        bool anyMissingSongs = false;
+        // keep track of how many songs need to be downloaded
+        // use new so that it isn't freed when the function returns, before songs finish downloading
+        auto songsLeft = new std::atomic_int(0);
+        for(auto& song : playlist->playlistJSON.Songs) {
+            std::string& hash = song.Hash;
+            LOWER(hash);
+            bool hasSong = false;
+            // search in songs in playlist instead of all songs
+            for(auto& previewLevel : playlist->playlistCS->customBeatmapLevelCollection->customPreviewBeatmapLevels) {
+                if(hash == GetLevelHash(previewLevel)) {
+                    hasSong = true;
+                    break;
+                }
+            }
+            if(hasSong)
+                continue;
+            anyMissingSongs = true;
+            *songsLeft += 1;
+            BeatSaver::API::GetBeatmapByHashAsync(hash, [songsLeft, hash, finishCallback](std::optional<BeatSaver::Beatmap> beatmap){
+                // after beatmap is found, download if successful, but decrement songsLeft either way
+                if(beatmap.has_value()) {
+                    BeatSaver::API::DownloadBeatmapAsync(beatmap.value(), [songsLeft, finishCallback](bool _){
+                        *songsLeft -= 1;
+                        if(*songsLeft == 0) {
+                            delete songsLeft;
+                            finishCallback();
+                        }
+                    });
+                } else {
+                    LOG_INFO("Beatmap with hash %s not found", hash.c_str());
+                    *songsLeft -= 1;
+                    if(*songsLeft == 0) {
+                        delete songsLeft;
+                        finishCallback();
+                    }
+                }
+            });
+        }
+        return anyMissingSongs;
+    }
+
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        if(!level)
+            return;
         // add song to cs object
         auto pack = playlist->playlistCS;
+        if(!pack)
+            return;
         auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
         // can use an array since we know its length
         ArrayW<GlobalNamespace::CustomPreviewBeatmapLevel*> newLevels(levelArr.Length() + 1);
@@ -532,6 +531,8 @@ namespace PlaylistManager {
     }
 
     void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level) {
+        if(!level)
+            return;
         // remove song from cs object
         auto pack = playlist->playlistCS;
         if(!pack)

@@ -11,9 +11,7 @@
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/include/**",
                 "${workspaceFolder}/shared/**",
-                "${workspaceFolder}/extern/**",
-                "${workspaceFolder}/extern/codegen/include/**",
-                "C:/Development/Tools/android-ndk-r22b/**"
+                "${workspaceFolder}/extern/**"
             ],
             "name": "Quest",
             "cStandard": "c11",
