@@ -150,7 +150,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     // get before co_yields to avoid a different playlist being selected
     auto syncingPlaylist = playlist;
     // probably best not to sync two playlists at once
-    while(awaitingSync)
+    if(awaitingSync)
         co_return;
     awaitingSync = true;
     auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());

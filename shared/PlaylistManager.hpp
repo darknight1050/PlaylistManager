@@ -98,7 +98,7 @@ namespace PlaylistManager {
     /// @param fullReload Whether to reload the contents of already loaded playlists
     void ReloadPlaylists(bool fullReload = false);
     
-    /// @brief Marks a single playlist to be fully reloaded on the next reload
+    /// @brief Makes a single playlist be fully reloaded on the next reload
     /// @param playlist The playlist to be reloaded
     void MarkPlaylistForReload(Playlist* playlist);
 

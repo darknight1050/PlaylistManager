@@ -1,4 +1,5 @@
 #include "Main.hpp"
+#include "Types/SongDownloaderAddon.hpp"
 #include "Types/PlaylistMenu.hpp"
 #include "Types/PlaylistFilters.hpp"
 #include "Types/LevelButtons.hpp"
@@ -29,6 +30,10 @@
 #include "GlobalNamespace/PlayerData.hpp"
 #include "GlobalNamespace/PlayerDataModel.hpp"
 #include "GlobalNamespace/SongPreviewPlayer.hpp"
+#include "GlobalNamespace/StandardLevelInfoSaveData.hpp"
+#include "GlobalNamespace/ISpriteAsyncLoader.hpp"
+#include "GlobalNamespace/EnvironmentInfoSO.hpp"
+#include "GlobalNamespace/PreviewDifficultyBeatmapSet.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
@@ -37,9 +42,11 @@
 #include "UnityEngine/Events/UnityAction.hpp"
 // #include "UnityEngine/Events/InvokableCallList.hpp"
 #include "UnityEngine/UI/Button_ButtonClickedEvent.hpp"
+#include "UnityEngine/UI/VerticalLayoutGroup.hpp"
 #include "HMUI/TableView.hpp"
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/ViewController_AnimationType.hpp"
+#include "HMUI/FlowCoordinator.hpp"
 #include "HMUI/InputFieldView.hpp"
 #include "Zenject/DiContainer.hpp"
 #include "System/Tuple_2.hpp"
@@ -283,6 +290,70 @@ MAKE_HOOK_FIND_CLASS_INSTANCE(MainMenuModSettingsViewController_DidActivate, "Qu
     }
 }
 
+// add our playlist selection view controller to the song downloader menu
+MAKE_HOOK_FIND_CLASS_INSTANCE(DownloadSongsFlowCoordinator_DidActivate, "SongDownloader", "DownloadSongsFlowCoordinator", "DidActivate",
+        void, HMUI::FlowCoordinator* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+    
+    DownloadSongsFlowCoordinator_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
+
+    if(firstActivation) {
+        STATIC_AUTO(AddonViewController, SongDownloaderAddon::Create());
+        self->providedRightScreenViewController = AddonViewController;
+    }
+}
+
+// add a playlist callback to the song downloader buttons
+MAKE_HOOK_FIND_CLASS_INSTANCE(DownloadSongsSearchViewController_DidActivate, "SongDownloader", "DownloadSongsSearchViewController", "DidActivate",
+        void, HMUI::ViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+    
+    DownloadSongsSearchViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
+
+    if(!firstActivation)
+        return;
+
+    using namespace UnityEngine;
+    
+    // add listeners to search entry buttons
+    auto entryList = self->GetComponentsInChildren<UI::VerticalLayoutGroup*>().First([](UI::VerticalLayoutGroup* x) {
+        return x->get_name() == "QuestUIScrollViewContentContainer";
+    })->get_transform();
+
+    // offset by one because the prefab doesn't seem to be destroyed yet here
+    int entryCount = entryList->GetChildCount() - 1;
+    for(int i = 0; i < entryCount; i++) {
+        // undo offset to skip first element
+        auto downloadButton = entryList->GetChild(i + 1)->GetComponentInChildren<UI::Button*>();
+        // get entry at index with some lovely pointer addition
+        SearchEntryHack* entryArrStart = (SearchEntryHack*) (((char*) self) + sizeof(HMUI::ViewController));
+        // capture button array start and index
+        downloadButton->get_onClick()->AddListener(il2cpp_utils::MakeDelegate<Events::UnityAction*>((std::function<void()>) [entryArrStart, i] {
+            auto& entry = *(entryArrStart + i);
+            // get hash from entry
+            std::string hash;
+            if(entry.MapType == SearchEntryHack::MapType::BeatSaver)
+                hash = entry.map.GetVersions().front().GetHash();
+            else if(entry.MapType == SearchEntryHack::MapType::BeastSaber)
+                hash = entry.BSsong.GetHash();
+            else if(entry.MapType == SearchEntryHack::MapType::ScoreSaber)
+                hash = entry.SSsong.GetId();
+            // get json object from playlist
+            auto playlist = SongDownloaderAddon::SelectedPlaylist;
+            if(!playlist)
+                return;
+            auto& json = playlist->playlistJSON;
+            // add a blank song
+            json.Songs.emplace_back(BPSong());
+            // set info
+            auto& songJson = *(json.Songs.end() - 1);
+            songJson.Hash = hash;
+            // write to file
+            WriteToFile(playlist->path, json);
+            // have changes be updated
+            MarkPlaylistForReload(playlist);
+        }));
+    }
+}
+
 extern "C" void setup(ModInfo& info) {
     modInfo.id = "PlaylistManager";
     modInfo.version = VERSION;
@@ -322,6 +393,8 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     INSTALL_HOOK(getLogger(), MainMenuModSettingsViewController_DidActivate);
+    INSTALL_HOOK(getLogger(), DownloadSongsFlowCoordinator_DidActivate);
+    INSTALL_HOOK(getLogger(), DownloadSongsSearchViewController_DidActivate);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LoadPlaylists(customBeatmapLevelPackCollectionSO);
