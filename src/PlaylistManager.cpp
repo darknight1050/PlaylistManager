@@ -221,8 +221,7 @@ namespace PlaylistManager {
         // clear playlists if requested
         if(fullReload) {
             for(auto& pair : path_playlists)
-                delete pair.second;
-            path_playlists.clear();
+                MarkPlaylistForReload(pair.second);
         }
         // ensure path exists
         auto path = GetPlaylistsPath();
@@ -452,8 +451,7 @@ namespace PlaylistManager {
         // also, we don't want to always full reload songs at the same time as playlists
         if(fullReload) {
             for(auto& pair : path_playlists)
-                delete pair.second;
-            path_playlists.clear();
+                MarkPlaylistForReload(pair.second);
         }
         API::RefreshPacks(showDefaults);
     }
