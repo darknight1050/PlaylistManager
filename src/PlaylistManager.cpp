@@ -112,6 +112,7 @@ namespace PlaylistManager {
             WriteImageToFile(imgPath, texture);
             imageHashes.insert({imgHash, loadedImages.size()});
             auto sprite = UnityEngine::Sprite::Create(texture, UnityEngine::Rect(0, 0, texture->get_width(), texture->get_height()), {0.5, 0.5}, 1024, 1, UnityEngine::SpriteMeshType::FullRect, {0, 0, 0, 0}, false);
+            CacheSprite(sprite);
             image_paths.insert({sprite, imgPath});
             playlist->imageIndex = loadedImages.size();
             loadedImages.emplace_back(sprite);
@@ -122,10 +123,12 @@ namespace PlaylistManager {
     }
 
     void DeleteLoadedImage(int index) {
+        auto sprite = loadedImages[index];
         // get path
         auto foundItr = image_paths.find(loadedImages[index]);
         if (foundItr == image_paths.end())
             return;
+        image_paths.erase(sprite);
         // update image indices of playlists
         for(auto& playlist : GetLoadedPlaylists()) {
             if(playlist->imageIndex == index)
@@ -135,6 +138,7 @@ namespace PlaylistManager {
         }
         // remove from loaded images
         loadedImages.erase(loadedImages.begin() + index);
+        RemoveCachedSprite(sprite);
         // remove from image hashes
         std::unordered_map<std::size_t, int>::iterator removeItr;
         for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
@@ -201,6 +205,7 @@ namespace PlaylistManager {
                 // }
                 imageHashes.insert({imgHash, loadedImages.size()});
                 auto sprite = UnityEngine::Sprite::Create(texture, UnityEngine::Rect(0, 0, texture->get_width(), texture->get_height()), {0.5, 0.5}, 1024, 1, UnityEngine::SpriteMeshType::FullRect, {0, 0, 0, 0}, false);
+                CacheSprite(sprite);
                 image_paths.insert({sprite, path});
                 loadedImages.emplace_back(sprite);
             }
@@ -215,6 +220,7 @@ namespace PlaylistManager {
         loadedImages.clear();
         image_paths.clear();
         imageHashes.clear();
+        ClearCachedSprites();
     }
 
     void LoadPlaylists(SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO, bool fullReload) {
