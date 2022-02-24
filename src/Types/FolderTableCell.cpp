@@ -41,12 +41,13 @@ void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     }));
     // create images
     selectImage = BeatSaberUI::CreateImage(get_transform(), img->get_sprite(), {0, 0}, {15, 25});
-    auto folderIcon = BeatSaberUI::CreateImage(get_transform(), FolderSprite(), {0, 3.5}, {13, 13});
-    folderName = BeatSaberUI::CreateText(get_transform(), text, {0, -3.5}, {13, 7});
+    auto folderIcon = BeatSaberUI::CreateImage(get_transform(), FolderSprite(), {0, 3.9}, {13, 13});
+    folderName = BeatSaberUI::CreateText(get_transform(), text, false, {0, -5.3}, {13, 14});
     folderName->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
     folderName->set_alignment(TMPro::TextAlignmentOptions::Center);
     folderName->set_enableWordWrapping(true);
-    folderName->set_enableAutoSizing(true);
+    folderName->set_lineSpacing(-40);
+    folderName->set_fontSize(3);
 
     selectImage->set_type(UnityEngine::UI::Image::Type::Tiled);
     selectImage->get_gameObject()->set_active(false);

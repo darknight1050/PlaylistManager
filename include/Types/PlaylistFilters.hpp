@@ -43,7 +43,7 @@ namespace PlaylistManager {
         State state;
 
         custom_types::Helpers::Coroutine initCoroutine();
-        void reloadFolderPlaylists();
+        void refreshFolderPlaylists();
         
         void setFoldersFilters(bool filtersVisible);
         void setFolderEdit(bool editing);
@@ -53,7 +53,7 @@ namespace PlaylistManager {
         void filterSelected(int filter);
         void folderSelected(int listCellIdx);
         void backButtonPressed();
-        void folderTitleTyped(std::string newTitle);
+        void folderTitleTyped(std::string const& newTitle);
         void editButtonPressed();
         void deleteButtonPressed();
         void createButtonPressed();
@@ -73,8 +73,8 @@ namespace PlaylistManager {
         static std::function<void(int)> deselectCallback;
 
         void Init();
-        void ReloadFolders();
-        void ReloadPlaylists();
+        void RefreshFolders();
+        void RefreshPlaylists();
         void Destroy();
     };
 }

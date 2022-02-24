@@ -51,6 +51,7 @@
 #include "Zenject/DiContainer.hpp"
 #include "System/Tuple_2.hpp"
 #include "System/Action_1.hpp"
+#include "System/Collections/Generic/HashSet_1.hpp"
 
 using namespace GlobalNamespace;
 using namespace PlaylistManager;
@@ -60,7 +61,7 @@ ModInfo modInfo;
 // shared config data
 PlaylistConfig playlistConfig;
 Folder* currentFolder = nullptr;
-int folderSelectionState = 0;
+int filterSelectionState = 0;
 
 Logger& getLogger() {
     static auto logger = new Logger(modInfo, LoggerOptions(false, true)); 
@@ -254,10 +255,16 @@ MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::Did
 MAKE_HOOK_MATCH(TableView_HandleCellSelectionDidChange, &HMUI::TableView::HandleCellSelectionDidChange,
         void, HMUI::TableView* self, HMUI::SelectableCell* selectableCell, HMUI::SelectableCell::TransitionType transitionType, ::Il2CppObject* changeOwner) {
     
-    TableView_HandleCellSelectionDidChange(self, selectableCell, transitionType, changeOwner);
+    if(self == PlaylistFilters::monitoredTable) {
+        int cellIdx = ((HMUI::TableCell*) selectableCell)->get_idx();
+        bool wasSelected = self->selectedCellIdxs->Contains(cellIdx);
 
-    if(self == PlaylistFilters::monitoredTable && !selectableCell->get_selected())
-        PlaylistFilters::deselectCallback(((HMUI::TableCell*) selectableCell)->get_idx());
+        TableView_HandleCellSelectionDidChange(self, selectableCell, transitionType, changeOwner);
+
+        if(!selectableCell->get_selected() && wasSelected)
+            PlaylistFilters::deselectCallback(cellIdx);
+    } else
+        TableView_HandleCellSelectionDidChange(self, selectableCell, transitionType, changeOwner);
 }
 
 // throw away objects on a soft restart

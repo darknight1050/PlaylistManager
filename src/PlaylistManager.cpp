@@ -3,6 +3,7 @@
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "ResettableStaticPtr.hpp"
+#include "SpriteCache.hpp"
 #include "Settings.hpp"
 #include "Utils.hpp"
 
@@ -27,15 +28,15 @@
 
 using namespace RuntimeSongLoader;
 
-bool ShouldAddPack(std::string name) {
-    if(folderSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders) {
-        for(std::string testName : currentFolder->PlaylistNames) {
-            if(name == testName)
+bool ShouldAddPack(std::string const& path) {
+    if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders) {
+        for(std::string& testPath : currentFolder->Playlists) {
+            if(path == testPath)
                 return true;
         }
         return false;
     }
-    return folderSelectionState != 1;
+    return filterSelectionState != 1;
 }
 
 namespace PlaylistManager {
@@ -265,7 +266,7 @@ namespace PlaylistManager {
                     if(!playlist)
                         playlist = new Playlist();
                     else {
-                        needsReloadPlaylists.erase(needsReloadPlaylists.find(playlist));
+                        needsReloadPlaylists.erase(playlist);
                         // clear cached data in playlist object
                         playlist->imageIndex = -1;
                     }
@@ -307,7 +308,7 @@ namespace PlaylistManager {
         bool hadLoaded = hasLoaded;
         hasLoaded = true;
         // reload playlists, on the off chance that someone modified the filter menu while songs were loading
-        if(!hadLoaded && folderSelectionState != 0)
+        if(!hadLoaded && filterSelectionState != 0)
             ReloadPlaylists();
         LOG_INFO("Playlists loaded");
     }
@@ -450,8 +451,8 @@ namespace PlaylistManager {
     void ReloadPlaylists(bool fullReload) {
         if(!hasLoaded)
             return;
-        bool showDefaults = folderSelectionState != 2;
-        if(folderSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
+        bool showDefaults = filterSelectionState != 2;
+        if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
             showDefaults = currentFolder->ShowDefaults;
         // handle full reload here since songloader's full refesh isn't carried through
         // also, we don't want to always full reload songs at the same time as playlists

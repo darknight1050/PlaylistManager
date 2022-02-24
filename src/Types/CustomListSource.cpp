@@ -18,7 +18,8 @@ void CustomListSource::ctor() {
     INVOKE_CTOR();
     expandCell = false;
     tableView = nullptr;
-    reuseIdentifier = il2cpp_utils::newcsstr<il2cpp_utils::CreationType::Manual>("PlaylistManagerListCell");
+    static ConstString reuseName("PlaylistManagerListCell");
+    reuseIdentifier = reuseName;
 }
 
 void CustomListSource::dtor() {
@@ -33,21 +34,21 @@ HMUI::TableCell* CustomListSource::CellForIdx(HMUI::TableView* tableView, int id
         return nullptr;
     }
     // check for available reusable cells
-    CustomTableCell* reusableCell = reinterpret_cast<CustomTableCell*>(tableView->DequeueReusableCellForIdentifier(reuseIdentifier));
+    CustomTableCell* reusableCell = (CustomTableCell*) tableView->DequeueReusableCellForIdentifier(reuseIdentifier);
     if(!reusableCell) {
         // create a new cell
         static ConstString name("CustomCellGameObject");
         auto cellObject = UnityEngine::GameObject::New_ctor(name);
         auto rectTransform = cellObject->AddComponent<UnityEngine::RectTransform*>();
         rectTransform->set_sizeDelta({15, 15});
-        reusableCell = reinterpret_cast<CustomTableCell*>(cellObject->AddComponent(type));
+        reusableCell = (CustomTableCell*) cellObject->AddComponent(type);
         reusableCell->set_reuseIdentifier(reuseIdentifier);
         reusableCell->init(getSprite(idx), getText(idx));
     } else {
         reusableCell->setSprite(getSprite(idx));
         reusableCell->setText(getText(idx));
     }
-    return reinterpret_cast<HMUI::TableCell*>(reusableCell);
+    return (HMUI::TableCell*) reusableCell;
 }
 
 float CustomListSource::CellSize() {

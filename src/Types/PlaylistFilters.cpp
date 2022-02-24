@@ -37,7 +37,7 @@ UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
 
 #pragma region uiFunctions
 void PlaylistFilters::filterSelected(int filter) {
-    folderSelectionState = filter;
+    filterSelectionState = filter;
     if(filter == 3)
         setFoldersFilters(false);
     else
@@ -59,21 +59,37 @@ void PlaylistFilters::backButtonPressed() {
                 // top level, go back to filter menu
                 setFoldersFilters(true);
                 deselectFolder();
-                filterList->tableView->SelectCellWithIdx(0, true);
+                // setting selected cells calls ReloadData, which breaks the filter list because of... honestly idk
+                // something to do with the scroll view or viewport at least - GetVisibleCellsIdRange returns the wrong values
+                auto list = filterList->tableView->visibleCells;
+                for(int i = 0; i < list->get_Count(); i++)
+                    list->get_Item(i)->SetSelected(i == 0, HMUI::SelectableCell::TransitionType::Instant, filterList->tableView, false);
+                filterList->tableView->selectedCellIdxs->Clear();
+                filterList->tableView->selectedCellIdxs->Add(0);
+                filterSelectionState = 0;
+                ReloadPlaylists();
+                break;
+            } else if(parentFolders.size() == 1) {
+                LOG_DEBUG("Going to top level folder menu");
+                // remove current parent folder from parent folders
+                parentFolders.erase(parentFolders.end() - 1);
+                deselectFolder();
                 break;
             } else {
                 LOG_DEBUG("Going a level up in folder menu");
-                // go to parent folder and show its subfolders
-                auto itr = parentFolders.end() - 1;
-                selectFolder(**itr);
-                parentFolders.erase(itr);
+                // remove current parent folder from parent folders
+                parentFolders.erase(parentFolders.end() - 1);
+                // go to next parent folder up
+                selectFolder(*parentFolders.back());
+                // remove the parent folder again since it would be added redundantly on selection
+                parentFolders.erase(parentFolders.end() - 1);
                 break;
             }
         } case State::editing: {
             LOG_DEBUG("Exiting edit menu");
             // changes are saved as edits are made
             setFoldersFilters(false);
-            ReloadFolders();
+            RefreshFolders();
             break;
         } case State::creating: {
             LOG_DEBUG("Creating new folder");
@@ -85,14 +101,11 @@ void PlaylistFilters::backButtonPressed() {
             folder.FolderName = currentTitle;
             folder.HasSubfolders = currentSubfolders;
             folder.ShowDefaults = currentDefaults;
-            folder.PlaylistNames = currentPlaylists;
+            folder.Playlists = currentPlaylists;
             // write changes
             WriteToFile(GetConfigPath(), playlistConfig);
             setFoldersFilters(false);
-            // select folder and refresh
-            ReloadFolders();
-            LOG_DEBUG("Selecting created folder");
-            playlistList->tableView->SelectCellWithIdx(currentFolderList.size() - 1, true);
+            RefreshFolders();
             break;
         } default: {
             LOG_ERROR("Back button failed!");
@@ -102,7 +115,7 @@ void PlaylistFilters::backButtonPressed() {
     }
 }
 
-void PlaylistFilters::folderTitleTyped(std::string newTitle) {
+void PlaylistFilters::folderTitleTyped(std::string const& newTitle) {
     currentTitle = newTitle;
     if(state == State::editing) {
         currentFolder->FolderName = newTitle;
@@ -116,8 +129,22 @@ void PlaylistFilters::editButtonPressed() {
 
 void PlaylistFilters::deleteButtonPressed() {
     LOG_DEBUG("Deleting selected folder");
-    // delete current folder
-    auto& folders = parentFolders.size() > 0 ? parentFolders.back()->Subfolders : playlistConfig.Folders;
+    // get parent array of current folder
+    std::vector<Folder>* folderVecPtr = nullptr;
+    // if the current folder is the same as the last in the parent folders, then it has subfolders and no new folder has been selected
+    if(parentFolders.size() > 0) {
+        // might not be the most elegant nested logic, but hopefully is readable
+        if(parentFolders.back() == currentFolder) {
+            if(parentFolders.size() > 1)
+                folderVecPtr = &parentFolders[parentFolders.size() - 2]->Subfolders;
+            else
+                folderVecPtr = &playlistConfig.Folders;
+        } else
+            folderVecPtr = &parentFolders.back()->Subfolders;
+    } else
+        folderVecPtr = &playlistConfig.Folders;
+    // turn into reference because I feel like it
+    auto& folders = *folderVecPtr;
     for(auto itr = folders.begin(); itr != folders.end(); itr++) {
         if(&(*itr) == currentFolder) {
             folders.erase(itr);
@@ -140,7 +167,7 @@ void PlaylistFilters::subfoldersToggled(bool enabled) {
     if(state == State::editing) {
         currentFolder->HasSubfolders = enabled;
         WriteToFile(GetConfigPath(), playlistConfig);
-        RefreshPlaylists();
+        ReloadPlaylists();
     }
 }
 
@@ -149,7 +176,7 @@ void PlaylistFilters::defaultsToggled(bool enabled) {
     if(state == State::editing) {
         currentFolder->ShowDefaults = enabled;
         WriteToFile(GetConfigPath(), playlistConfig);
-        RefreshPlaylists();
+        ReloadPlaylists();
     }
 }
 
@@ -159,24 +186,24 @@ void PlaylistFilters::playlistSelected(int cellIdx) {
         return;
     // add playlist to current folder
     auto& playlist = loadedPlaylists[cellIdx];
-    auto& playlistVector = state == State::editing ? currentFolder->PlaylistNames : currentPlaylists;
-    playlistVector.emplace_back(playlist->name);
+    auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
+    playlistVector.emplace_back(playlist->path);
     // save and update ingame playlists if editing
     if(state == State::editing) {
         WriteToFile(GetConfigPath(), playlistConfig);
-        RefreshPlaylists();
+        ReloadPlaylists();
     }
 }
 
 void PlaylistFilters::playlistDeselected(int cellIdx) {
-    LOG_DEBUG("Playlist deselected in edit menu");
+    LOG_DEBUG("Playlist %i deselected in edit menu", cellIdx);
     if(!currentFolder)
         return;
     // remove playlist from current folder
     auto& playlist = loadedPlaylists[cellIdx];
-    auto& playlistVector = state == State::editing ? currentFolder->PlaylistNames : currentPlaylists;
+    auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
     for(auto itr = playlistVector.begin(); itr != playlistVector.end(); itr++) {
-        if(*itr == playlist->name) {
+        if(*itr == playlist->path) {
             playlistVector.erase(itr);
             break;
         }
@@ -184,7 +211,7 @@ void PlaylistFilters::playlistDeselected(int cellIdx) {
     // save and update ingame playlists if editing
     if(state == State::editing) {
         WriteToFile(GetConfigPath(), playlistConfig);
-        RefreshPlaylists();
+        ReloadPlaylists();
     }
 }
 
@@ -221,7 +248,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, sizeDelta, [this](int cellIdx){
         filterSelected(cellIdx);
     });
-    filterList->setType(csTypeOf(PlaylistManager::CoverTableCell*));
+    filterList->setType(csTypeOf(CoverTableCell*));
     filterList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     filterList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     // yet another questui bug
@@ -241,11 +268,11 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     contentTransform->set_anchorMin({0, 0});
     contentTransform->set_anchorMax({0, 1});
     filterList->tableView->ReloadData();
-    if(folderSelectionState == 3) {
-        folderSelectionState = 0;
-        RefreshPlaylists();
+    if(filterSelectionState == 3) {
+        filterSelectionState = 0;
+        ReloadPlaylists();
     }
-    filterList->tableView->SelectCellWithIdx(folderSelectionState, false);
+    filterList->tableView->SelectCellWithIdx(filterSelectionState, false);
 
     co_yield nullptr;
     // some update method or something is messing with this
@@ -337,12 +364,6 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     });
     subfoldersToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(35);
     
-    defaultsToggle = BeatSaberUI::CreateToggle(folderEditMenu->get_transform(), "Defaults", {0, -80}, [this](bool enabled){
-        defaultsToggled(enabled);
-    });
-    defaultsToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
-    defaultsToggle->get_transform()->GetParent()->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
-    
     folderEditMenu->SetActive(false);
     #pragma endregion
 
@@ -355,10 +376,10 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(folderListContainer->get_transform(), {75, 30}, [this](int cellIdx){
         folderSelected(cellIdx);
     });
-    folderList->setType(csTypeOf(PlaylistManager::FolderTableCell*));
+    folderList->setType(csTypeOf(FolderTableCell*));
     folderList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     folderList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
-    ReloadFolders();
+    RefreshFolders();
     // paging buttons
     auto left = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
         scrollFolderListLeftButtonPressed();
@@ -380,13 +401,13 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     playlistList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(playlistListContainer->get_transform(), {75, 15}, [this](int cellIdx){
         playlistSelected(cellIdx);
     });
-    playlistList->setType(csTypeOf(PlaylistManager::CoverTableCell*));
+    playlistList->setType(csTypeOf(CoverTableCell*));
     playlistList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     playlistList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     playlistList->tableView->set_selectionType(HMUI::TableViewSelectionType::Multiple);
     PlaylistFilters::monitoredTable = playlistList->tableView;
     PlaylistFilters::deselectCallback = [this](int cellIdx){ playlistDeselected(cellIdx); };
-    ReloadPlaylists();
+    RefreshPlaylists();
     // paging buttons
     left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
         scrollPlaylistListLeftButtonPressed();
@@ -399,6 +420,12 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     });
     ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
+    
+    defaultsToggle = BeatSaberUI::CreateToggle(playlistListContainer->get_transform(), "Defaults", {0, -65}, [this](bool enabled){
+        defaultsToggled(enabled);
+    });
+    defaultsToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
+    defaultsToggle->get_transform()->GetParent()->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     #pragma endregion
 
     setFoldersFilters(true);
@@ -406,17 +433,16 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     co_return;
 }
 
-void PlaylistFilters::reloadFolderPlaylists() {
+void PlaylistFilters::refreshFolderPlaylists() {
     if(!currentFolder || !playlistList) return;
     LOG_DEBUG("Reloading playlists of the folder");
 
     // set table cells selected
     playlistList->tableView->selectedCellIdxs->Clear();
-    for(std::string& name : currentFolder->PlaylistNames) {
-        int idx = GetPackIndex(name);
-        if(idx >= 0 && idx < loadedPlaylists.size()) {
+    for(std::string& path : currentFolder->Playlists) {
+        int idx = GetPlaylistIndex(path);
+        if(idx >= 0 && idx < loadedPlaylists.size())
             playlistList->tableView->selectedCellIdxs->Add(idx);
-        }
     }
     // update visuals
     playlistList->tableView->RefreshCells(true, false);
@@ -434,6 +460,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
     LOG_DEBUG("Activating edit/create menu");
     folderMenu->SetActive(false);
     folderEditMenu->SetActive(true);
+    RefreshPlaylists();
     if(editing) {
         if(!currentFolder) {
             setFoldersFilters(false);
@@ -446,7 +473,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
         defaultsToggle->set_isOn(currentFolder->ShowDefaults);
         playlistListContainer->SetActive(!currentFolder->HasSubfolders);
         defaultsToggle->get_gameObject()->SetActive(!currentFolder->HasSubfolders);
-        reloadFolderPlaylists();
+        refreshFolderPlaylists();
     } else {
         static ConstString createText("+");
         editBackButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(createText);
@@ -468,15 +495,16 @@ void PlaylistFilters::selectFolder(Folder& folder) {
     // update button interactability
     editButton->set_interactable(true);
     deleteButton->set_interactable(true);
+    folderTitle->set_text(folder.FolderName);
     // update config state
     currentFolder = &folder;
     // update menu
     if(folder.HasSubfolders) {
         parentFolders.emplace_back(&folder);
-        ReloadFolders();
-    } else {
-        RefreshPlaylists();
+        RefreshFolders();
+        folderList->tableView->ClearSelection();
     }
+    ReloadPlaylists();
 }
 
 void PlaylistFilters::deselectFolder() {
@@ -488,44 +516,47 @@ void PlaylistFilters::deselectFolder() {
     if(folderList)
         folderList->tableView->ClearSelection();
     // update config state
-    if(parentFolders.size() > 0)
+    if(parentFolders.size() > 0) {
         currentFolder = parentFolders.back();
-    else
+        folderTitle->set_text(parentFolders.back()->FolderName);
+    } else {
         currentFolder = nullptr;
-    RefreshPlaylists();
+        static ConstString defaultTitle("All Folders");
+        folderTitle->set_text(defaultTitle);
+    }
+    RefreshFolders();
+    ReloadPlaylists();
 }
 
 void PlaylistFilters::Init() {
-    return; // disable filter menu
     // start coroutine
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
-void PlaylistFilters::ReloadFolders() {
+void PlaylistFilters::RefreshFolders() {
     if(!folderList) return;
     LOG_DEBUG("Reloading folders/subfolders");
 
     std::vector<std::string> folderNames;
     currentFolderList.clear();
-    if(currentFolder && currentFolder->HasSubfolders) {
+    if(parentFolders.size() > 0) {
         LOG_DEBUG("Loading current folder subfolders");
-        for(auto& folder : currentFolder->Subfolders) {
+        for(auto& folder : parentFolders.back()->Subfolders) {
             folderNames.push_back(folder.FolderName);
             currentFolderList.push_back(&folder);
         }
     } else {
+        LOG_DEBUG("Loading top level folders");
         for(auto& folder : playlistConfig.Folders) {
-            LOG_DEBUG("Loading top level folders");
             folderNames.push_back(folder.FolderName);
             currentFolderList.push_back(&folder);
         }
     }
     folderList->replaceTexts(folderNames);
-    folderList->tableView->ClearSelection();
     folderList->tableView->ReloadData();
 }
 
-void PlaylistFilters::ReloadPlaylists() {
+void PlaylistFilters::RefreshPlaylists() {
     if(!playlistList)
         return;
     loadedPlaylists = GetLoadedPlaylists();
@@ -542,7 +573,8 @@ void PlaylistFilters::ReloadPlaylists() {
 
 void PlaylistFilters::Destroy() {
     PlaylistFilters::filtersInstance = nullptr;
-    // UnityEngine::Object::Destroy(canvas);
+    currentFolder = nullptr;
+    UnityEngine::Object::Destroy(canvas);
     // assumes it's always allocated with new
     delete this;
 }
