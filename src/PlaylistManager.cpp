@@ -418,7 +418,7 @@ namespace PlaylistManager {
         }
         playlist->imageIndex = index;
         // change cover ingame
-        auto levelPack = playlist->playlistCS;
+        auto& levelPack = playlist->playlistCS;
         if(levelPack) {
             levelPack->coverImage = newCover;
             levelPack->smallCoverImage = newCover;
@@ -513,7 +513,7 @@ namespace PlaylistManager {
         if(!level)
             return;
         // add song to cs object
-        auto pack = playlist->playlistCS;
+        auto& pack = playlist->playlistCS;
         if(!pack)
             return;
         auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;
@@ -540,7 +540,7 @@ namespace PlaylistManager {
         if(!level)
             return;
         // remove song from cs object
-        auto pack = playlist->playlistCS;
+        auto& pack = playlist->playlistCS;
         if(!pack)
             return;
         auto levelArr = pack->customBeatmapLevelCollection->customPreviewBeatmapLevels;

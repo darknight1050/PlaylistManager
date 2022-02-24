@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include "Types/BPList.hpp"
+#include "SimpleSafePtr.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderBeatmapLevelPackCollectionSO.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderCustomBeatmapLevelPack.hpp"
 #include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
@@ -13,7 +13,7 @@ namespace PlaylistManager {
     /// @brief A struct that wraps the data for a playlist
     struct Playlist {
         BPList playlistJSON;
-        GlobalNamespace::CustomBeatmapLevelPack* playlistCS;
+        SimpleSafePtr<GlobalNamespace::CustomBeatmapLevelPack> playlistCS;
         std::string name;
         std::string path;
         int imageIndex = -1;

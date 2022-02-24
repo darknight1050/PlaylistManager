@@ -113,7 +113,24 @@
 			"hash_map": "cpp",
 			"hash_set": "cpp",
 			"__hash": "cpp",
-			"xlocale": "cpp"
+			"xlocale": "cpp",
+			"format": "cpp",
+			"source_location": "cpp",
+			"xfacet": "cpp",
+			"xhash": "cpp",
+			"xiosbase": "cpp",
+			"xlocbuf": "cpp",
+			"xlocinfo": "cpp",
+			"xlocmes": "cpp",
+			"xlocmon": "cpp",
+			"xlocnum": "cpp",
+			"xloctime": "cpp",
+			"xmemory": "cpp",
+			"xstddef": "cpp",
+			"xstring": "cpp",
+			"xtr1common": "cpp",
+			"xtree": "cpp",
+			"xutility": "cpp"
 		},
 		"search.useIgnoreFiles": false
 	}

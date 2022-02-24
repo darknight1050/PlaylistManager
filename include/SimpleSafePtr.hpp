@@ -12,6 +12,8 @@ struct SimpleSafePtr {
         internalWrapper = SimpleSafePtrWrapper::New(instace);
     }
 
+    SimpleSafePtr(const SimpleSafePtr&) = delete;
+
     ~SimpleSafePtr() {
         il2cpp_functions::GC_free(internalWrapper);
     }
