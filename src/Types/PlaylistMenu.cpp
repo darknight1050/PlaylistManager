@@ -243,18 +243,22 @@ void PlaylistMenu::addButtonPressed() {
 }
 
 void PlaylistMenu::moveRightButtonPressed() {
-    // use old cell idx because not all configured playlists will always be shown
-    int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPlaylistIndex(playlist->path);
-    if(configIdx == -1)
-        configIdx = playlistConfig.Order.size() - 1;
-    if(oldCellIdx + 1 == gameTableView->GetNumberOfCells() || configIdx >= playlistConfig.Order.size() - 1)
-        return;
-    MovePlaylist(playlist, configIdx + 1);
-    // move playlist in table
     namespace Generic = System::Collections::Generic;
-    // janky casting
+    // get current playlist and next playlist
+    int oldCellIdx = gameTableView->selectedCellIndex;
+    // last playlist, can't move further right
+    if(oldCellIdx == gameTableView->GetNumberOfCells() - 1)
+        return;
+    // get list of all custom packs currently in the table view
     auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto nextPlaylist = GetPlaylistWithPrefix(packList->get_Item(oldCellIdx + 1)->get_packID());
+    if(!nextPlaylist)
+        return;
+    // get config index at the previous playlist (so immediately after it if moved)
+    int newConfigIdx = GetPlaylistIndex(nextPlaylist->path);
+    // move playlist in config
+    MovePlaylist(playlist, newConfigIdx);
+    // move playlist in table
     auto movedCollection = packList->get_Item(oldCellIdx);
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx + 1, movedCollection);
@@ -270,18 +274,22 @@ void PlaylistMenu::moveRightButtonPressed() {
 }
 
 void PlaylistMenu::moveLeftButtonPressed() {
-    // use old cell idx because not all configured playlists will always be shown
-    int oldCellIdx = gameTableView->selectedCellIndex;
-    int configIdx = GetPlaylistIndex(playlist->path);
-    if(configIdx == -1)
-        configIdx = playlistConfig.Order.size() - 1;
-    if(oldCellIdx <= 1 || configIdx == 0)
-        return;
-    MovePlaylist(playlist, configIdx - 1);
-    // move playlist in table
     namespace Generic = System::Collections::Generic;
-    // janky casting
+    // get current playlist and next playlist
+    int oldCellIdx = gameTableView->selectedCellIndex;
+    // last playlist, can't move further right
+    if(oldCellIdx == 0)
+        return;
+    // get list of all custom packs currently in the table view
     auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto prevPlaylist = GetPlaylistWithPrefix(packList->get_Item(oldCellIdx - 1)->get_packID());
+    if(!prevPlaylist)
+        return;
+    // get config index at the previous playlist (so immediately before it if moved)
+    int newConfigIdx = GetPlaylistIndex(prevPlaylist->path);
+    // move playlist in config
+    MovePlaylist(playlist, newConfigIdx);
+    // move playlist in table
     auto movedCollection = packList->get_Item(oldCellIdx);
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx - 1, movedCollection);

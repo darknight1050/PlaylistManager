@@ -349,8 +349,7 @@ namespace PlaylistManager {
 
     int GetPlaylistIndex(std::string const& path) {
         // find index of playlist title in config
-        int size = playlistConfig.Order.size();
-        for(int i = 0; i < size; i++) {
+        for(int i = 0; i < playlistConfig.Order.size(); i++) {
             if(playlistConfig.Order[i] == path)
                 return i;
         }
