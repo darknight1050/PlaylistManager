@@ -7,6 +7,7 @@
 
 #include "UnityEngine/UI/Button.hpp"
 #include "UnityEngine/UI/Toggle.hpp"
+#include "UnityEngine/RectTransform.hpp"
 #include "TMPro/TextMeshProUGUI.hpp"
 #include "HMUI/InputFieldView.hpp"
 
@@ -26,7 +27,8 @@ namespace PlaylistManager {
         private:
         CustomListSource *filterList, *folderList, *playlistList;
         UnityEngine::GameObject *folderMenu, *folderEditMenu, *playlistListContainer, *canvas;
-        UnityEngine::UI::Button *editButton, *deleteButton, *editBackButton;
+        UnityEngine::RectTransform *topLayout;
+        UnityEngine::UI::Button *editButton, *deleteButton, *editCreateButton;
         HMUI::InputFieldView *titleField;
         UnityEngine::UI::Toggle *subfoldersToggle, *defaultsToggle;
         TMPro::TextMeshProUGUI *folderTitle;
@@ -54,6 +56,7 @@ namespace PlaylistManager {
         void folderSelected(int listCellIdx);
         void backButtonPressed();
         void folderTitleTyped(std::string const& newTitle);
+        void editMenuCreateButtonPressed();
         void editButtonPressed();
         void deleteButtonPressed();
         void createButtonPressed();

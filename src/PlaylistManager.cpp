@@ -307,9 +307,6 @@ namespace PlaylistManager {
         }
         bool hadLoaded = hasLoaded;
         hasLoaded = true;
-        // reload playlists, on the off chance that someone modified the filter menu while songs were loading
-        if(!hadLoaded && filterSelectionState != 0)
-            ReloadPlaylists();
         LOG_INFO("Playlists loaded");
     }
 

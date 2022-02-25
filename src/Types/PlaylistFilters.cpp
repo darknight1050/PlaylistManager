@@ -12,6 +12,7 @@
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 
 #include "HMUI/ScrollView.hpp"
+#include "HMUI/AnimatedSwitchView.hpp"
 #include "HMUI/Screen.hpp"
 
 #include "UnityEngine/Rect.hpp"
@@ -35,8 +36,32 @@ UnityEngine::GameObject* createContainer(UnityEngine::Transform* parent) {
     return go;
 }
 
+void instantSetToggle(UnityEngine::UI::Toggle* toggle, bool value) {
+    if(toggle->m_IsOn == value)
+        return;
+    
+    toggle->m_IsOn = value;
+    auto animatedSwitch = toggle->GetComponent<HMUI::AnimatedSwitchView*>();
+    animatedSwitch->HandleOnValueChanged(value);
+    int intValue = value ? 1 : 0;
+    animatedSwitch->switchAmount = intValue;
+    animatedSwitch->LerpPosition(intValue);
+    animatedSwitch->LerpColors(intValue, animatedSwitch->highlightAmount, animatedSwitch->disabledAmount);
+}
+
 #pragma region uiFunctions
 void PlaylistFilters::filterSelected(int filter) {
+    if(!hasLoaded) {
+        // setting selected cells calls ReloadData, which breaks the filter list because of... honestly idk
+        // something to do with the scroll view or viewport at least - GetVisibleCellsIdRange returns the wrong values
+        auto list = filterList->tableView->visibleCells;
+        for(int i = 0; i < list->get_Count(); i++)
+            list->get_Item(i)->SetSelected(i == 0, HMUI::SelectableCell::TransitionType::Instant, filterList->tableView, false);
+        filterList->tableView->selectedCellIdxs->Clear();
+        filterList->tableView->selectedCellIdxs->Add(0);
+        filterSelectionState = 0;
+        return;
+    }
     filterSelectionState = filter;
     if(filter == 3)
         setFoldersFilters(false);
@@ -89,26 +114,20 @@ void PlaylistFilters::backButtonPressed() {
             LOG_DEBUG("Exiting edit menu");
             // changes are saved as edits are made
             setFoldersFilters(false);
+            // remove the folder from parent folders so it can be readded or not based on its edits
+            if(parentFolders.size() > 0 && parentFolders.back() == currentFolder)
+                parentFolders.erase(parentFolders.end() - 1);
+            selectFolder(*currentFolder);
+            // might refresh twice but it's ok
             RefreshFolders();
             break;
         } case State::creating: {
-            LOG_DEBUG("Creating new folder");
-            // add new folder as subfolder if open
-            auto& parentArr = parentFolders.size() > 0 ? parentFolders.back()->Subfolders : playlistConfig.Folders;
-            parentArr.emplace_back(Folder());
-            // populate folder fields
-            auto& folder = parentArr.back();
-            folder.FolderName = currentTitle;
-            folder.HasSubfolders = currentSubfolders;
-            folder.ShowDefaults = currentDefaults;
-            folder.Playlists = currentPlaylists;
-            // write changes
-            WriteToFile(GetConfigPath(), playlistConfig);
+            LOG_DEBUG("Exiting create menu");
+            // no changes will have been made if exiting the create menu with the back button
             setFoldersFilters(false);
-            RefreshFolders();
             break;
         } default: {
-            LOG_ERROR("Back button failed!");
+            LOG_ERROR("Back button failed! (something really weird must have happened)");
             setFoldersFilters(true);
             break;
         }
@@ -123,6 +142,23 @@ void PlaylistFilters::folderTitleTyped(std::string const& newTitle) {
     }
 }
 
+void PlaylistFilters::editMenuCreateButtonPressed() {
+    LOG_DEBUG("Creating new folder");
+    // add new folder as subfolder if open
+    auto& parentArr = parentFolders.size() > 0 ? parentFolders.back()->Subfolders : playlistConfig.Folders;
+    parentArr.emplace_back(Folder());
+    // populate folder fields
+    auto& folder = parentArr.back();
+    folder.FolderName = currentTitle;
+    folder.HasSubfolders = currentSubfolders;
+    folder.ShowDefaults = currentDefaults;
+    folder.Playlists = currentPlaylists;
+    // write changes
+    WriteToFile(GetConfigPath(), playlistConfig);
+    setFoldersFilters(false);
+    RefreshFolders();
+}
+
 void PlaylistFilters::editButtonPressed() {
     setFolderEdit(true);
 }
@@ -131,20 +167,11 @@ void PlaylistFilters::deleteButtonPressed() {
     LOG_DEBUG("Deleting selected folder");
     // get parent array of current folder
     std::vector<Folder>* folderVecPtr = nullptr;
-    // if the current folder is the same as the last in the parent folders, then it has subfolders and no new folder has been selected
-    if(parentFolders.size() > 0) {
-        // might not be the most elegant nested logic, but hopefully is readable
-        if(parentFolders.back() == currentFolder) {
-            if(parentFolders.size() > 1)
-                folderVecPtr = &parentFolders[parentFolders.size() - 2]->Subfolders;
-            else
-                folderVecPtr = &playlistConfig.Folders;
-        } else
-            folderVecPtr = &parentFolders.back()->Subfolders;
-    } else
-        folderVecPtr = &playlistConfig.Folders;
-    // turn into reference because I feel like it
-    auto& folders = *folderVecPtr;
+    // remove from parent folders if it is present
+    if(parentFolders.size() > 0 && parentFolders.back() == currentFolder)
+            parentFolders.erase(parentFolders.end() - 1);
+    // get new parent folder list
+    auto& folders = parentFolders.size() > 0 ? parentFolders.back()->Subfolders : playlistConfig.Folders;
     for(auto itr = folders.begin(); itr != folders.end(); itr++) {
         if(&(*itr) == currentFolder) {
             folders.erase(itr);
@@ -284,14 +311,14 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderMenu = createContainer(cvsTrans);
     folderMenu->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, 10});
 
-    auto topLayout = BeatSaberUI::CreateHorizontalLayoutGroup(folderMenu->get_transform());
-    topLayout->get_gameObject()->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
-    topLayout->set_childControlWidth(true);
-    topLayout->set_spacing(2);
+    auto topLayoutGroup = BeatSaberUI::CreateHorizontalLayoutGroup(folderMenu->get_transform());
+    topLayoutGroup->get_gameObject()->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    topLayoutGroup->set_childControlWidth(true);
+    topLayoutGroup->set_spacing(2);
 
     static ConstString contentName("Content");
 
-    auto backButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "<", "ActionButton", [this](){
+    auto backButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", "ActionButton", [this](){
         backButtonPressed();
     });
     UnityEngine::Object::Destroy(backButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -299,13 +326,13 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    folderTitle = BeatSaberUI::CreateText(topLayout->get_transform(), "All Folders", false);
+    folderTitle = BeatSaberUI::CreateText(topLayoutGroup->get_transform(), "All Folders", false);
     folderTitle->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
     folderTitle->set_margin({0, 1});
     folderTitle->set_enableWordWrapping(false);
     folderTitle->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
 
-    editButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "Edit", [this](){
+    editButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Edit", [this](){
         editButtonPressed();
     });
     UnityEngine::Object::Destroy(editButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -313,7 +340,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    deleteButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "Delete", [this](){
+    deleteButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Delete", [this](){
         deleteButtonPressed();
     });
     UnityEngine::Object::Destroy(deleteButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -321,7 +348,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    auto createButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "Create", [this](){
+    auto createButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Create", [this](){
         createButtonPressed();
     });
     UnityEngine::Object::Destroy(createButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -341,25 +368,34 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderEditMenu = createContainer(cvsTrans);
     folderEditMenu->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, 10});
     
-    topLayout = BeatSaberUI::CreateHorizontalLayoutGroup(folderEditMenu->get_transform());
-    topLayout->get_gameObject()->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
-    topLayout->set_childControlWidth(true);
-    topLayout->set_spacing(2);
+    topLayoutGroup = BeatSaberUI::CreateHorizontalLayoutGroup(folderEditMenu->get_transform());
+    topLayoutGroup->get_gameObject()->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    topLayoutGroup->set_childControlWidth(true);
+    topLayoutGroup->set_spacing(2);
+    topLayout = topLayoutGroup->get_rectTransform();
     
-    editBackButton = BeatSaberUI::CreateUIButton(topLayout->get_transform(), "<", [this](){
+    auto editBackButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", [this](){
         backButtonPressed();
     });
     UnityEngine::Object::Destroy(editBackButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     sizeFitter = editBackButton->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    
+    editCreateButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "+", [this](){
+        editMenuCreateButtonPressed();
+    });
+    UnityEngine::Object::Destroy(editCreateButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
+    sizeFitter = editCreateButton->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
+    sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    titleField = BeatSaberUI::CreateStringSetting(topLayout->get_transform(), "Folder Name", "", [this](StringW newTitle){
+    titleField = BeatSaberUI::CreateStringSetting(topLayoutGroup->get_transform(), "Folder Name", "", [this](StringW newTitle){
         folderTitleTyped(newTitle);
     });
     titleField->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(41);
 
-    subfoldersToggle = BeatSaberUI::CreateToggle(topLayout->get_transform(), "Subfolders", [this](bool enabled){
+    subfoldersToggle = BeatSaberUI::CreateToggle(topLayoutGroup->get_transform(), "Subfolders", [this](bool enabled){
         subfoldersToggled(enabled);
     });
     subfoldersToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(35);
@@ -458,34 +494,35 @@ void PlaylistFilters::setFoldersFilters(bool filtersVisible) {
 
 void PlaylistFilters::setFolderEdit(bool editing) {
     LOG_DEBUG("Activating edit/create menu");
-    folderMenu->SetActive(false);
-    folderEditMenu->SetActive(true);
-    RefreshPlaylists();
     if(editing) {
         if(!currentFolder) {
             setFoldersFilters(false);
             return;
         }
-        static ConstString backText("<");
-        editBackButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(backText);
         titleField->set_text(currentFolder->FolderName);
-        subfoldersToggle->set_isOn(currentFolder->HasSubfolders);
-        defaultsToggle->set_isOn(currentFolder->ShowDefaults);
+        instantSetToggle(subfoldersToggle, currentFolder->HasSubfolders);
+        instantSetToggle(defaultsToggle, currentFolder->ShowDefaults);
         playlistListContainer->SetActive(!currentFolder->HasSubfolders);
-        defaultsToggle->get_gameObject()->SetActive(!currentFolder->HasSubfolders);
         refreshFolderPlaylists();
+        editCreateButton->get_gameObject()->SetActive(false);
+        topLayout->set_anchoredPosition({0, 0});
     } else {
-        static ConstString createText("+");
-        editBackButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(createText);
         static ConstString empty("");
         titleField->set_text(empty);
-        subfoldersToggle->set_isOn(false);
-        defaultsToggle->set_isOn(false);
+        currentTitle = "";
+        instantSetToggle(subfoldersToggle, false);
+        currentSubfolders = false;
+        instantSetToggle(defaultsToggle, false);
+        currentDefaults = false;
         currentPlaylists.clear();
         playlistListContainer->SetActive(true);
-        defaultsToggle->get_gameObject()->SetActive(true);
         playlistList->tableView->ClearSelection();
+        editCreateButton->get_gameObject()->SetActive(true);
+        topLayout->set_anchoredPosition({5, 0});
     }
+    folderMenu->SetActive(false);
+    folderEditMenu->SetActive(true);
+    RefreshPlaylists();
     filterList->get_gameObject()->SetActive(false);
     state = editing ? State::editing : State::creating;
 }
@@ -509,9 +546,6 @@ void PlaylistFilters::selectFolder(Folder& folder) {
 
 void PlaylistFilters::deselectFolder() {
     LOG_DEBUG("Folder deselected");
-    // update button interactability
-    editButton->set_interactable(false);
-    deleteButton->set_interactable(false);
     // update table
     if(folderList)
         folderList->tableView->ClearSelection();
@@ -524,6 +558,9 @@ void PlaylistFilters::deselectFolder() {
         static ConstString defaultTitle("All Folders");
         folderTitle->set_text(defaultTitle);
     }
+    // only disable buttons if there is no folder selected
+    editButton->set_interactable(currentFolder == nullptr);
+    deleteButton->set_interactable(currentFolder == nullptr);
     RefreshFolders();
     ReloadPlaylists();
 }

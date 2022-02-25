@@ -278,6 +278,7 @@ MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::Resta
     ClearLoadedImages();
 
     hasLoaded = false;
+    filterSelectionState = 0;
 
     MenuTransitionsHelper_RestartGame(self, finishCallback);
 }
