@@ -305,7 +305,6 @@ namespace PlaylistManager {
             if(customBeatmapLevelPack)
                 customBeatmapLevelPackCollectionSO->AddLevelPack(customBeatmapLevelPack);
         }
-        bool hadLoaded = hasLoaded;
         hasLoaded = true;
         LOG_INFO("Playlists loaded");
     }

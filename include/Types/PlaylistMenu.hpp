@@ -24,7 +24,7 @@ namespace PlaylistManager {
 DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     private:
-    UnityEngine::GameObject *buttonsContainer, *detailsContainer;
+    UnityEngine::GameObject *buttonsContainer, *detailsContainer, *bootstrapContainer;
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
     UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
@@ -73,7 +73,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     static std::function<void()> nextCloseKeyboard;
     static PlaylistMenu* menuInstance;
 
-    void Init(HMUI::ImageView* packImage, Playlist* playlist);
+    void Init(HMUI::ImageView* packImage);
     void SetPlaylist(Playlist* playlist);
     void RefreshCovers();
 

@@ -190,22 +190,20 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
     static ConstString customPackName(CustomLevelPackPrefixID);
 
+    if(!PlaylistMenu::menuInstance) {
+        PlaylistMenu::menuInstance = self->get_gameObject()->AddComponent<PlaylistMenu*>();
+        PlaylistMenu::menuInstance->Init(self->packImage);
+    }
+
     if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName) && !staticPackIDs.contains(self->pack->get_packID())) {
         // find playlist json
         auto playlist = GetPlaylistWithPrefix(self->pack->get_packID());
-        // create menu if necessary, if so avoid visibility calls
-        bool construction = false;
-        if(!PlaylistMenu::menuInstance && playlist) {
-            PlaylistMenu::menuInstance = self->get_gameObject()->AddComponent<PlaylistMenu*>();
-            PlaylistMenu::menuInstance->Init(self->packImage, playlist);
-        } else if(PlaylistMenu::menuInstance) {
-            if(playlist) {
-                PlaylistMenu::menuInstance->SetPlaylist(playlist);
-                PlaylistMenu::menuInstance->SetVisible(true);
-            } else
-                PlaylistMenu::menuInstance->SetVisible(false);
-        }
-    } else if(PlaylistMenu::menuInstance)
+        if(playlist) {
+            PlaylistMenu::menuInstance->SetPlaylist(playlist);
+            PlaylistMenu::menuInstance->SetVisible(true);
+        } else
+            PlaylistMenu::menuInstance->SetVisible(false);
+    } else
         PlaylistMenu::menuInstance->SetVisible(false);
 
     // disable level buttons (hides modal if necessary)

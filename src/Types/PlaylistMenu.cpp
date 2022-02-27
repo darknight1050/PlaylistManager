@@ -516,7 +516,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     img->get_transform()->set_localScale({0.55, 0.55, 0.55});
     BeatSaberUI::AddHoverHint(syncButton->get_gameObject(), "Sync playlist");
     bool syncActive = false;
-    if(playlist->playlistJSON.CustomData.has_value())
+    if(playlist && playlist->playlistJSON.CustomData.has_value())
         syncActive = playlist->playlistJSON.CustomData->SyncURL.has_value();
     syncButton->set_interactable(syncActive);
     
@@ -534,6 +534,18 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
         moveLeftButtonPressed();
     }, 0.26, 0.5);
     BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
+    
+    bootstrapContainer = anchorContainer(maskImage->get_transform(), 0, 0, 1, 0.15);
+    auto bootstrapBackgroundImage = BeatSaberUI::CreateImage(bootstrapContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
+    ANCHOR(bootstrapBackgroundImage, 0, 0.02, 1, 1);
+    bootstrapBackgroundImage->set_color(detailsBackgroundColor);
+    
+    addButton = anchorMiniButton(bootstrapContainer->get_transform(), "+", "PracticeButton", [this](){
+        addButtonPressed();
+    }, 0.9, 0.5);
+    BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
+
+    bootstrapContainer->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -636,16 +648,11 @@ void PlaylistMenu::scrollToIndex(int index) {
     gameTableView->SelectAndScrollToCellWithIdx(index);
 }
 
-void PlaylistMenu::Init(HMUI::ImageView* imageView, Playlist* list) {
+void PlaylistMenu::Init(HMUI::ImageView* imageView) {
     // get table view for setting selected cell
     gameTableView = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>()[0];
     navigationController = UnityEngine::Resources::FindObjectsOfTypeAll<LevelFilteringNavigationController*>()[0];
     levelsModel = UnityEngine::Resources::FindObjectsOfTypeAll<BeatmapLevelsModel*>()[0];
-    playlist = list;
-    packImage = imageView;
-    // make sure playlist cover image is present
-    GetCoverImage(playlist);
-    coverImageIndex = playlist->imageIndex;
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
@@ -693,9 +700,11 @@ void PlaylistMenu::SetVisible(bool visible) {
     StopAllCoroutines();
     detailsVisible = false;
     if(buttonsContainer)
-        buttonsContainer->set_active(visible);
+        buttonsContainer->SetActive(visible);
+    if(bootstrapContainer)
+        bootstrapContainer->SetActive(!visible && GetLoadedPlaylists().size() == 0);
     if(detailsContainer)
-        detailsContainer->set_active(false);
+        detailsContainer->SetActive(false);
     if(confirmModal)
         confirmModal->Hide(false, nullptr);
     if(coverModal)

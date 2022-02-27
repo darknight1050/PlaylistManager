@@ -312,7 +312,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderMenu->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, 10});
 
     auto topLayoutGroup = BeatSaberUI::CreateHorizontalLayoutGroup(folderMenu->get_transform());
-    topLayoutGroup->get_gameObject()->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    topLayoutGroup->GetComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     topLayoutGroup->set_childControlWidth(true);
     topLayoutGroup->set_spacing(2);
 
@@ -490,6 +490,9 @@ void PlaylistFilters::setFoldersFilters(bool filtersVisible) {
     folderMenu->SetActive(!filtersVisible);
     folderEditMenu->SetActive(false);
     state = filtersVisible ? State::filters : State::folders;
+    // disable buttons if there is no folder selected
+    editButton->set_interactable(currentFolder);
+    deleteButton->set_interactable(currentFolder);
 }
 
 void PlaylistFilters::setFolderEdit(bool editing) {
@@ -559,8 +562,8 @@ void PlaylistFilters::deselectFolder() {
         folderTitle->set_text(defaultTitle);
     }
     // only disable buttons if there is no folder selected
-    editButton->set_interactable(currentFolder == nullptr);
-    deleteButton->set_interactable(currentFolder == nullptr);
+    editButton->set_interactable(currentFolder);
+    deleteButton->set_interactable(currentFolder);
     RefreshFolders();
     ReloadPlaylists();
 }
