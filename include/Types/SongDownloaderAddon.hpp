@@ -47,7 +47,6 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, SongDownloaderAddon, HMUI::ViewController
 
     bool downloadToPlaylistEnabled = true;
     Playlist* selectedPlaylist = nullptr;
-    int currentCellIdx = 0;
 
     void playlistSelected(int cellIdx);
     void scrollListLeftButtonPressed();

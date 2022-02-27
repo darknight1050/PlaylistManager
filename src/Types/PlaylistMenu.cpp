@@ -200,9 +200,6 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // keep selection
         scrollToIndex(tableIdx);
     }
-    // update playlists in level buttons
-    if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->RefreshPlaylists();
     awaitingSync = false;
 
     co_return;
@@ -322,9 +319,6 @@ void PlaylistMenu::playlistTitleTyped(std::string newValue) {
                 return;
             tableView->headerText = currentTitle;
             tableView->tableView->RefreshCells(true, true);
-            // update hover texts
-            if(ButtonsContainer::buttonsInstance)
-                ButtonsContainer::buttonsInstance->RefreshPlaylists();
         };
     }
     // title cleared (x button)
@@ -371,8 +365,6 @@ void PlaylistMenu::createButtonPressed() {
     // create new playlist based on fields
     AddPlaylist(currentTitle, currentAuthor, coverImageIndex >= 0 ? coverImage->get_sprite() : nullptr);
     ReloadPlaylists();
-    if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
 
 void PlaylistMenu::cancelButtonPressed() {
@@ -385,8 +377,6 @@ void PlaylistMenu::confirmDeleteButtonPressed() {
     DeletePlaylist(playlist);
     playlist = nullptr;
     ReloadPlaylists();
-    if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->RefreshPlaylists();
 }
 
 void PlaylistMenu::cancelDeleteButtonPressed() {
@@ -679,13 +669,12 @@ void PlaylistMenu::SetPlaylist(Playlist* list) {
 }
 
 void PlaylistMenu::RefreshCovers() {
-    if(!list) return;
-    // reload covers from folder
-    LoadCoverImages();
+    if(!list)
+        return;
     // add cover images and reload
     list->replaceSprites({GetDefaultCoverImage()});
     list->addSprites(GetLoadedImages());
-    list->tableView->ReloadData();
+    list->tableView->ReloadDataKeepingPosition();
 }
 
 void PlaylistMenu::ShowDetails(bool visible) {

@@ -608,7 +608,7 @@ void PlaylistFilters::RefreshPlaylists() {
     }
     playlistList->replaceSprites(newCovers);
     playlistList->replaceTexts(newHovers);
-    playlistList->tableView->ReloadData();
+    playlistList->tableView->ReloadDataKeepingPosition();
 }
 
 void PlaylistFilters::Destroy() {

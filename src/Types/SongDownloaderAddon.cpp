@@ -20,7 +20,6 @@ using namespace QuestUI;
 Playlist* SongDownloaderAddon::SelectedPlaylist = nullptr;
 
 void SongDownloaderAddon::playlistSelected(int cellIdx) {
-    currentCellIdx = cellIdx;
     selectedPlaylist = loadedPlaylists[cellIdx];
     if(downloadToPlaylistEnabled)
         SongDownloaderAddon::SelectedPlaylist = selectedPlaylist;
@@ -74,8 +73,7 @@ void SongDownloaderAddon::RefreshPlaylists() {
     }
     list->replaceSprites(newCovers);
     list->replaceTexts(newHovers);
-    list->tableView->ReloadData();
-    list->tableView->ScrollToCellWithIdx(currentCellIdx, HMUI::TableView::ScrollPositionType::Beginning, false);
+    list->tableView->ReloadDataKeepingPosition();
 }
 
 SongDownloaderAddon* SongDownloaderAddon::Create() {

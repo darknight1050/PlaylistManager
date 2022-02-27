@@ -41,11 +41,12 @@ void ButtonsContainer::saveCoverButtonPressed() {
     ProcessImage(newTexture, false);
     WriteImageToFile(GetCoversPath() + "/" + levelData->get_songName().operator std::string() + "_cover.png", newTexture);
     // reload from file
-    if(PlaylistMenu::menuInstance)
-        PlaylistMenu::menuInstance->RefreshCovers();
+    LoadCoverImages();
 }
 
 void ButtonsContainer::addToPlaylistButtonPressed() {
+    // ensure playlists are accurate
+    RefreshPlaylists();
     playlistAddModal->Show(true, true, nullptr);
     // needed because of parenting shenanigans or something
     playlistAddModal->get_transform()->set_localPosition({40, -10, 0});
@@ -210,7 +211,7 @@ void ButtonsContainer::RefreshPlaylists() {
     }
     playlistCovers->replaceSprites(newCovers);
     playlistCovers->replaceTexts(newHovers);
-    playlistCovers->tableView->ReloadData();
+    playlistCovers->tableView->ReloadDataKeepingPosition();
 }
 
 void ButtonsContainer::RefreshHighlightedDifficulties() {
