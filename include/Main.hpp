@@ -10,6 +10,8 @@
 #define LOWER(string) std::transform(string.begin(), string.end(), string.begin(), tolower)
 
 #define CustomLevelPackPrefixID "custom_levelPack_"
+#define CustomLevelsPackID CustomLevelPackPrefixID "CustomLevels"
+#define CustomWIPLevelsPackID CustomLevelPackPrefixID "CustomWIPLevels"
 
 #include "beatsaber-hook/shared/utils/utils.h"
 

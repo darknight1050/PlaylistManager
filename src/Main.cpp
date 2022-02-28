@@ -127,7 +127,7 @@ MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &Leve
     
     LevelFilteringNavigationController_SetupBeatmapLevelPacks(self);
 
-    staticPackIDs = { CustomLevelPackPrefixID "CustomLevels", CustomLevelPackPrefixID "CustomWIPLevels" };
+    staticPackIDs = { CustomLevelsPackID, CustomWIPLevelsPackID };
     for(auto& levelPack : self->allOfficialBeatmapLevelPacks) {
         staticPackIDs.insert(levelPack->get_packID());
     }

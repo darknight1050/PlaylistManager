@@ -5,7 +5,9 @@
 #include "Types/CoverTableCell.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
+#include "ResettableStaticPtr.hpp"
 #include "Icons.hpp"
+#include "Utils.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
 
@@ -20,6 +22,8 @@
 #include "UnityEngine/UI/RectMask2D.hpp"
 
 #include "System/Collections/Generic/HashSet_1.hpp"
+
+#include "songloader/shared/CustomTypes/SongLoaderCustomBeatmapLevelPack.hpp"
 
 using namespace PlaylistManager;
 using namespace QuestUI;
@@ -66,7 +70,7 @@ void PlaylistFilters::filterSelected(int filter) {
     if(filter == 3)
         setFoldersFilters(false);
     else
-        ReloadPlaylists();
+        UpdateShownPlaylists();
 }
 
 void PlaylistFilters::folderSelected(int listCellIdx) {
@@ -92,7 +96,7 @@ void PlaylistFilters::backButtonPressed() {
                 filterList->tableView->selectedCellIdxs->Clear();
                 filterList->tableView->selectedCellIdxs->Add(0);
                 filterSelectionState = 0;
-                ReloadPlaylists();
+                UpdateShownPlaylists();
                 break;
             } else if(parentFolders.size() == 1) {
                 LOG_DEBUG("Going to top level folder menu");
@@ -194,7 +198,7 @@ void PlaylistFilters::subfoldersToggled(bool enabled) {
     if(state == State::editing) {
         currentFolder->HasSubfolders = enabled;
         WriteToFile(GetConfigPath(), playlistConfig);
-        ReloadPlaylists();
+        UpdateShownPlaylists();
     }
 }
 
@@ -203,7 +207,7 @@ void PlaylistFilters::defaultsToggled(bool enabled) {
     if(state == State::editing) {
         currentFolder->ShowDefaults = enabled;
         WriteToFile(GetConfigPath(), playlistConfig);
-        ReloadPlaylists();
+        UpdateShownPlaylists();
     }
 }
 
@@ -218,7 +222,7 @@ void PlaylistFilters::playlistSelected(int cellIdx) {
     // save and update ingame playlists if editing
     if(state == State::editing) {
         WriteToFile(GetConfigPath(), playlistConfig);
-        ReloadPlaylists();
+        UpdateShownPlaylists();
     }
 }
 
@@ -238,7 +242,7 @@ void PlaylistFilters::playlistDeselected(int cellIdx) {
     // save and update ingame playlists if editing
     if(state == State::editing) {
         WriteToFile(GetConfigPath(), playlistConfig);
-        ReloadPlaylists();
+        UpdateShownPlaylists();
     }
 }
 
@@ -297,7 +301,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     filterList->tableView->ReloadData();
     if(filterSelectionState == 3) {
         filterSelectionState = 0;
-        ReloadPlaylists();
+        UpdateShownPlaylists();
     }
     filterList->tableView->SelectCellWithIdx(filterSelectionState, false);
 
@@ -441,8 +445,11 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     playlistList->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     playlistList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     playlistList->tableView->set_selectionType(HMUI::TableViewSelectionType::Multiple);
+
     PlaylistFilters::monitoredTable = playlistList->tableView;
     PlaylistFilters::deselectCallback = [this](int cellIdx){ playlistDeselected(cellIdx); };
+
+    playlistList->tableView->LazyInit();
     RefreshPlaylists();
     // paging buttons
     left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
@@ -497,6 +504,7 @@ void PlaylistFilters::setFoldersFilters(bool filtersVisible) {
 
 void PlaylistFilters::setFolderEdit(bool editing) {
     LOG_DEBUG("Activating edit/create menu");
+    RefreshPlaylists();
     if(editing) {
         if(!currentFolder) {
             setFoldersFilters(false);
@@ -525,7 +533,6 @@ void PlaylistFilters::setFolderEdit(bool editing) {
     }
     folderMenu->SetActive(false);
     folderEditMenu->SetActive(true);
-    RefreshPlaylists();
     filterList->get_gameObject()->SetActive(false);
     state = editing ? State::editing : State::creating;
 }
@@ -544,7 +551,7 @@ void PlaylistFilters::selectFolder(Folder& folder) {
         RefreshFolders();
         folderList->tableView->ClearSelection();
     }
-    ReloadPlaylists();
+    UpdateShownPlaylists();
 }
 
 void PlaylistFilters::deselectFolder() {
@@ -565,7 +572,7 @@ void PlaylistFilters::deselectFolder() {
     editButton->set_interactable(currentFolder);
     deleteButton->set_interactable(currentFolder);
     RefreshFolders();
-    ReloadPlaylists();
+    UpdateShownPlaylists();
 }
 
 void PlaylistFilters::Init() {
@@ -609,6 +616,31 @@ void PlaylistFilters::RefreshPlaylists() {
     playlistList->replaceSprites(newCovers);
     playlistList->replaceTexts(newHovers);
     playlistList->tableView->ReloadDataKeepingPosition();
+}
+
+void PlaylistFilters::UpdateShownPlaylists() {
+    using namespace GlobalNamespace;
+
+    if(!currentFolder)
+        return;
+    auto packList = List<IBeatmapLevelPack*>::New_ctor();
+    if(currentFolder->ShowDefaults) {
+        // get songloader object
+        STATIC_AUTO(songLoaderObject, UnityEngine::Resources::FindObjectsOfTypeAll(il2cpp_utils::GetSystemType("RuntimeSongLoader", "SongLoader")).First());
+        // get custom levels pack field
+        STATIC_AUTO(customLevelsPack, CRASH_UNLESS(il2cpp_utils::GetFieldValue<RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack*>(songLoaderObject, "CustomLevelsPack")));
+        if(customLevelsPack->CustomLevelsCollection->customPreviewBeatmapLevels.Length() > 0)
+            packList->Add((IBeatmapLevelPack*) customLevelsPack->CustomLevelsPack);
+        // get custom wip levels pack field
+        STATIC_AUTO(customWIPLevelsPack, CRASH_UNLESS(il2cpp_utils::GetFieldValue<RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack*>(songLoaderObject, "CustomWIPLevelsPack")));
+        if(customWIPLevelsPack->CustomLevelsCollection->customPreviewBeatmapLevels.Length() > 0)
+            packList->Add((IBeatmapLevelPack*) customWIPLevelsPack->CustomLevelsPack);
+    }
+    for(auto& playlist : GetLoadedPlaylists()) {
+        if(IsPlaylistShown(playlist->path))
+            packList->Add((IBeatmapLevelPack*)(CustomBeatmapLevelPack*) playlist->playlistCS);
+    }
+    SetCustomPacks(packList);
 }
 
 void PlaylistFilters::Destroy() {

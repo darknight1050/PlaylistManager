@@ -46,6 +46,7 @@ void SongDownloaderAddon::DidActivate(bool firstActivation, bool addedToHierarch
         playlistSelected(cellIdx);
     });
     list->setType(csTypeOf(CoverTableCell*));
+    list->tableView->LazyInit();
 
     RefreshPlaylists();
 

@@ -28,17 +28,6 @@
 
 using namespace RuntimeSongLoader;
 
-bool ShouldAddPack(std::string const& path) {
-    if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders) {
-        for(std::string& testPath : currentFolder->Playlists) {
-            if(path == testPath)
-                return true;
-        }
-        return false;
-    }
-    return filterSelectionState != 1;
-}
-
 namespace PlaylistManager {
     
     std::unordered_map<std::string, Playlist*> path_playlists;
@@ -56,8 +45,7 @@ namespace PlaylistManager {
     std::unordered_set<Playlist*> needsReloadPlaylists{};
     
     UnityEngine::Sprite* GetDefaultCoverImage() {
-        STATIC_AUTO(defaultCover, UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::CustomLevelLoader*>()[0]->defaultPackCover);
-        return defaultCover;
+        return FindComponent<GlobalNamespace::CustomLevelLoader*>()->defaultPackCover;
     }
 
     UnityEngine::Sprite* GetCoverImage(Playlist* playlist) {
@@ -251,7 +239,7 @@ namespace PlaylistManager {
                     LOG_INFO("Loading playlist file %s from cache", path.c_str());
                     // check if playlist should be added
                     // check if playlist needs to be reloaded
-                    if(ShouldAddPack(playlist->path)) {
+                    if(IsPlaylistShown(playlist->path)) {
                         int packPosition = GetPlaylistIndex(playlist->path);
                         // add if new (idk how)
                         if(packPosition < 0)
@@ -287,7 +275,7 @@ namespace PlaylistManager {
                         }
                         songloaderBeatmapLevelPack->SetCustomPreviewBeatmapLevels(foundSongs->ToArray());
                         // add the playlist to the sorted array
-                        if(ShouldAddPack(playlist->path)) {
+                        if(IsPlaylistShown(playlist->path)) {
                             int packPosition = GetPlaylistIndex(playlist->path);
                             // add if new
                             if(packPosition < 0)
@@ -356,6 +344,17 @@ namespace PlaylistManager {
         playlistConfig.Order.push_back(path);
         WriteToFile(GetConfigPath(), playlistConfig);
         return -1;
+    }
+
+    bool IsPlaylistShown(std::string const& path) {
+        if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders) {
+            for(std::string& testPath : currentFolder->Playlists) {
+                if(path == testPath)
+                    return true;
+            }
+            return false;
+        }
+        return filterSelectionState != 1;
     }
 
     void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage) {

@@ -4,6 +4,7 @@
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
+#include "ResettableStaticPtr.hpp"
 #include "Utils.hpp"
 #include "Icons.hpp"
 
@@ -141,6 +142,8 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     playlistCovers->setType(csTypeOf(CoverTableCell*));
     playlistCovers->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     playlistCovers->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
+    playlistCovers->tableView->LazyInit();
+    
     RefreshPlaylists();
 
     co_yield nullptr;
@@ -162,15 +165,10 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     co_return;
 }
 
-void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* levelDetailView) {
+void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* detailView) {
     // get constant references
-    this->levelDetailView = levelDetailView;
-    auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<GlobalNamespace::LevelCollectionTableView*>();
-    if(arr.Length() < 1) {
-        LOG_ERROR("Unable to find level collection table view!");
-        SAFE_ABORT();
-    }
-    this->levelListTableView = arr[0];
+    levelDetailView = detailView;
+    levelListTableView = FindComponent<GlobalNamespace::LevelCollectionTableView*>();
     
     GlobalNamespace::SharedCoroutineStarter::get_instance()->StartCoroutine(
         custom_types::Helpers::CoroutineHelper::New(initCoroutine()));

@@ -1,8 +1,16 @@
 #include "Main.hpp"
 #include "Utils.hpp"
+#include "ResettableStaticPtr.hpp"
 
 #include "UnityEngine/ImageConversion.hpp"
 #include "System/Convert.hpp"
+#include "GlobalNamespace/LevelFilteringNavigationController.hpp"
+#include "GlobalNamespace/IBeatmapLevelPackCollection.hpp"
+#include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
+#include "GlobalNamespace/IAnnotatedBeatmapLevelCollection.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+#include "GlobalNamespace/BeatmapLevelsModel.hpp"
+#include "GlobalNamespace/LevelSearchViewController.hpp"
 
 #include <filesystem>
 
@@ -114,4 +122,26 @@ std::string ProcessImage(UnityEngine::Texture2D* texture, bool returnPngString) 
 void WriteImageToFile(std::string const& pathToPng, UnityEngine::Texture2D* texture) {
     auto bytes = UnityEngine::ImageConversion::EncodeToPNG(texture);
     writefile(pathToPng, std::string((char*) bytes.begin(), bytes.Length()));
+}
+
+List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks() {
+    using namespace GlobalNamespace;
+    return List<IBeatmapLevelPack*>::New_ctor(*((System::Collections::Generic::IEnumerable_1<IBeatmapLevelPack*>**) &FindComponent<LevelFilteringNavigationController*>()->customLevelPacks));
+}
+
+void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists) {
+    using namespace GlobalNamespace;
+    auto packArray = newPlaylists->ToArray();
+    // update in navigation controller to avoid resetting
+    FindComponent<GlobalNamespace::LevelFilteringNavigationController*>()->customLevelPacks = packArray;
+    // update in levels model also to avoid resetting
+    auto levelsModel = FindComponent<BeatmapLevelsModel*>();
+    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
+    levelsModel->UpdateLoadedPreviewLevels();
+    // SetData causes the page control to reset, causing scrolling flashes
+    auto gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
+    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) newPlaylists->AsReadOnly();
+    gameTableView->gridView->ReloadData();
+    // update the levels shown in the search view controller
+    FindComponent<LevelSearchViewController*>()->Setup(packArray);
 }

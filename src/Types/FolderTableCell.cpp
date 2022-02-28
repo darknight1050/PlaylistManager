@@ -35,7 +35,7 @@ void FolderTableCell::refreshVisuals() {
 
 void FolderTableCell::init(UnityEngine::Sprite* sprite, std::string text) {
     // get rounded sprite
-    STATIC_AUTO(img, ArrayUtil::Last(UnityEngine::Resources::FindObjectsOfTypeAll<HMUI::ImageView*>(), [](HMUI::ImageView* x){
+    STATIC_AUTO(img, UnityEngine::Resources::FindObjectsOfTypeAll<HMUI::ImageView*>().Last([](HMUI::ImageView* x) {
         auto sprite = x->get_sprite();
         return sprite && sprite->get_name() == "RoundRect10";
     }));

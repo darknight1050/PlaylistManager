@@ -5,6 +5,7 @@
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
 #include "PlaylistManager.hpp"
+#include "ResettableStaticPtr.hpp"
 #include "Icons.hpp"
 #include "Utils.hpp"
 
@@ -171,7 +172,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     // reload playlists but keep selection
     int tableIdx = gameTableView->selectedCellIndex;
     ReloadPlaylists();
-    scrollToIndex(tableIdx);
+    gameTableView->SelectAndScrollToCellWithIdx(tableIdx);
     // check for missing songs
     bool downloaded = false;
     bool downloading = DownloadMissingSongsFromPlaylist(syncingPlaylist, [&downloaded] {
@@ -198,7 +199,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
             co_yield nullptr;
         }
         // keep selection
-        scrollToIndex(tableIdx);
+        gameTableView->SelectAndScrollToCellWithIdx(tableIdx);
     }
     awaitingSync = false;
 
@@ -247,7 +248,7 @@ void PlaylistMenu::moveRightButtonPressed() {
     if(oldCellIdx == gameTableView->GetNumberOfCells() - 1)
         return;
     // get list of all custom packs currently in the table view
-    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto packList = GetCustomPacks();
     auto nextPlaylist = GetPlaylistWithPrefix(packList->get_Item(oldCellIdx + 1)->get_packID());
     if(!nextPlaylist)
         return;
@@ -259,15 +260,9 @@ void PlaylistMenu::moveRightButtonPressed() {
     auto movedCollection = packList->get_Item(oldCellIdx);
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx + 1, movedCollection);
-    auto packArray = packList->ToArray();
-    // update in navigation controller to avoid resetting
-    navigationController->customLevelPacks = packArray;
-    // update in levels model also to avoid resetting
-    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
-    // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
-    gameTableView->gridView->ReloadData();
-    scrollToIndex(oldCellIdx + 1);
+    // update without reloading
+    SetCustomPacks(packList);
+    gameTableView->SelectAndScrollToCellWithIdx(oldCellIdx + 1);
 }
 
 void PlaylistMenu::moveLeftButtonPressed() {
@@ -278,7 +273,7 @@ void PlaylistMenu::moveLeftButtonPressed() {
     if(oldCellIdx == 0)
         return;
     // get list of all custom packs currently in the table view
-    auto packList = List<IBeatmapLevelPack*>::New_ctor(*((Generic::IEnumerable_1<IBeatmapLevelPack*>**) &navigationController->customLevelPacks));
+    auto packList = GetCustomPacks();
     auto prevPlaylist = GetPlaylistWithPrefix(packList->get_Item(oldCellIdx - 1)->get_packID());
     if(!prevPlaylist)
         return;
@@ -290,15 +285,9 @@ void PlaylistMenu::moveLeftButtonPressed() {
     auto movedCollection = packList->get_Item(oldCellIdx);
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx - 1, movedCollection);
-    auto packArray = packList->ToArray();
-    // update in navigation controller to avoid resetting
-    navigationController->customLevelPacks = packArray;
-    // update in levels model also to avoid resetting
-    levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
-    // SetData causes the page control to reset, causing scrolling flashes
-    gameTableView->annotatedBeatmapLevelCollections = (Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) packList->AsReadOnly();
-    gameTableView->gridView->ReloadData();
-    scrollToIndex(oldCellIdx - 1);
+    // update without reloading
+    SetCustomPacks(packList);
+    gameTableView->SelectAndScrollToCellWithIdx(oldCellIdx - 1);
 }
 
 void PlaylistMenu::playlistTitleTyped(std::string newValue) {
@@ -311,10 +300,7 @@ void PlaylistMenu::playlistTitleTyped(std::string newValue) {
             LOG_INFO("Title set to %s", currentTitle.c_str());
             RenamePlaylist(playlist, currentTitle);
             // get header cell and set text
-            auto arr = UnityEngine::Resources::FindObjectsOfTypeAll<LevelCollectionTableView*>();
-            if(arr.Length() < 1)
-                return;
-            auto tableView = arr[0];
+            auto tableView = FindComponent<LevelCollectionTableView*>();
             if(!tableView->showLevelPackHeader || tableView->NumberOfCells() == 0)
                 return;
             tableView->headerText = currentTitle;
@@ -570,6 +556,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     list->setType(csTypeOf(CoverTableCell*));
     list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
     list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
+    list->tableView->LazyInit();
 
     co_yield nullptr;
 
@@ -633,16 +620,10 @@ void PlaylistMenu::updateDetailsMode() {
     }
 }
 
-void PlaylistMenu::scrollToIndex(int index) {
-    // invokes selection events
-    gameTableView->SelectAndScrollToCellWithIdx(index);
-}
-
 void PlaylistMenu::Init(HMUI::ImageView* imageView) {
     // get table view for setting selected cell
-    gameTableView = UnityEngine::Resources::FindObjectsOfTypeAll<AnnotatedBeatmapLevelCollectionsGridView*>()[0];
-    navigationController = UnityEngine::Resources::FindObjectsOfTypeAll<LevelFilteringNavigationController*>()[0];
-    levelsModel = UnityEngine::Resources::FindObjectsOfTypeAll<BeatmapLevelsModel*>()[0];
+    gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
+    packImage = imageView;
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));

@@ -1,4 +1,6 @@
-#include <unordered_map>
+#pragma once
+
+#include "UnityEngine/Resources.hpp"
 
 class ResettableStaticPtr {
     static std::unordered_map<void*, void*>& pointers() {
@@ -23,3 +25,10 @@ class ResettableStaticPtr {
 #define STATIC_AUTO(name, definition) \
 static auto& name = ResettableStaticPtr::registerPointer(definition); \
 if(!name) name = definition;
+
+template<class T>
+T FindComponent() {
+    STATIC_AUTO(cachedComponent, UnityEngine::Resources::FindObjectsOfTypeAll<T>().FirstOrDefault());
+    if(!cachedComponent) SAFE_ABORT();
+    return cachedComponent;
+}

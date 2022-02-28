@@ -69,6 +69,10 @@ namespace PlaylistManager {
     /// @return The index in the full order config, or -1 if it was not contained
     int GetPlaylistIndex(std::string const& path);
 
+    /// @brief Returns whether or not a playlist is currently visible in the game's selection menu
+    /// @return If the playlist is currently visible
+    bool IsPlaylistShown(std::string const& path);
+
     /// @brief Creates a new playlist file - does not load it
     /// @param title The name of the playlist to be created
     /// @param author The author of the playlist to be created

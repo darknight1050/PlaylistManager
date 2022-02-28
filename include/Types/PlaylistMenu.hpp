@@ -3,7 +3,6 @@
 #include "custom-types/shared/coroutine.hpp"
 
 #include "UnityEngine/MonoBehaviour.hpp"
-
 #include "UnityEngine/Sprite.hpp"
 #include "UnityEngine/UI/Button.hpp"
 
@@ -14,8 +13,6 @@
 #include "TMPro/TextMeshProUGUI.hpp"
 
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
-#include "GlobalNamespace/LevelFilteringNavigationController.hpp"
-#include "GlobalNamespace/BeatmapLevelsModel.hpp"
 
 namespace PlaylistManager {
     class Playlist;
@@ -39,8 +36,6 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     bool detailsVisible, inMovement, addingPlaylist, awaitingSync;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
-    GlobalNamespace::LevelFilteringNavigationController* navigationController;
-    GlobalNamespace::BeatmapLevelsModel* levelsModel;
     Playlist* playlist;
 
     custom_types::Helpers::Coroutine moveCoroutine(bool reversed);
@@ -50,7 +45,6 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     custom_types::Helpers::Coroutine initCoroutine();
 
     void updateDetailsMode();
-    void scrollToIndex(int index);
 
     void infoButtonPressed();
     void syncButtonPressed();
