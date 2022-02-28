@@ -212,9 +212,9 @@ void PlaylistFilters::defaultsToggled(bool enabled) {
 }
 
 void PlaylistFilters::playlistSelected(int cellIdx) {
-    LOG_DEBUG("Playlist selected in edit menu");
     if(!currentFolder)
         return;
+    LOG_DEBUG("Playlist %i selected in edit menu", cellIdx);
     // add playlist to current folder
     auto& playlist = loadedPlaylists[cellIdx];
     auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
@@ -227,14 +227,15 @@ void PlaylistFilters::playlistSelected(int cellIdx) {
 }
 
 void PlaylistFilters::playlistDeselected(int cellIdx) {
-    LOG_DEBUG("Playlist %i deselected in edit menu", cellIdx);
     if(!currentFolder)
         return;
+    LOG_DEBUG("Playlist %i deselected in edit menu", cellIdx);
     // remove playlist from current folder
     auto& playlist = loadedPlaylists[cellIdx];
     auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
     for(auto itr = playlistVector.begin(); itr != playlistVector.end(); itr++) {
         if(*itr == playlist->path) {
+            LOG_DEBUG("erasing playlist %s", playlist->name.c_str());
             playlistVector.erase(itr);
             break;
         }
@@ -484,7 +485,8 @@ void PlaylistFilters::refreshFolderPlaylists() {
     playlistList->tableView->selectedCellIdxs->Clear();
     for(std::string& path : currentFolder->Playlists) {
         int idx = GetPlaylistIndex(path);
-        if(idx >= 0 && idx < loadedPlaylists.size())
+        LOG_DEBUG("adding %i to selected cells", idx);
+        if(idx >= 0)
             playlistList->tableView->selectedCellIdxs->Add(idx);
     }
     // update visuals
@@ -621,10 +623,12 @@ void PlaylistFilters::RefreshPlaylists() {
 void PlaylistFilters::UpdateShownPlaylists() {
     using namespace GlobalNamespace;
 
-    if(!currentFolder)
-        return;
     auto packList = List<IBeatmapLevelPack*>::New_ctor();
-    if(currentFolder->ShowDefaults) {
+
+    bool showDefaults = filterSelectionState != 2;
+    if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
+        showDefaults = currentFolder->ShowDefaults;
+    if(showDefaults) {
         // get songloader object
         STATIC_AUTO(songLoaderObject, UnityEngine::Resources::FindObjectsOfTypeAll(il2cpp_utils::GetSystemType("RuntimeSongLoader", "SongLoader")).First());
         // get custom levels pack field

@@ -4,11 +4,15 @@
 
 #include "UnityEngine/ImageConversion.hpp"
 #include "System/Convert.hpp"
+#include "System/Action_4.hpp"
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
+#include "GlobalNamespace/LevelCollectionNavigationController.hpp"
+#include "GlobalNamespace/LevelSelectionFlowCoordinator.hpp"
 #include "GlobalNamespace/IBeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/IAnnotatedBeatmapLevelCollection.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsViewController.hpp"
 #include "GlobalNamespace/BeatmapLevelsModel.hpp"
 #include "GlobalNamespace/LevelSearchViewController.hpp"
 
@@ -132,16 +136,40 @@ List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks() {
 void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists) {
     using namespace GlobalNamespace;
     auto packArray = newPlaylists->ToArray();
-    // update in navigation controller to avoid resetting
-    FindComponent<GlobalNamespace::LevelFilteringNavigationController*>()->customLevelPacks = packArray;
-    // update in levels model also to avoid resetting
+    auto packReadOnly = (System::Collections::Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) newPlaylists->AsReadOnly();
+    // update in levels model to avoid resetting
     auto levelsModel = FindComponent<BeatmapLevelsModel*>();
     levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
-    levelsModel->UpdateLoadedPreviewLevels();
+    // update in navigation controller also to avoid resetting
+    auto navigationController = FindComponent<GlobalNamespace::LevelFilteringNavigationController*>();
+    auto collectionsViewController = navigationController->annotatedBeatmapLevelCollectionsViewController;
+    navigationController->customLevelPacks = packArray;
+    // concatenate arrays together
+    auto arr1 = navigationController->ostBeatmapLevelPacks;
+    auto arr2 = navigationController->musicPacksBeatmapLevelPacks;
+    ArrayW<IBeatmapLevelPack*> newAllPacks(arr1.Length() + arr2.Length() + packArray.Length());
+    for(int i = 0; i < arr1.Length(); i++)
+        newAllPacks[i] = arr1[i];
+    for(int i = 0; i < arr2.Length(); i++)
+        newAllPacks[i + arr1.Length()] = arr2[i];
+    for(int i = 0; i < packArray.Length(); i++)
+        newAllPacks[i + arr1.Length() + arr2.Length()] = packArray[i];
+    navigationController->allBeatmapLevelPacks = newAllPacks;
+    // update the levels shown in the search view controller
+    navigationController->levelSearchViewController->Setup(newAllPacks);
     // SetData causes the page control to reset, causing scrolling flashes
     auto gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
-    gameTableView->annotatedBeatmapLevelCollections = (System::Collections::Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) newPlaylists->AsReadOnly();
+    gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
     gameTableView->gridView->ReloadData();
-    // update the levels shown in the search view controller
-    FindComponent<LevelSearchViewController*>()->Setup(packArray);
+    // select cell with index 0 and invoke callback
+    if(gameTableView->selectedCellIndex == 0) {
+        // skip to top of callback chain
+        auto selectionCoordinator = FindComponent<LevelSelectionFlowCoordinator*>();
+        auto collectionController = FindComponent<LevelCollectionNavigationController*>();
+        if(packArray.Length() > 0)
+            collectionController->SetDataForPack(packArray.First(), true, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText());
+        else
+            collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
+    } else
+        gameTableView->SelectAndScrollToCellWithIdx(0);
 }
