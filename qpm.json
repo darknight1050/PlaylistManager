@@ -13,17 +13,17 @@
   "dependencies": [
     {
       "id": "songloader",
-      "versionRange": "^0.8.0",
+      "versionRange": "^0.8.4",
       "additionalData": {}
     },
     {
       "id": "questui",
-      "versionRange": "^0.13.1",
+      "versionRange": "^0.13.2",
       "additionalData": {}
     },
     {
       "id": "codegen",
-      "versionRange": "^0.19.3",
+      "versionRange": "^0.20.0",
       "additionalData": {}
     },
     {
