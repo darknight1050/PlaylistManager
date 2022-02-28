@@ -223,6 +223,10 @@ namespace PlaylistManager {
         auto path = GetPlaylistsPath();
         if(!std::filesystem::is_directory(path))
             return;
+        // create set of playlists that aren't found when loading
+        std::unordered_set<std::string> removedPaths{};
+        for(auto& path : playlistConfig.Order)
+            removedPaths.insert(path);
         // create array for playlists
         std::vector<GlobalNamespace::CustomBeatmapLevelPack*> sortedPlaylists(playlistConfig.Order.size());
         // iterate through all playlist files
@@ -283,8 +287,13 @@ namespace PlaylistManager {
                             else
                                 sortedPlaylists[packPosition] = songloaderBeatmapLevelPack->CustomLevelsPack;
                         }
-                    } else
+                    } else {
                         delete playlist;
+                        playlist = nullptr;
+                    }
+                    // keep path in order config if loaded
+                    if(playlist && removedPaths.contains(path))
+                        removedPaths.erase(path);
                 }
             }
         }
@@ -293,6 +302,16 @@ namespace PlaylistManager {
             if(customBeatmapLevelPack)
                 customBeatmapLevelPackCollectionSO->AddLevelPack(customBeatmapLevelPack);
         }
+        // remove paths in order config that were not loaded
+        for(auto& path : removedPaths) {
+            for(auto iter = playlistConfig.Order.begin(); iter != playlistConfig.Order.end(); iter++) {
+                if(*iter == path) {
+                    playlistConfig.Order.erase(iter);
+                    iter--;
+                }
+            }
+        }
+        WriteToFile(GetConfigPath(), playlistConfig);
         hasLoaded = true;
         LOG_INFO("Playlists loaded");
     }
