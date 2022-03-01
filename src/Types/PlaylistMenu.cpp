@@ -466,6 +466,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     });
     UnityEngine::Object::Destroy(cancelButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
     ANCHOR(cancelButton, 0.64, 0.2, 0.84, 0.27);
+    
+    detailsContainer->set_active(false);
+    detailsVisible = false;
     #pragma endregion
     
     co_yield nullptr;
@@ -510,6 +513,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
         moveLeftButtonPressed();
     }, 0.26, 0.5);
     BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
+    
+    if(disableOnFinish)
+        buttonsContainer->SetActive(false);
     
     bootstrapContainer = anchorContainer(maskImage->get_transform(), 0, 0, 1, 0.15);
     auto bootstrapBackgroundImage = BeatSaberUI::CreateImage(bootstrapContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
@@ -578,8 +584,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
     #pragma endregion
     
-    detailsContainer->set_active(false);
-    detailsVisible = false;
+    hasConstructed = true;
+    if(disableOnFinish)
+        SetVisible(false);
 
     co_return;
 }
@@ -624,6 +631,10 @@ void PlaylistMenu::Init(HMUI::ImageView* imageView) {
     // get table view for setting selected cell
     gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
     packImage = imageView;
+    // initial variable values
+    disableOnFinish = false;
+    hasConstructed = false;
+    coverImageIndex = -1;
     
     // don't let it get stopped by set visible
     SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
@@ -668,6 +679,10 @@ void PlaylistMenu::RefreshDetails() {
 
 void PlaylistMenu::SetVisible(bool visible) {
     StopAllCoroutines();
+    if(!hasConstructed) {
+        disableOnFinish = true;
+        return;
+    }
     detailsVisible = false;
     if(buttonsContainer)
         buttonsContainer->SetActive(visible);
@@ -685,6 +700,7 @@ void PlaylistMenu::Destroy() {
     StopAllCoroutines();
     UnityEngine::Object::Destroy(detailsContainer);
     UnityEngine::Object::Destroy(buttonsContainer);
+    UnityEngine::Object::Destroy(bootstrapContainer);
     PlaylistMenu::menuInstance = nullptr;
     PlaylistMenu::nextCloseKeyboard = nullptr;
     UnityEngine::Object::Destroy(this);

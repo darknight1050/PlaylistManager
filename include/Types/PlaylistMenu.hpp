@@ -34,6 +34,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     std::string currentTitle, currentAuthor;
 
     bool detailsVisible, inMovement, addingPlaylist, awaitingSync;
+    bool hasConstructed, disableOnFinish;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
     Playlist* playlist;

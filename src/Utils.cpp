@@ -143,6 +143,8 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
     levelsModel->customLevelPackCollection = (IBeatmapLevelPackCollection*) BeatmapLevelPackCollection::New_ctor(packArray);
     // update in navigation controller also to avoid resetting
     auto navigationController = FindComponent<GlobalNamespace::LevelFilteringNavigationController*>();
+    if(!navigationController || !navigationController->get_isInViewControllerHierarchy())
+        return;
     auto collectionsViewController = navigationController->annotatedBeatmapLevelCollectionsViewController;
     navigationController->customLevelPacks = packArray;
     // SetData causes the page control to reset, causing scrolling flashes
@@ -177,6 +179,8 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
                     collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
             } else
                 gameTableView->SelectAndScrollToCellWithIdx(0); // only invokes callback if selection has changed
-        }
+            // update level search controller - favorites or regular search - if open
+        } else if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() != SelectLevelCategoryViewController::LevelCategory::MusicPacks)
+            navigationController->levelSearchViewController->UpdateBeatmapLevelPackCollectionAsync();
     }
 }
