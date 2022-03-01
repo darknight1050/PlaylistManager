@@ -12,6 +12,7 @@
 #include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/IAnnotatedBeatmapLevelCollection.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
+#include "GlobalNamespace/PageControl.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsViewController.hpp"
 #include "GlobalNamespace/BeatmapLevelsModel.hpp"
 #include "GlobalNamespace/LevelSearchViewController.hpp"
@@ -133,7 +134,7 @@ List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks() {
     return List<IBeatmapLevelPack*>::New_ctor(*((System::Collections::Generic::IEnumerable_1<IBeatmapLevelPack*>**) &FindComponent<LevelFilteringNavigationController*>()->customLevelPacks));
 }
 
-void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists) {
+void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateGame) {
     using namespace GlobalNamespace;
     auto packArray = newPlaylists->ToArray();
     auto packReadOnly = (System::Collections::Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) newPlaylists->AsReadOnly();
@@ -144,32 +145,38 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists) {
     auto navigationController = FindComponent<GlobalNamespace::LevelFilteringNavigationController*>();
     auto collectionsViewController = navigationController->annotatedBeatmapLevelCollectionsViewController;
     navigationController->customLevelPacks = packArray;
-    // concatenate arrays together
-    auto arr1 = navigationController->ostBeatmapLevelPacks;
-    auto arr2 = navigationController->musicPacksBeatmapLevelPacks;
-    ArrayW<IBeatmapLevelPack*> newAllPacks(arr1.Length() + arr2.Length() + packArray.Length());
-    for(int i = 0; i < arr1.Length(); i++)
-        newAllPacks[i] = arr1[i];
-    for(int i = 0; i < arr2.Length(); i++)
-        newAllPacks[i + arr1.Length()] = arr2[i];
-    for(int i = 0; i < packArray.Length(); i++)
-        newAllPacks[i + arr1.Length() + arr2.Length()] = packArray[i];
-    navigationController->allBeatmapLevelPacks = newAllPacks;
-    // update the levels shown in the search view controller
-    navigationController->levelSearchViewController->Setup(newAllPacks);
     // SetData causes the page control to reset, causing scrolling flashes
     auto gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
     gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
     gameTableView->gridView->ReloadData();
-    // select cell with index 0 and invoke callback
-    if(gameTableView->selectedCellIndex == 0) {
-        // skip to top of callback chain
-        auto selectionCoordinator = FindComponent<LevelSelectionFlowCoordinator*>();
-        auto collectionController = FindComponent<LevelCollectionNavigationController*>();
-        if(packArray.Length() > 0)
-            collectionController->SetDataForPack(packArray.First(), true, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText());
-        else
-            collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
-    } else
-        gameTableView->SelectAndScrollToCellWithIdx(0);
+    gameTableView->pageControl->SetPagesCount(gameTableView->gridView->rowCount);
+    if(updateGame) {
+        // concatenate arrays together
+        auto arr1 = navigationController->ostBeatmapLevelPacks;
+        auto arr2 = navigationController->musicPacksBeatmapLevelPacks;
+        ArrayW<IBeatmapLevelPack*> newAllPacks(arr1.Length() + arr2.Length() + packArray.Length());
+        for(int i = 0; i < arr1.Length(); i++)
+            newAllPacks[i] = arr1[i];
+        for(int i = 0; i < arr2.Length(); i++)
+            newAllPacks[i + arr1.Length()] = arr2[i];
+        for(int i = 0; i < packArray.Length(); i++)
+            newAllPacks[i + arr1.Length() + arr2.Length()] = packArray[i];
+        navigationController->allBeatmapLevelPacks = newAllPacks;
+        // update the levels shown in the search view controller
+        navigationController->levelSearchViewController->Setup(newAllPacks);
+        // only invoke callbacks in custom songs view
+        if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() == SelectLevelCategoryViewController::LevelCategory::CustomSongs) {
+            // select cell with index 0 and invoke callback
+            if(gameTableView->selectedCellIndex == 0) {
+                // skip to top of callback chain
+                auto selectionCoordinator = FindComponent<LevelSelectionFlowCoordinator*>();
+                auto collectionController = FindComponent<LevelCollectionNavigationController*>();
+                if(packArray.Length() > 0)
+                    collectionController->SetDataForPack(packArray.First(), true, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText());
+                else
+                    collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
+            } else
+                gameTableView->SelectAndScrollToCellWithIdx(0); // only invokes callback if selection has changed
+        }
+    }
 }

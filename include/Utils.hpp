@@ -20,4 +20,4 @@ void WriteImageToFile(std::string const& pathToPng, UnityEngine::Texture2D* text
 
 List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks();
 
-void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists);
+void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateGame);

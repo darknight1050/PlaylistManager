@@ -261,7 +261,7 @@ void PlaylistMenu::moveRightButtonPressed() {
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx + 1, movedCollection);
     // update without reloading
-    SetCustomPacks(packList);
+    SetCustomPacks(packList, false);
     gameTableView->SelectAndScrollToCellWithIdx(oldCellIdx + 1);
 }
 
@@ -286,7 +286,7 @@ void PlaylistMenu::moveLeftButtonPressed() {
     packList->RemoveAt(oldCellIdx);
     packList->Insert(oldCellIdx - 1, movedCollection);
     // update without reloading
-    SetCustomPacks(packList);
+    SetCustomPacks(packList, false);
     gameTableView->SelectAndScrollToCellWithIdx(oldCellIdx - 1);
 }
 

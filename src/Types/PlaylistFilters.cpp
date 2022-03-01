@@ -87,7 +87,6 @@ void PlaylistFilters::backButtonPressed() {
                 LOG_DEBUG("Leaving folder menu");
                 // top level, go back to filter menu
                 setFoldersFilters(true);
-                deselectFolder();
                 // setting selected cells calls ReloadData, which breaks the filter list because of... honestly idk
                 // something to do with the scroll view or viewport at least - GetVisibleCellsIdRange returns the wrong values
                 auto list = filterList->tableView->visibleCells;
@@ -96,7 +95,8 @@ void PlaylistFilters::backButtonPressed() {
                 filterList->tableView->selectedCellIdxs->Clear();
                 filterList->tableView->selectedCellIdxs->Add(0);
                 filterSelectionState = 0;
-                UpdateShownPlaylists();
+                // will deselect the folder and also update the playlists
+                deselectFolder();
                 break;
             } else if(parentFolders.size() == 1) {
                 LOG_DEBUG("Going to top level folder menu");
@@ -644,7 +644,7 @@ void PlaylistFilters::UpdateShownPlaylists() {
         if(IsPlaylistShown(playlist->path))
             packList->Add((IBeatmapLevelPack*)(CustomBeatmapLevelPack*) playlist->playlistCS);
     }
-    SetCustomPacks(packList);
+    SetCustomPacks(packList, true);
 }
 
 void PlaylistFilters::Destroy() {
