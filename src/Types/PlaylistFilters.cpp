@@ -212,11 +212,11 @@ void PlaylistFilters::defaultsToggled(bool enabled) {
 }
 
 void PlaylistFilters::playlistSelected(int cellIdx) {
-    if(!currentFolder)
-        return;
     LOG_DEBUG("Playlist %i selected in edit menu", cellIdx);
     // add playlist to current folder
     auto& playlist = loadedPlaylists[cellIdx];
+    if(!currentFolder && state == State::editing)
+        return;
     auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
     playlistVector.emplace_back(playlist->path);
     // save and update ingame playlists if editing
@@ -227,11 +227,11 @@ void PlaylistFilters::playlistSelected(int cellIdx) {
 }
 
 void PlaylistFilters::playlistDeselected(int cellIdx) {
-    if(!currentFolder)
-        return;
     LOG_DEBUG("Playlist %i deselected in edit menu", cellIdx);
     // remove playlist from current folder
     auto& playlist = loadedPlaylists[cellIdx];
+    if(!currentFolder && state == State::editing)
+        return;
     auto& playlistVector = state == State::editing ? currentFolder->Playlists : currentPlaylists;
     for(auto itr = playlistVector.begin(); itr != playlistVector.end(); itr++) {
         if(*itr == playlist->path) {
