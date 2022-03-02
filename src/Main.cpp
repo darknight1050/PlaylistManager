@@ -21,6 +21,7 @@
 #include "GlobalNamespace/MainMenuViewController.hpp"
 #include "GlobalNamespace/StandardLevelDetailViewController.hpp"
 #include "GlobalNamespace/LevelCollectionViewController.hpp"
+#include "GlobalNamespace/LevelCollectionNavigationController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController.hpp"
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
@@ -34,13 +35,14 @@
 #include "GlobalNamespace/ISpriteAsyncLoader.hpp"
 #include "GlobalNamespace/EnvironmentInfoSO.hpp"
 #include "GlobalNamespace/PreviewDifficultyBeatmapSet.hpp"
+#include "GlobalNamespace/IDifficultyBeatmap.hpp"
+#include "GlobalNamespace/IBeatmapLevel.hpp"
 
 #include "UnityEngine/Resources.hpp"
 #include "UnityEngine/GameObject.hpp"
 #include "UnityEngine/Rect.hpp" // This needs to be included before RectTransform
 #include "UnityEngine/RectTransform.hpp"
 #include "UnityEngine/Events/UnityAction.hpp"
-// #include "UnityEngine/Events/InvokableCallList.hpp"
 #include "UnityEngine/UI/Button_ButtonClickedEvent.hpp"
 #include "UnityEngine/UI/VerticalLayoutGroup.hpp"
 #include "HMUI/TableView.hpp"
@@ -51,6 +53,7 @@
 #include "Zenject/DiContainer.hpp"
 #include "System/Tuple_2.hpp"
 #include "System/Action_1.hpp"
+#include "System/Action_2.hpp"
 #include "System/Collections/Generic/HashSet_1.hpp"
 
 using namespace GlobalNamespace;
@@ -370,6 +373,41 @@ MAKE_HOOK_FIND_CLASS_INSTANCE(DownloadSongsSearchViewController_DidActivate, "So
     }
 }
 
+// override to prevent crashes due to opening with a null level pack
+#define COMBINE(delegate1, selfMethodName, ...) delegate1 = (__VA_ARGS__) System::Delegate::Combine(delegate1, System::Delegate::CreateDelegate(csTypeOf(__VA_ARGS__), self, #selfMethodName));
+MAKE_HOOK_MATCH(LevelCollectionNavigationController_DidActivate, &LevelCollectionNavigationController::DidActivate,
+        void, LevelCollectionNavigationController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+
+    if(addedToHierarchy) {
+        COMBINE(self->levelCollectionViewController->didSelectLevelEvent, HandleLevelCollectionViewControllerDidSelectLevel, System::Action_2<LevelCollectionViewController*, IPreviewBeatmapLevel*>*);
+        COMBINE(self->levelCollectionViewController->didSelectHeaderEvent, HandleLevelCollectionViewControllerDidSelectPack, System::Action_1<LevelCollectionViewController*>*);
+        COMBINE(self->levelDetailViewController->didPressActionButtonEvent, HandleLevelDetailViewControllerDidPressActionButton, System::Action_1<StandardLevelDetailViewController*>*);
+        COMBINE(self->levelDetailViewController->didPressPracticeButtonEvent, HandleLevelDetailViewControllerDidPressPracticeButton, System::Action_2<StandardLevelDetailViewController*, IBeatmapLevel*>*);
+        COMBINE(self->levelDetailViewController->didChangeDifficultyBeatmapEvent, HandleLevelDetailViewControllerDidChangeDifficultyBeatmap, System::Action_2<StandardLevelDetailViewController*, IDifficultyBeatmap*>*);
+        COMBINE(self->levelDetailViewController->didChangeContentEvent, HandleLevelDetailViewControllerDidPresentContent, System::Action_2<StandardLevelDetailViewController*, StandardLevelDetailViewController::ContentType>*);
+        COMBINE(self->levelDetailViewController->didPressOpenLevelPackButtonEvent, HandleLevelDetailViewControllerDidPressOpenLevelPackButton, System::Action_2<StandardLevelDetailViewController*, IBeatmapLevelPack*>*);
+        COMBINE(self->levelDetailViewController->levelFavoriteStatusDidChangeEvent, HandleLevelDetailViewControllerLevelFavoriteStatusDidChange, System::Action_2<StandardLevelDetailViewController*, bool>*);
+        if (self->beatmapLevelToBeSelectedAfterPresent) {
+            self->levelCollectionViewController->SelectLevel(self->beatmapLevelToBeSelectedAfterPresent);
+            self->PresentViewControllersForLevelCollection();
+            self->beatmapLevelToBeSelectedAfterPresent = nullptr;
+        }
+        else {
+            // override here so that the pack detail controller will not be shown if no pack is selected
+            if(self->levelPack)
+                self->PresentViewControllersForPack();
+            else
+                self->PresentViewControllersForLevelCollection();
+        }
+    } else if(self->loading) {
+        self->ClearChildViewControllers();
+    }
+    else if(self->hideDetailViewController) {
+        self->PresentViewControllersForLevelCollection();
+        self->hideDetailViewController = false;
+    }
+}
+
 extern "C" void setup(ModInfo& info) {
     modInfo.id = "PlaylistManager";
     modInfo.version = VERSION;
@@ -412,6 +450,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), MainMenuModSettingsViewController_DidActivate);
     INSTALL_HOOK(getLogger(), DownloadSongsFlowCoordinator_DidActivate);
     INSTALL_HOOK(getLogger(), DownloadSongsSearchViewController_DidActivate);
+    INSTALL_HOOK_ORIG(getLogger(), LevelCollectionNavigationController_DidActivate);
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LoadPlaylists(customBeatmapLevelPackCollectionSO);
