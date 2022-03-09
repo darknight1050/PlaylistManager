@@ -4,16 +4,22 @@
       "defines": [
         "__GNUC__",
         "__aarch64__",
-        "VERSION=\"0.0.1\"",
-        "ID=\"playlistmanager\""
+        "VERSION=\"0.0.1\""
       ],
       "includePath": [
-        "${workspaceFolder}/**",
-        "${workspaceFolder}/include/**",
-        "${workspaceFolder}/shared/**",
-        "${workspaceFolder}/extern/**",
-        "${workspaceFolder}/extern/codegen/include/**",
-        "C:/Development/Tools/android-ndk-r22b/**"
+        "${workspaceFolder}/",
+        "${workspaceFolder}/include",
+        "${workspaceFolder}/shared",
+        "${workspaceFolder}/extern/includes",
+        "${workspaceFolder}/extern/includes/codegen/include",
+        "${workspaceFolder}/extern/includes/questui/shared",
+        "${workspaceFolder}/extern/includes/questui/shared/cppcodec",
+        "${workspaceFolder}/extern/includes/libil2cpp/il2cpp/libil2cpp",
+        "${default}",
+        "C:/Development/Tools/android-ndk-r23b/",
+        "C:/Development/Tools/android-ndk-r23b/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/",
+        "C:/Development/Tools/android-ndk-r23b/sources/cxx-stl/llvm-libc++/include/",
+        "C:/Development/Tools/android-ndk-r23b/sources/cxx-stl/llvm-libc++abi/include/"
       ],
       "name": "Quest",
       "cStandard": "c11",

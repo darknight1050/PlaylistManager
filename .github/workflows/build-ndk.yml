@@ -7,6 +7,8 @@ env:
 on:
   workflow_dispatch:
   push:
+    branches-ignore:
+      - 'version-v*'
   pull_request:
 
 jobs:
