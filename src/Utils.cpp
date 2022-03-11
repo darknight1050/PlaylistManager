@@ -22,8 +22,8 @@
 // desired image size
 const int imageSize = 512;
 
-std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level) {
-    std::string id = level->levelID;
+std::string GetLevelHash(GlobalNamespace::IPreviewBeatmapLevel* level) {
+    std::string id = level->get_levelID();
     // should be in all songloader levels
     auto prefixIndex = id.find("custom_level_");
     if(prefixIndex == std::string::npos)

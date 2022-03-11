@@ -456,5 +456,9 @@ extern "C" void load() {
             LoadPlaylists(customBeatmapLevelPackCollectionSO);
         }
     );
+    RuntimeSongLoader::API::AddSongDeletedEvent([] {
+        for(auto& playlist : GetLoadedPlaylists())
+            MarkPlaylistForReload(playlist);
+    });
     LOG_INFO("Successfully installed PlaylistManager!");
 }

@@ -633,11 +633,11 @@ void PlaylistFilters::UpdateShownPlaylists() {
         STATIC_AUTO(songLoaderObject, UnityEngine::Resources::FindObjectsOfTypeAll(il2cpp_utils::GetSystemType("RuntimeSongLoader", "SongLoader")).First());
         // get custom levels pack field
         STATIC_AUTO(customLevelsPack, CRASH_UNLESS(il2cpp_utils::GetFieldValue<RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack*>(songLoaderObject, "CustomLevelsPack")));
-        if(customLevelsPack->CustomLevelsCollection->customPreviewBeatmapLevels.Length() > 0)
+        if(((Array<IPreviewBeatmapLevel*>*) customLevelsPack->CustomLevelsCollection->get_beatmapLevels())->Length() > 0)
             packList->Add((IBeatmapLevelPack*) customLevelsPack->CustomLevelsPack);
         // get custom wip levels pack field
         STATIC_AUTO(customWIPLevelsPack, CRASH_UNLESS(il2cpp_utils::GetFieldValue<RuntimeSongLoader::SongLoaderCustomBeatmapLevelPack*>(songLoaderObject, "CustomWIPLevelsPack")));
-        if(customWIPLevelsPack->CustomLevelsCollection->customPreviewBeatmapLevels.Length() > 0)
+        if(((Array<IPreviewBeatmapLevel*>*) customWIPLevelsPack->CustomLevelsCollection->get_beatmapLevels())->Length() > 0)
             packList->Add((IBeatmapLevelPack*) customWIPLevelsPack->CustomLevelsPack);
     }
     for(auto& playlist : GetLoadedPlaylists()) {

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "UnityEngine/Texture2D.hpp"
-#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
+#include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
 #include "GlobalNamespace/IBeatmapLevelPack.hpp"
 
-std::string GetLevelHash(GlobalNamespace::CustomPreviewBeatmapLevel* level);
+std::string GetLevelHash(GlobalNamespace::IPreviewBeatmapLevel* level);
 
 std::string SanitizeFileName(std::string const& fileName);
 

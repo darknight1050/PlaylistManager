@@ -4,7 +4,7 @@
 #include "SimpleSafePtr.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderBeatmapLevelPackCollectionSO.hpp"
 #include "songloader/shared/CustomTypes/SongLoaderCustomBeatmapLevelPack.hpp"
-#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
+#include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
 #include "UnityEngine/Sprite.hpp"
 #include "UnityEngine/Texture2D.hpp"
 
@@ -115,10 +115,10 @@ namespace PlaylistManager {
     /// @brief Adds a song to a playlist - does not reload playlists
     /// @param playlist The playlist to add the song to
     /// @param level The song to add to the playlist
-    void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
+    void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level);
 
     /// @brief Removes a song from a playlist - does not reload playlists
     /// @param playlist The playlist to remove the song from
     /// @param level The song to remove from the playlist
-    void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::CustomPreviewBeatmapLevel* level);
+    void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level);
 }
