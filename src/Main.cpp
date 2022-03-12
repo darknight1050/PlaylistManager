@@ -124,6 +124,15 @@ MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::Deacti
     }
 }
 
+// ensure input field clear buttons are updated on their first appearance
+MAKE_HOOK_MATCH(InputFieldView_Awake, &HMUI::InputFieldView::Awake,
+        void, HMUI::InputFieldView* self) {
+    
+    InputFieldView_Awake(self);
+
+    self->UpdateClearButton();
+}
+
 // find all official level packs
 MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &LevelFilteringNavigationController::SetupBeatmapLevelPacks,
         void, LevelFilteringNavigationController* self) {
@@ -439,6 +448,7 @@ extern "C" void load() {
     QuestUI::Register::RegisterMainMenuModSettingsViewController(fakeModInfo);
     INSTALL_HOOK_ORIG(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
+    INSTALL_HOOK(getLogger(), InputFieldView_Awake);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_SetupBeatmapLevelPacks);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync);
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
