@@ -291,10 +291,10 @@ namespace PlaylistManager {
                         delete playlist;
                         playlist = nullptr;
                     }
-                    // keep path in order config if loaded
-                    if(playlist && removedPaths.contains(path))
-                        removedPaths.erase(path);
                 }
+                // keep path in order config if loaded
+                if(playlist && removedPaths.contains(path))
+                    removedPaths.erase(path);
             }
         }
         // add playlists to game in sorted order
