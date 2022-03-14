@@ -134,7 +134,7 @@ List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks() {
     return List<IBeatmapLevelPack*>::New_ctor(*((System::Collections::Generic::IEnumerable_1<IBeatmapLevelPack*>**) &FindComponent<LevelFilteringNavigationController*>()->customLevelPacks));
 }
 
-void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateGame) {
+void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateSongs) {
     using namespace GlobalNamespace;
     auto packArray = newPlaylists->ToArray();
     auto packReadOnly = (System::Collections::Generic::IReadOnlyList_1<IAnnotatedBeatmapLevelCollection*>*) newPlaylists->AsReadOnly();
@@ -147,12 +147,15 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
         return;
     auto collectionsViewController = navigationController->annotatedBeatmapLevelCollectionsViewController;
     navigationController->customLevelPacks = packArray;
-    // SetData causes the page control to reset, causing scrolling flashes
     auto gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
-    gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
-    gameTableView->gridView->ReloadData();
-    gameTableView->pageControl->SetPagesCount(gameTableView->gridView->rowCount);
-    if(updateGame) {
+    // only update the game table if custom songs are selected
+    if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() == SelectLevelCategoryViewController::LevelCategory::CustomSongs) {
+        // SetData causes the page control to reset, causing scrolling flashes
+        gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
+        gameTableView->gridView->ReloadData();
+        gameTableView->pageControl->SetPagesCount(gameTableView->gridView->rowCount);
+    }
+    if(updateSongs) {
         // concatenate arrays together
         auto arr1 = navigationController->ostBeatmapLevelPacks;
         auto arr2 = navigationController->musicPacksBeatmapLevelPacks;
