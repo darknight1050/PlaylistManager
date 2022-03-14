@@ -490,9 +490,10 @@ namespace PlaylistManager {
             LOWER(hash);
             bool hasSong = false;
             // search in songs in playlist instead of all songs
-            auto levelList = (Array<GlobalNamespace::IPreviewBeatmapLevel*>*) playlist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
-            for(int i = 0; i < levelList->Length(); i++) {
-                if(hash == GetLevelHash(levelList->get(i))) {
+            // we need to treat the list as an array because it is initialized as an array elsewhere
+            ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(playlist->playlistCS->beatmapLevelCollection->get_beatmapLevels());
+            for(int i = 0; i < levelList.Length(); i++) {
+                if(hash == GetLevelHash(levelList[i])) {
                     hasSong = true;
                     break;
                 }
@@ -531,13 +532,13 @@ namespace PlaylistManager {
         auto& pack = playlist->playlistCS;
         if(!pack)
             return;
-        auto levelList = (Array<GlobalNamespace::IPreviewBeatmapLevel*>*) pack->beatmapLevelCollection->get_beatmapLevels();
-        auto newLevels = List<GlobalNamespace::IPreviewBeatmapLevel*>::New_ctor(levelList->Length() + 1);
-        for(int i = 0; i < levelList->Length(); i++) {
-            newLevels->set_Item(i, levelList->get(i));
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(pack->beatmapLevelCollection->get_beatmapLevels());
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> newLevels(levelList.Length() + 1);
+        for(int i = 0; i < levelList.Length(); i++) {
+            newLevels[i] = levelList[i];
         }
-        newLevels->set_Item(levelList->Length(), level);
-        auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels->AsReadOnly();
+        newLevels[levelList.Length()] = level;
+        auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels.convert();
         ((GlobalNamespace::CustomBeatmapLevelCollection*) pack->beatmapLevelCollection)->customPreviewBeatmapLevels = readOnlyList;
         // update json object
         auto& json = playlist->playlistJSON;
@@ -558,22 +559,22 @@ namespace PlaylistManager {
         auto& pack = playlist->playlistCS;
         if(!pack)
             return;
-        auto levelList = (Array<GlobalNamespace::IPreviewBeatmapLevel*>*) pack->beatmapLevelCollection->get_beatmapLevels();
-        auto newLevels = List<GlobalNamespace::IPreviewBeatmapLevel*>::New_ctor(levelList->Length() - 1);
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(pack->beatmapLevelCollection->get_beatmapLevels());
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> newLevels(levelList.Length() - 1);
         // remove only one level if duplicates
         bool removed = false;
-        for(int i = 0; i < levelList->Length(); i++) {
+        for(int i = 0; i < levelList.Length(); i++) {
             // comparison should work
-            auto currentLevel = levelList->get(i);
+            auto currentLevel = levelList[i];
             if(removed)
-                newLevels->set_Item(i - 1, currentLevel);
+                newLevels[i - 1] = currentLevel;
             else if(currentLevel->get_levelID() != level->get_levelID())
-                newLevels->set_Item(i, currentLevel);
+                newLevels[i] = currentLevel;
             else
                 removed = true;
         }
         if(removed) {
-            auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels->AsReadOnly();
+            auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels.convert();
             ((GlobalNamespace::CustomBeatmapLevelCollection*) pack->beatmapLevelCollection)->customPreviewBeatmapLevels = readOnlyList;
         } else
             LOG_ERROR("Could not find song to be removed!");
