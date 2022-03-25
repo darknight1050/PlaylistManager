@@ -610,7 +610,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
 
-    syncingModal = BeatSaberUI::CreateModal(get_transform(), {35, 20}, {-7, 0}, nullptr, false);
+    syncingModal = BeatSaberUI::CreateModal(get_transform(), {45, 20}, {-7, 0}, nullptr, false);
     
     syncingText = BeatSaberUI::CreateText(syncingModal->get_transform(), "Syncing Playlist...", false, {0, 0}, {30, 10});
     syncingText->set_alignment(TMPro::TextAlignmentOptions::Center);
@@ -729,6 +729,12 @@ void PlaylistMenu::SetVisible(bool visible, bool custom) {
         confirmModal->Hide(false, nullptr);
     if(coverModal)
         coverModal->Hide(false, nullptr);
+    // ensure the default cover image is shown when creating a playlist from the custom songs pack
+    if(!visible && custom) {
+        if(coverImage)
+            coverImage->set_sprite(GetDefaultCoverImage());
+        coverImageIndex = -1;
+    }
 }
 
 void PlaylistMenu::ShowInfoMenu() {
