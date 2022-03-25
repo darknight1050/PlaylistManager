@@ -2,6 +2,8 @@
 #include "Utils.hpp"
 #include "ResettableStaticPtr.hpp"
 
+#include "songloader/shared/API.hpp"
+
 #include "UnityEngine/ImageConversion.hpp"
 #include "System/Convert.hpp"
 #include "System/Action_4.hpp"
@@ -186,4 +188,14 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
         } else if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() != SelectLevelCategoryViewController::LevelCategory::MusicPacks)
             navigationController->levelSearchViewController->UpdateBeatmapLevelPackCollectionAsync();
     }
+}
+
+void ReloadSongsKeepingPlaylistSelection(std::function<void()> finishCallback) {
+    auto tableView = FindComponent<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
+    int tableIdx = tableView->selectedCellIndex;
+    RuntimeSongLoader::API::RefreshSongs(false, [tableView, tableIdx, finishCallback](std::vector<GlobalNamespace::CustomPreviewBeatmapLevel*> const& _) {
+        tableView->SelectAndScrollToCellWithIdx(tableIdx);
+        if(finishCallback)
+            finishCallback();
+    });
 }

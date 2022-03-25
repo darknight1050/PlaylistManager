@@ -21,3 +21,5 @@ void WriteImageToFile(std::string const& pathToPng, UnityEngine::Texture2D* text
 List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks();
 
 void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateSongs);
+
+void ReloadSongsKeepingPlaylistSelection(std::function<void()> finishCallback = nullptr);

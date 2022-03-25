@@ -135,7 +135,7 @@ MAKE_HOOK_MATCH(InputFieldView_Awake, &HMUI::InputFieldView::Awake,
     self->UpdateClearButton();
 }
 
-// prevent download icon showing up on empty custom playlists
+// prevent download icon showing up on empty custom playlists unless configured to
 MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &AnnotatedBeatmapLevelCollectionCell::RefreshAvailabilityAsync,
         void, AnnotatedBeatmapLevelCollectionCell* self, AdditionalContentModel* contentModel) {
     
@@ -143,8 +143,9 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
 
     auto pack = il2cpp_utils::try_cast<IBeatmapLevelPack>(self->annotatedBeatmapLevelCollection);
     if(pack.has_value()) {
-        if(GetPlaylistWithPrefix(pack.value()->get_packID()))
-            self->SetDownloadIconVisible(false);
+        auto playlist = GetPlaylistWithPrefix(pack.value()->get_packID());
+        if(playlist)
+            self->SetDownloadIconVisible(playlistConfig.DownloadIcon && PlaylistHasMissingSongs(playlist));
     }
 }
 

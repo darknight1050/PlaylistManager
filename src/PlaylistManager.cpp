@@ -532,7 +532,8 @@ namespace PlaylistManager {
                         *songsLeft -= 1;
                         if(*songsLeft == 0) {
                             delete songsLeft;
-                            finishCallback();
+                            if(finishCallback)
+                                finishCallback();
                         }
                     });
                 } else {
@@ -540,15 +541,30 @@ namespace PlaylistManager {
                     *songsLeft -= 1;
                     if(*songsLeft == 0) {
                         delete songsLeft;
-                        finishCallback();
+                        if(finishCallback)
+                            finishCallback();
                     }
                 }
             });
         }
         if(!songsMissing) {
             delete songsLeft;
-            finishCallback();
+            if(finishCallback)
+                finishCallback();
         }
+    }
+
+    void RemoveMissingSongsFromPlaylist(Playlist* playlist) {
+        // store exisiting songs in a new vector to replace the song list with
+        std::vector<BPSong> existingSongs = {};
+        for(auto& song : playlist->playlistJSON.Songs) {
+            std::string& hash = song.Hash;
+            if(RuntimeSongLoader::API::GetLevelByHash(hash).has_value())
+                existingSongs.push_back(song);
+        }
+        // set the songs of the playlist to only those found
+        playlist->playlistJSON.Songs = std::move(existingSongs);
+        WriteToFile(playlist->path, playlist->playlistJSON);
     }
 
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level) {

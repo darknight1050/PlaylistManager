@@ -42,7 +42,7 @@ namespace PlaylistManager {
     /// @return A vector of all loaded images in order
     std::vector<UnityEngine::Sprite*>& GetLoadedImages();
 
-    /// @brief Clears all loaded images
+    /// @brief Unloads all loaded images
     void ClearLoadedImages();
 
     /// @brief Loads all playlists from the playlists folder, adding them to the collection
@@ -74,7 +74,7 @@ namespace PlaylistManager {
     /// @param title The name of the playlist to be created
     /// @param author The author of the playlist to be created
     /// @param coverImage The cover image for the playlist - does not have to be a loaded image
-    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage);
+    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage = nullptr);
 
     /// @brief Moves a playlist in the order config - does not reload playlists
     /// @param playlist The playlist to be moved
@@ -111,7 +111,11 @@ namespace PlaylistManager {
     /// @brief Downloads songs that are supposed to be in a playlist but not owned - does not modify the playlist
     /// @param playlist The playlist to check for missing songs
     /// @param finishCallback A function to run after all missing songs have been downloaded
-    void DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback);
+    void DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback = nullptr);
+
+    /// @brief Removes songs that are supposed to be in a playlist but not owned from the playlist
+    /// @param playlist The playlist to remove missing songs from
+    void RemoveMissingSongsFromPlaylist(Playlist* playlist);
 
     /// @brief Adds a song to a playlist - does not reload playlists
     /// @param playlist The playlist to add the song to

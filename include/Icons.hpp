@@ -7,6 +7,7 @@
 
 SPRITE(White);
 SPRITE(Sync);
+SPRITE(Download);
 SPRITE(AllPacks);
 SPRITE(DefaultPacks);
 SPRITE(CustomPacks);

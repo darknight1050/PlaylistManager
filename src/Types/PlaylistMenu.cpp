@@ -192,18 +192,13 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // full reload the specific playlist only
         MarkPlaylistForReload(syncingPlaylist);
         bool doneRefreshing = false;
-        RuntimeSongLoader::API::RefreshSongs(false, [&doneRefreshing](std::vector<CustomPreviewBeatmapLevel*> const& _){
+        ReloadSongsKeepingPlaylistSelection([&doneRefreshing] {
             doneRefreshing = true;
         });
         // wait for songs to refresh
-        while(!doneRefreshing) {
-            // update when close to done since it can take time to reload
-            if(RuntimeSongLoader::API::GetLoadingProgress() > 0.9)
-                tableIdx = gameTableView->selectedCellIndex;
+        while(!doneRefreshing)
             co_yield nullptr;
-        }
-        // keep selection
-        gameTableView->SelectAndScrollToCellWithIdx(tableIdx);
+        RemoveMissingSongsFromPlaylist(syncingPlaylist);
     }
     awaitingSync = false;
     syncingModal->Hide(true, nullptr);
@@ -229,6 +224,25 @@ void PlaylistMenu::infoButtonPressed() {
 
 void PlaylistMenu::syncButtonPressed() {
     SharedCoroutineStarter::get_instance()->StartCoroutine(custom_types::Helpers::CoroutineHelper::New(syncCoroutine()));
+}
+
+void PlaylistMenu::downloadButtonPressed() {
+    if(awaitingSync)
+        return;
+    awaitingSync = true;
+    static ConstString downloadText("Downloading missing songs...");
+    syncingText->set_text(downloadText);
+    syncingModal->Show(true, false, nullptr);
+    auto downloadingPlaylist = playlist;
+    DownloadMissingSongsFromPlaylist(downloadingPlaylist, [this, downloadingPlaylist] {
+        MarkPlaylistForReload(downloadingPlaylist);
+        ReloadSongsKeepingPlaylistSelection([this] {
+            awaitingSync = false;
+            syncingModal->Hide(true, nullptr);
+        });
+        // clears any songs that could not be downloaded
+        RemoveMissingSongsFromPlaylist(downloadingPlaylist);
+    });
 }
 
 void PlaylistMenu::addButtonPressed() {
@@ -495,28 +509,37 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     syncButton = anchorMiniButton(buttonsContainer->get_transform(), "", "ActionButton", [this](){
         syncButtonPressed();
     }, 0.74, 0.5);
-    auto img = BeatSaberUI::CreateImage(syncButton->get_transform(), SyncSprite(), {0, 0}, {0, 0});
-    img->set_preserveAspect(true);
-    img->get_transform()->set_localScale({0.55, 0.55, 0.55});
+    auto syncImg = BeatSaberUI::CreateImage(syncButton->get_transform(), SyncSprite(), {0, 0}, {0, 0});
+    syncImg->set_preserveAspect(true);
+    syncImg->get_transform()->set_localScale({0.55, 0.55, 0.55});
     BeatSaberUI::AddHoverHint(syncButton->get_gameObject(), "Sync playlist");
     bool syncActive = false;
     if(playlist && playlist->playlistJSON.CustomData.has_value())
         syncActive = playlist->playlistJSON.CustomData->SyncURL.has_value();
     syncButton->set_interactable(syncActive);
     
+    downloadButton = anchorMiniButton(buttonsContainer->get_transform(), "", "ActionButton", [this](){
+        downloadButtonPressed();
+    }, 0.58, 0.5);
+    auto downloadImg = BeatSaberUI::CreateImage(downloadButton->get_transform(), DownloadSprite(), {0, 0}, {0, 0});
+    downloadImg->set_preserveAspect(true);
+    downloadImg->get_transform()->set_localScale({0.55, 0.55, 0.55});
+    BeatSaberUI::AddHoverHint(downloadButton->get_gameObject(), "Download missing songs");
+    downloadButton->set_interactable(playlist && PlaylistHasMissingSongs(playlist));
+    
     auto addButton = anchorMiniButton(buttonsContainer->get_transform(), "+", "PracticeButton", [this](){
         addButtonPressed();
-    }, 0.58, 0.5);
+    }, 0.42, 0.5);
     BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
     
     auto rightButton = anchorMiniButton(buttonsContainer->get_transform(), ">", "PracticeButton", [this](){
         moveRightButtonPressed();
-    }, 0.42, 0.5);
+    }, 0.26, 0.5);
     BeatSaberUI::AddHoverHint(rightButton->get_gameObject(), "Move playlist right");
     
     auto leftButton = anchorMiniButton(buttonsContainer->get_transform(), "<", "PracticeButton", [this](){
         moveLeftButtonPressed();
-    }, 0.26, 0.5);
+    }, 0.1, 0.5);
     BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
     
     buttonsContainer->SetActive(visibleOnFinish);
@@ -669,6 +692,8 @@ void PlaylistMenu::SetPlaylist(Playlist* list) {
         coverModal->Hide(true, nullptr);
     if(confirmModal)
         confirmModal->Hide(true, nullptr);
+    if(downloadButton)
+        downloadButton->set_interactable(PlaylistHasMissingSongs(playlist));
     if(syncButton) {
         bool syncActive = false;
         if(playlist->playlistJSON.CustomData.has_value())

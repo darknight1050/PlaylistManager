@@ -5,6 +5,7 @@
 
 DECLARE_JSON_CLASS(PlaylistManager, PlaylistConfig,
     bool Management = false;
+    bool DownloadIcon = false;
     std::vector<std::string> Order;
     std::vector<Folder> Folders;
 )

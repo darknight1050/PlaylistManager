@@ -24,7 +24,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     UnityEngine::GameObject *buttonsContainer, *detailsContainer, *bootstrapContainer;
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
     TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle, *syncingText;
-    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
+    UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton, *downloadButton;
     HMUI::ImageView *coverImage, *packImage;
     HMUI::ModalView *confirmModal, *coverModal, *syncingModal;
     class CustomListSource *list;
@@ -51,6 +51,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
 
     void infoButtonPressed();
     void syncButtonPressed();
+    void downloadButtonPressed();
     void addButtonPressed();
     void moveRightButtonPressed();
     void moveLeftButtonPressed();
