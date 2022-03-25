@@ -480,11 +480,8 @@ namespace PlaylistManager {
         needsReloadPlaylists.insert(playlist);
     }
 
-    bool DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback) {
-        bool anyMissingSongs = false;
-        // keep track of how many songs need to be downloaded
-        // use new so that it isn't freed when the function returns, before songs finish downloading
-        auto songsLeft = new std::atomic_int(0);
+    int PlaylistHasMissingSongs(Playlist* playlist) {
+        int songsMissing = 0;
         for(auto& song : playlist->playlistJSON.Songs) {
             std::string& hash = song.Hash;
             LOWER(hash);
@@ -500,7 +497,33 @@ namespace PlaylistManager {
             }
             if(hasSong)
                 continue;
-            anyMissingSongs = true;
+            songsMissing += 1;
+        }
+        return songsMissing;
+    }
+
+    void DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback) {
+        // keep track of how many songs need to be downloaded
+        // use new so that it isn't freed when the function returns, before songs finish downloading
+        auto songsLeft = new std::atomic_int(0);
+        // keep track of if any songs were downloaded to clean up if none were
+        bool songsMissing = false;
+        for(auto& song : playlist->playlistJSON.Songs) {
+            std::string& hash = song.Hash;
+            LOWER(hash);
+            bool hasSong = false;
+            // search in songs in playlist instead of all songs
+            // we need to treat the list as an array because it is initialized as an array elsewhere
+            ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(playlist->playlistCS->beatmapLevelCollection->get_beatmapLevels());
+            for(int i = 0; i < levelList.Length(); i++) {
+                if(hash == GetLevelHash(levelList[i])) {
+                    hasSong = true;
+                    break;
+                }
+            }
+            if(hasSong)
+                continue;
+            songsMissing = true;
             *songsLeft += 1;
             BeatSaver::API::GetBeatmapByHashAsync(hash, [songsLeft, hash, finishCallback](std::optional<BeatSaver::Beatmap> beatmap){
                 // after beatmap is found, download if successful, but decrement songsLeft either way
@@ -513,7 +536,7 @@ namespace PlaylistManager {
                         }
                     });
                 } else {
-                    LOG_INFO("Beatmap with hash %s not found", hash.c_str());
+                    LOG_INFO("Beatmap with hash %s not found on beatsaver", hash.c_str());
                     *songsLeft -= 1;
                     if(*songsLeft == 0) {
                         delete songsLeft;
@@ -522,7 +545,10 @@ namespace PlaylistManager {
                 }
             });
         }
-        return anyMissingSongs;
+        if(!songsMissing) {
+            delete songsLeft;
+            finishCallback();
+        }
     }
 
     void AddSongToPlaylist(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level) {

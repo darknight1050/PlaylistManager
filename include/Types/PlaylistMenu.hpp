@@ -23,10 +23,10 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     private:
     UnityEngine::GameObject *buttonsContainer, *detailsContainer, *bootstrapContainer;
     HMUI::InputFieldView *playlistTitle, *playlistAuthor;
-    TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle;
+    TMPro::TextMeshProUGUI *playlistDescription, *descriptionTitle, *syncingText;
     UnityEngine::UI::Button *coverButton, *createButton, *cancelButton, *deleteButton, *syncButton;
     HMUI::ImageView *coverImage, *packImage;
-    HMUI::ModalView *confirmModal, *coverModal;
+    HMUI::ModalView *confirmModal, *coverModal, *syncingModal;
     class CustomListSource *list;
 
     int coverImageIndex;
@@ -34,7 +34,7 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     std::string currentTitle, currentAuthor;
 
     bool detailsVisible, inMovement, addingPlaylist, awaitingSync;
-    bool hasConstructed, disableOnFinish;
+    bool hasConstructed, visibleOnFinish, customOnFinish;
 
     GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView* gameTableView;
     Playlist* playlist;
@@ -46,6 +46,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     custom_types::Helpers::Coroutine initCoroutine();
 
     void updateDetailsMode();
+    void showDetails(bool visible);
+    void refreshDetails();
 
     void infoButtonPressed();
     void syncButtonPressed();
@@ -72,8 +74,8 @@ DECLARE_CLASS_CODEGEN(PlaylistManager, PlaylistMenu, UnityEngine::MonoBehaviour,
     void SetPlaylist(Playlist* playlist);
     void RefreshCovers();
 
-    void SetVisible(bool visible);
-    void ShowDetails(bool visible);
-    void RefreshDetails();
+    void SetVisible(bool visible, bool custom = false);
+    void ShowInfoMenu();
+    void ShowCreateMenu();
     void Destroy();
 )

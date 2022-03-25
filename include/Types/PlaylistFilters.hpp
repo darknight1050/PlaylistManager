@@ -12,7 +12,6 @@
 #include "HMUI/InputFieldView.hpp"
 
 namespace PlaylistManager {
-    
     class Playlist;
 
     class PlaylistFilters {
@@ -79,6 +78,7 @@ namespace PlaylistManager {
         void RefreshFolders();
         void RefreshPlaylists();
         void UpdateShownPlaylists();
+        void SetVisible(bool visible);
         void Destroy();
     };
 }

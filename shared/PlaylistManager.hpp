@@ -22,9 +22,6 @@ namespace PlaylistManager {
     /// @brief Whether the playlists have loaded at least once yet
     extern bool hasLoaded;
 
-    /// @brief A set of all the pack IDs of non custom or modifiable playlists
-    extern std::unordered_set<std::string> staticPackIDs;
-
     /// @brief Gets the default playlist cover image
     /// @return The sprite with the default cover image
     UnityEngine::Sprite* GetDefaultCoverImage();
@@ -106,11 +103,15 @@ namespace PlaylistManager {
     /// @param playlist The playlist to be reloaded
     void MarkPlaylistForReload(Playlist* playlist);
 
-    /// @brief Downloads songs that are present in a playlist but not on the system - does not modify the playlist
+    /// @brief Checks whether or not a playlist is missing songs
+    /// @param playlist The playlist to check for missing songs
+    /// @return The number of songs missing from the playlist
+    int PlaylistHasMissingSongs(Playlist* playlist);
+
+    /// @brief Downloads songs that are supposed to be in a playlist but not owned - does not modify the playlist
     /// @param playlist The playlist to check for missing songs
     /// @param finishCallback A function to run after all missing songs have been downloaded
-    /// @return Whether any songs were missing
-    bool DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback);
+    void DownloadMissingSongsFromPlaylist(Playlist* playlist, std::function<void()> finishCallback);
 
     /// @brief Adds a song to a playlist - does not reload playlists
     /// @param playlist The playlist to add the song to

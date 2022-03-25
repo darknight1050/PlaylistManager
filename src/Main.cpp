@@ -3,6 +3,7 @@
 #include "Types/PlaylistMenu.hpp"
 #include "Types/PlaylistFilters.hpp"
 #include "Types/LevelButtons.hpp"
+#include "Types/GridViewAddon.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "Settings.hpp"
@@ -26,6 +27,7 @@
 #include "GlobalNamespace/LevelPackDetailViewController_ContentType.hpp"
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsViewController.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionCell.hpp"
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
 #include "GlobalNamespace/PlayerData.hpp"
@@ -133,18 +135,6 @@ MAKE_HOOK_MATCH(InputFieldView_Awake, &HMUI::InputFieldView::Awake,
     self->UpdateClearButton();
 }
 
-// find all official level packs
-MAKE_HOOK_MATCH(LevelFilteringNavigationController_SetupBeatmapLevelPacks, &LevelFilteringNavigationController::SetupBeatmapLevelPacks,
-        void, LevelFilteringNavigationController* self) {
-    
-    LevelFilteringNavigationController_SetupBeatmapLevelPacks(self);
-
-    staticPackIDs = { CustomLevelsPackID, CustomWIPLevelsPackID };
-    for(auto& levelPack : self->allOfficialBeatmapLevelPacks) {
-        staticPackIDs.insert(levelPack->get_packID());
-    }
-}
-
 // prevent download icon showing up on empty custom playlists
 MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &AnnotatedBeatmapLevelCollectionCell::RefreshAvailabilityAsync,
         void, AnnotatedBeatmapLevelCollectionCell* self, AdditionalContentModel* contentModel) {
@@ -153,7 +143,7 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
 
     auto pack = il2cpp_utils::try_cast<IBeatmapLevelPack>(self->annotatedBeatmapLevelCollection);
     if(pack.has_value()) {
-        if(!staticPackIDs.contains(pack.value()->get_packID()))
+        if(GetPlaylistWithPrefix(pack.value()->get_packID()))
             self->SetDownloadIconVisible(false);
     }
 }
@@ -191,6 +181,35 @@ MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewContr
     }
 }
 
+// make playlist selector only 5 playlists wide
+MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridView_OnEnable, &AnnotatedBeatmapLevelCollectionsGridView::OnEnable,
+        void, AnnotatedBeatmapLevelCollectionsGridView* self) {
+    
+    if(playlistConfig.Management)
+        self->GetComponent<UnityEngine::RectTransform*>()->set_anchorMax({0.83, 1});
+    else
+        self->GetComponent<UnityEngine::RectTransform*>()->set_anchorMax({1, 1});
+    
+    AnnotatedBeatmapLevelCollectionsGridView_OnEnable(self);
+}
+
+// when to set up the add playlist button
+MAKE_HOOK_MATCH(LevelFilteringNavigationController_UpdateSecondChildControllerContent, &LevelFilteringNavigationController::UpdateSecondChildControllerContent,
+        void, LevelFilteringNavigationController* self, SelectLevelCategoryViewController::LevelCategory levelCategory) {
+    
+    LevelFilteringNavigationController_UpdateSecondChildControllerContent(self, levelCategory);
+
+    if(!playlistConfig.Management)
+        return;
+    
+    if(!GridViewAddon::addonInstance) {
+        GridViewAddon::addonInstance = new GridViewAddon();
+        GridViewAddon::addonInstance->Init(self->annotatedBeatmapLevelCollectionsViewController);
+    }
+    bool isCustomSongs = levelCategory == SelectLevelCategoryViewController::LevelCategory::CustomSongs;
+    GridViewAddon::addonInstance->SetVisible(isCustomSongs);
+}
+
 // when to show the playlist menu
 MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewController::ShowContent,
         void, LevelPackDetailViewController* self, LevelPackDetailViewController::ContentType contentType, StringW errorText) {
@@ -207,14 +226,14 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
         PlaylistMenu::menuInstance->Init(self->packImage);
     }
 
-    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName) && !staticPackIDs.contains(self->pack->get_packID())) {
+    if(contentType == LevelPackDetailViewController::ContentType::Owned && self->pack->get_packID()->Contains(customPackName)) {
         // find playlist json
         auto playlist = GetPlaylistWithPrefix(self->pack->get_packID());
         if(playlist) {
             PlaylistMenu::menuInstance->SetPlaylist(playlist);
             PlaylistMenu::menuInstance->SetVisible(true);
         } else
-            PlaylistMenu::menuInstance->SetVisible(false);
+            PlaylistMenu::menuInstance->SetVisible(false, true);
     } else
         PlaylistMenu::menuInstance->SetVisible(false);
 
@@ -238,7 +257,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
     }
     // note: pack is simply the first level pack it finds that contains the level, if selected from all songs etc.
     std::string id = self->pack->get_packID();
-    bool customPack = !staticPackIDs.contains(id);
+    bool customPack = GetPlaylistWithPrefix(id) != nullptr;
     bool customSong = customPack || id == CustomLevelPackPrefixID "CustomLevels" || id == CustomLevelPackPrefixID "CustomWIPLevels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
     ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
@@ -449,9 +468,10 @@ extern "C" void load() {
     INSTALL_HOOK_ORIG(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), InputFieldView_Awake);
-    INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_SetupBeatmapLevelPacks);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync);
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
+    INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridView_OnEnable);
+    INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_UpdateSecondChildControllerContent);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);

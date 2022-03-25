@@ -154,6 +154,9 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     if(awaitingSync)
         co_return;
     awaitingSync = true;
+    static ConstString syncText("Syncing playlist...");
+    syncingText->set_text(syncText);
+    syncingModal->Show(true, false, nullptr);
     auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());
 
     co_yield (System::Collections::IEnumerator*) webRequest->SendWebRequest();
@@ -173,13 +176,14 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     int tableIdx = gameTableView->selectedCellIndex;
     ReloadPlaylists();
     gameTableView->SelectAndScrollToCellWithIdx(tableIdx);
-    // check for missing songs
-    bool downloaded = false;
-    bool downloading = DownloadMissingSongsFromPlaylist(syncingPlaylist, [&downloaded] {
-        downloaded = true;
-    });
-    // reload playlists if necessary - if so then no need to update the game table manually
-    if(downloading) {
+    // check for missing songs, download then reload again if so
+    if(PlaylistHasMissingSongs(syncingPlaylist)) {
+        static ConstString downloadText("Downloading missing songs...");
+        syncingText->set_text(downloadText);
+        bool downloaded = false;
+        DownloadMissingSongsFromPlaylist(syncingPlaylist, [&downloaded] {
+            downloaded = true;
+        });
         // wait for downloads
         while(!downloaded)
             co_yield nullptr;
@@ -202,6 +206,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         gameTableView->SelectAndScrollToCellWithIdx(tableIdx);
     }
     awaitingSync = false;
+    syncingModal->Hide(true, nullptr);
 
     co_return;
 }
@@ -215,10 +220,10 @@ void PlaylistMenu::infoButtonPressed() {
         // reset texts to current values for playlist when opening
         if(!detailsVisible)
             updateDetailsMode();
-        ShowDetails(!detailsVisible);
+        showDetails(!detailsVisible);
     } else {
         addingPlaylist = false;
-        RefreshDetails();
+        refreshDetails();
     }
 }
 
@@ -233,10 +238,10 @@ void PlaylistMenu::addButtonPressed() {
     if(addingPlaylist && !detailsVisible) {
         // also reset on reopen
         updateDetailsMode();
-        ShowDetails(true);
+        showDetails(true);
     } else if(!addingPlaylist) {
         addingPlaylist = true;
-        RefreshDetails();
+        refreshDetails();
     }
 }
 
@@ -354,7 +359,7 @@ void PlaylistMenu::createButtonPressed() {
 }
 
 void PlaylistMenu::cancelButtonPressed() {
-    ShowDetails(false);
+    showDetails(false);
 }
 
 void PlaylistMenu::confirmDeleteButtonPressed() {
@@ -514,8 +519,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     }, 0.26, 0.5);
     BeatSaberUI::AddHoverHint(leftButton->get_gameObject(), "Move playlist left");
     
-    if(disableOnFinish)
-        buttonsContainer->SetActive(false);
+    buttonsContainer->SetActive(visibleOnFinish);
     
     bootstrapContainer = anchorContainer(maskImage->get_transform(), 0, 0, 1, 0.15);
     auto bootstrapBackgroundImage = BeatSaberUI::CreateImage(bootstrapContainer->get_transform(), WhiteSprite(), {0, 0}, {0, 0});
@@ -527,7 +531,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     }, 0.9, 0.5);
     BeatSaberUI::AddHoverHint(addButton->get_gameObject(), "Create a new playlist");
 
-    bootstrapContainer->SetActive(false);
+    bootstrapContainer->SetActive(!visibleOnFinish && customOnFinish);
     #pragma endregion
 
     co_yield nullptr;
@@ -582,11 +586,15 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     });
     ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
+
+    syncingModal = BeatSaberUI::CreateModal(get_transform(), {35, 20}, {-7, 0}, nullptr, false);
+    
+    syncingText = BeatSaberUI::CreateText(syncingModal->get_transform(), "Syncing Playlist...", false, {0, 0}, {30, 10});
+    syncingText->set_alignment(TMPro::TextAlignmentOptions::Center);
     #pragma endregion
     
     hasConstructed = true;
-    if(disableOnFinish)
-        SetVisible(false);
+    SetVisible(visibleOnFinish, customOnFinish);
 
     co_return;
 }
@@ -627,12 +635,21 @@ void PlaylistMenu::updateDetailsMode() {
     }
 }
 
+void PlaylistMenu::showDetails(bool visible) {
+    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(!visible)));
+}
+
+void PlaylistMenu::refreshDetails() {
+    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(refreshCoroutine()));
+}
+
 void PlaylistMenu::Init(HMUI::ImageView* imageView) {
     // get table view for setting selected cell
     gameTableView = FindComponent<AnnotatedBeatmapLevelCollectionsGridView*>();
     packImage = imageView;
     // initial variable values
-    disableOnFinish = false;
+    visibleOnFinish = true;
+    customOnFinish = false;
     hasConstructed = false;
     coverImageIndex = -1;
     
@@ -669,31 +686,32 @@ void PlaylistMenu::RefreshCovers() {
     list->tableView->ReloadDataKeepingPosition();
 }
 
-void PlaylistMenu::ShowDetails(bool visible) {
-    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(moveCoroutine(!visible)));
-}
-
-void PlaylistMenu::RefreshDetails() {
-    StartCoroutine(custom_types::Helpers::CoroutineHelper::New(refreshCoroutine()));
-}
-
-void PlaylistMenu::SetVisible(bool visible) {
+void PlaylistMenu::SetVisible(bool visible, bool custom) {
     StopAllCoroutines();
     if(!hasConstructed) {
-        disableOnFinish = true;
+        visibleOnFinish = visible;
+        customOnFinish = custom;
         return;
     }
     detailsVisible = false;
     if(buttonsContainer)
         buttonsContainer->SetActive(visible);
     if(bootstrapContainer)
-        bootstrapContainer->SetActive(!visible && GetLoadedPlaylists().size() == 0);
+        bootstrapContainer->SetActive(!visible && custom);
     if(detailsContainer)
         detailsContainer->SetActive(false);
     if(confirmModal)
         confirmModal->Hide(false, nullptr);
     if(coverModal)
         coverModal->Hide(false, nullptr);
+}
+
+void PlaylistMenu::ShowInfoMenu() {
+    infoButtonPressed();
+}
+
+void PlaylistMenu::ShowCreateMenu() {
+    addButtonPressed();
 }
 
 void PlaylistMenu::Destroy() {

@@ -277,7 +277,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     #pragma region filterList
     // set up list
     UnityEngine::Vector2 sizeDelta{60, 15};
-    filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, sizeDelta, [this](int cellIdx){
+    filterList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(cvsTrans, sizeDelta, [this](int cellIdx) {
         filterSelected(cellIdx);
     });
     filterList->setType(csTypeOf(CoverTableCell*));
@@ -323,7 +323,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
 
     static ConstString contentName("Content");
 
-    auto backButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", "ActionButton", [this](){
+    auto backButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", "ActionButton", [this] {
         backButtonPressed();
     });
     UnityEngine::Object::Destroy(backButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -337,7 +337,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderTitle->set_enableWordWrapping(false);
     folderTitle->set_overflowMode(TMPro::TextOverflowModes::Ellipsis);
 
-    editButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Edit", [this](){
+    editButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Edit", [this] {
         editButtonPressed();
     });
     UnityEngine::Object::Destroy(editButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -345,7 +345,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    deleteButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Delete", [this](){
+    deleteButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Delete", [this] {
         deleteButtonPressed();
     });
     UnityEngine::Object::Destroy(deleteButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -353,7 +353,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    auto createButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Create", [this](){
+    auto createButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "Create", [this] {
         createButtonPressed();
     });
     UnityEngine::Object::Destroy(createButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -379,7 +379,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     topLayoutGroup->set_spacing(2);
     topLayout = topLayoutGroup->get_rectTransform();
     
-    auto editBackButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", [this](){
+    auto editBackButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "<", [this] {
         backButtonPressed();
     });
     UnityEngine::Object::Destroy(editBackButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -387,7 +387,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     
-    editCreateButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "+", [this](){
+    editCreateButton = BeatSaberUI::CreateUIButton(topLayoutGroup->get_transform(), "+", [this] {
         editMenuCreateButtonPressed();
     });
     UnityEngine::Object::Destroy(editCreateButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
@@ -395,7 +395,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
 
-    titleField = BeatSaberUI::CreateStringSetting(topLayoutGroup->get_transform(), "Folder Name", "", [this](StringW newTitle){
+    titleField = BeatSaberUI::CreateStringSetting(topLayoutGroup->get_transform(), "Folder Name", "", [this](StringW newTitle) {
         folderTitleTyped(newTitle);
     });
     titleField->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(41);
@@ -414,7 +414,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     auto folderListContainer = createContainer(folderMenu->get_transform());
     folderListContainer->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, -20});
     // set up list
-    folderList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(folderListContainer->get_transform(), {75, 30}, [this](int cellIdx){
+    folderList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(folderListContainer->get_transform(), {75, 30}, [this](int cellIdx) {
         folderSelected(cellIdx);
     });
     folderList->setType(csTypeOf(FolderTableCell*));
@@ -422,13 +422,13 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     folderList->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
     RefreshFolders();
     // paging buttons
-    auto left = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
+    auto left = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this] {
         scrollFolderListLeftButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
-    auto right = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {40, 0}, {8, 8}, [this](){
+    auto right = BeatSaberUI::CreateUIButton(folderListContainer->get_transform(), "", "SettingsButton", {40, 0}, {8, 8}, [this] {
         scrollFolderListRightButtonPressed();
     });
     reinterpret_cast<UnityEngine::RectTransform*>(right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
@@ -437,7 +437,9 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     co_yield nullptr;
 
     playlistListContainer = createContainer(folderEditMenu->get_transform());
-    playlistListContainer->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, -15});
+    playlistListContainer->GetComponent<UnityEngine::RectTransform*>()->set_anchoredPosition({0, -20});
+    // label for playlist list
+    auto playlistListLabel = BeatSaberUI::CreateText(playlistListContainer, "Select playlists to include in the folder", UnityEngine::Vector2(0, 60));
     // list for selecting playlists from folders
     playlistList = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(playlistListContainer->get_transform(), {75, 15}, [this](int cellIdx){
         playlistSelected(cellIdx);
@@ -453,19 +455,19 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     playlistList->tableView->LazyInit();
     RefreshPlaylists();
     // paging buttons
-    left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this](){
+    left = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {-40, 0}, {8, 8}, [this] {
         scrollPlaylistListLeftButtonPressed();
     });
     ((UnityEngine::RectTransform*) left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
-    right = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {40, 0}, {8, 8}, [this](){
+    right = BeatSaberUI::CreateUIButton(playlistListContainer->get_transform(), "", "SettingsButton", {40, 0}, {8, 8}, [this] {
         scrollPlaylistListRightButtonPressed();
     });
     ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
     
-    defaultsToggle = BeatSaberUI::CreateToggle(playlistListContainer->get_transform(), "Defaults", {0, -65}, [this](bool enabled){
+    defaultsToggle = BeatSaberUI::CreateToggle(playlistListContainer->get_transform(), "Defaults", {0, -65}, [this](bool enabled) {
         defaultsToggled(enabled);
     });
     defaultsToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
@@ -645,6 +647,10 @@ void PlaylistFilters::UpdateShownPlaylists() {
             packList->Add((IBeatmapLevelPack*)(CustomBeatmapLevelPack*) playlist->playlistCS);
     }
     SetCustomPacks(packList, true);
+}
+
+void PlaylistFilters::SetVisible(bool visible) {
+    canvas->SetActive(visible);
 }
 
 void PlaylistFilters::Destroy() {
