@@ -236,12 +236,12 @@ void PlaylistMenu::downloadButtonPressed() {
     auto downloadingPlaylist = playlist;
     DownloadMissingSongsFromPlaylist(downloadingPlaylist, [this, downloadingPlaylist] {
         MarkPlaylistForReload(downloadingPlaylist);
-        ReloadSongsKeepingPlaylistSelection([this] {
+        ReloadSongsKeepingPlaylistSelection([this, downloadingPlaylist] {
             awaitingSync = false;
             syncingModal->Hide(true, nullptr);
+            // clears any songs that could not be downloaded
+            RemoveMissingSongsFromPlaylist(downloadingPlaylist);
         });
-        // clears any songs that could not be downloaded
-        RemoveMissingSongsFromPlaylist(downloadingPlaylist);
     });
 }
 
@@ -523,7 +523,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::initCoroutine() {
     }, 0.58, 0.5);
     auto downloadImg = BeatSaberUI::CreateImage(downloadButton->get_transform(), DownloadSprite(), {0, 0}, {0, 0});
     downloadImg->set_preserveAspect(true);
-    downloadImg->get_transform()->set_localScale({0.55, 0.55, 0.55});
+    downloadImg->get_transform()->set_localScale({0.6, 0.6, 0.6});
     BeatSaberUI::AddHoverHint(downloadButton->get_gameObject(), "Download missing songs");
     downloadButton->set_interactable(playlist && PlaylistHasMissingSongs(playlist));
     

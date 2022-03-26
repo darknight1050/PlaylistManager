@@ -31,7 +31,7 @@ void GridViewAddon::Init(GlobalNamespace::AnnotatedBeatmapLevelCollectionsViewCo
 
     static ConstString contentName("Content");
 
-    auto createButton = BeatSaberUI::CreateUIButton(container->get_transform(), "+", "ActionButton", {40, -2.5}, [this] {
+    auto createButton = BeatSaberUI::CreateUIButton(container->get_transform(), "+", "ActionButton", {37, -3}, [this] {
         createButtonPressed();
     });
     UnityEngine::Object::Destroy(createButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());

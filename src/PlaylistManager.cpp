@@ -14,6 +14,7 @@
 #include "beatsaber-hook/shared/utils/il2cpp-utils.hpp"
 
 #include "questui/shared/BeatSaberUI.hpp"
+#include "questui/shared/CustomTypes/Components/MainThreadScheduler.hpp"
 
 #include "songdownloader/shared/BeatSaverAPI.hpp"
 
@@ -533,7 +534,7 @@ namespace PlaylistManager {
                         if(*songsLeft == 0) {
                             delete songsLeft;
                             if(finishCallback)
-                                finishCallback();
+                                QuestUI::MainThreadScheduler::Schedule(finishCallback);
                         }
                     });
                 } else {
@@ -542,7 +543,7 @@ namespace PlaylistManager {
                     if(*songsLeft == 0) {
                         delete songsLeft;
                         if(finishCallback)
-                            finishCallback();
+                            QuestUI::MainThreadScheduler::Schedule(finishCallback);
                     }
                 }
             });
@@ -561,9 +562,13 @@ namespace PlaylistManager {
             std::string& hash = song.Hash;
             if(RuntimeSongLoader::API::GetLevelByHash(hash).has_value())
                 existingSongs.push_back(song);
+            else if(song.SongName.has_value())
+                LOG_INFO("Removing song %s from playlist %s", song.SongName.value().c_str(), playlist->name.c_str());
+            else
+                LOG_INFO("Removing song with hash %s from playlist %s", hash.c_str(), playlist->name.c_str());
         }
         // set the songs of the playlist to only those found
-        playlist->playlistJSON.Songs = std::move(existingSongs);
+        playlist->playlistJSON.Songs = existingSongs;
         WriteToFile(playlist->path, playlist->playlistJSON);
     }
 
