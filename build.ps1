@@ -12,7 +12,6 @@ if ($clean.IsPresent)
     }
 }
 
-$NDKPath = Get-Content $PSScriptRoot/ndkpath.txt
 
 if (($clean.IsPresent) -or (-not (Test-Path -Path "build")))
 {
