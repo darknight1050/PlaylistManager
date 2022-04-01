@@ -712,12 +712,13 @@ void PlaylistMenu::RefreshCovers() {
 }
 
 void PlaylistMenu::SetVisible(bool visible, bool custom) {
-    StopAllCoroutines();
     if(!hasConstructed) {
         visibleOnFinish = visible;
         customOnFinish = custom;
         return;
     }
+    StopAllCoroutines();
+    inMovement = false;
     detailsVisible = false;
     if(buttonsContainer)
         buttonsContainer->SetActive(visible);

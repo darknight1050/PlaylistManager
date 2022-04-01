@@ -5,10 +5,13 @@
 #include "songloader/shared/API.hpp"
 
 #include "UnityEngine/ImageConversion.hpp"
+#include "UnityEngine/GameObject.hpp"
+#include "TMPro/TextMeshProUGUI.hpp"
 #include "System/Convert.hpp"
 #include "System/Action_4.hpp"
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
 #include "GlobalNamespace/LevelCollectionNavigationController.hpp"
+#include "GlobalNamespace/LevelCollectionViewController.hpp"
 #include "GlobalNamespace/LevelSelectionFlowCoordinator.hpp"
 #include "GlobalNamespace/IBeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
@@ -173,18 +176,17 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
         navigationController->levelSearchViewController->Setup(newAllPacks);
         // only invoke callbacks in custom songs view
         if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() == SelectLevelCategoryViewController::LevelCategory::CustomSongs) {
-            // select cell with index 0 and invoke callback
-            if(gameTableView->selectedCellIndex == 0) {
-                // skip to top of callback chain
-                auto selectionCoordinator = FindComponent<LevelSelectionFlowCoordinator*>();
-                auto collectionController = FindComponent<LevelCollectionNavigationController*>();
-                if(packArray.Length() > 0)
-                    collectionController->SetDataForPack(packArray.First(), true, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText());
+            auto selectionCoordinator = FindComponent<LevelSelectionFlowCoordinator*>();
+            auto collectionController = FindComponent<LevelCollectionNavigationController*>();
+            if(packArray.Length() > 0) {
+                // select cell with index 0 and invoke callback
+                if(gameTableView->selectedCellIndex == 0)
+                    collectionController->SetDataForPack(packArray.First(), true, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText()); // skip to top of callback chain
                 else
-                    collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
+                    gameTableView->SelectAndScrollToCellWithIdx(0); // only invokes callback if selection has changed
             } else
-                gameTableView->SelectAndScrollToCellWithIdx(0); // only invokes callback if selection has changed
-            // update level search controller - favorites or regular search - if open
+                collectionController->SetDataForLevelCollection(nullptr, !selectionCoordinator->get_hidePracticeButton(), selectionCoordinator->get_actionButtonText(), navigationController->emptyCustomSongListInfoPrefab);
+        // update level search controller - favorites or regular search - if open
         } else if(navigationController->selectLevelCategoryViewController->get_selectedLevelCategory() != SelectLevelCategoryViewController::LevelCategory::MusicPacks)
             navigationController->levelSearchViewController->UpdateBeatmapLevelPackCollectionAsync();
     }

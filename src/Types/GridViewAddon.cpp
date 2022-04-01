@@ -8,16 +8,25 @@
 #include "GlobalNamespace/LevelCollectionTableView.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
 
+#include "HMUI/TableView_ScrollPositionType.hpp"
+
 using namespace PlaylistManager;
 using namespace QuestUI;
 
 GridViewAddon* GridViewAddon::addonInstance;
 
 void GridViewAddon::createButtonPressed() {
+    if(gridView->GetNumberOfCells() == 0)
+        return;
     // select first playlist
     gridView->SelectAndScrollToCellWithIdx(0);
     // select header cell
-    FindComponent<GlobalNamespace::LevelCollectionTableView*>()->SelectLevelPackHeaderCell();
+    auto table = FindComponent<GlobalNamespace::LevelCollectionTableView*>();
+    if(table->selectedRow != 0) {
+        table->selectedRow = 0;
+        table->tableView->SelectCellWithIdx(0, true);
+        table->tableView->ScrollToCellWithIdx(0, HMUI::TableView::ScrollPositionType::Center, true);
+    }
     // open create menu
     PlaylistMenu::menuInstance->ShowCreateMenu();
 }
@@ -38,6 +47,8 @@ void GridViewAddon::Init(GlobalNamespace::AnnotatedBeatmapLevelCollectionsViewCo
     auto sizeFitter = createButton->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>();
     sizeFitter->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     sizeFitter->set_verticalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
+    // slightly adjust centering of "+"
+    createButton->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_margin({-0.5, 0.5, 0, 0});
 }
 
 void GridViewAddon::SetVisible(bool visible) {
