@@ -45,6 +45,11 @@ DESERIALIZE_METHOD(PlaylistManager, BPList,
     DESERIALIZE_VECTOR(Songs, songs, BPSong);
     DESERIALIZE_VALUE_OPTIONAL(ImageString, image, String);
     DESERIALIZE_CLASS_OPTIONAL(CustomData, customData);
+    if(jsonValue.HasMember("downloadURL") && jsonValue["downloadURL"].IsString()) {
+        if(!CustomData.has_value())
+            CustomData.emplace();
+        CustomData->SyncURL = jsonValue["downloadURL"].GetString();
+    }
 )
 
 SERIALIZE_METHOD(PlaylistManager, BPList,
