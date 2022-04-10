@@ -271,13 +271,25 @@ namespace PlaylistManager {
                         // create playlist object
                         SongLoaderCustomBeatmapLevelPack* songloaderBeatmapLevelPack = SongLoaderCustomBeatmapLevelPack::Make_New(playlist->path, playlist->name, GetCoverImage(playlist));
                         playlist->playlistCS = songloaderBeatmapLevelPack->CustomLevelsPack;
+                        // clear out duplicate songs
+                        auto& songs = playlist->playlistJSON.Songs;
+                        std::unordered_set<std::string> hashes{};
                         // add all songs to the playlist object
                         auto foundSongs = List<GlobalNamespace::CustomPreviewBeatmapLevel*>::New_ctor();
-                        for(auto& song : playlist->playlistJSON.Songs) {
-                            auto search = RuntimeSongLoader::API::GetLevelByHash(song.Hash);
-                            if(search.has_value())
-                                foundSongs->Add(search.value());
+                        for(auto itr = songs.begin(); itr != songs.end(); itr++) {
+                            LOWER(itr->Hash);
+                            if(hashes.contains(itr->Hash)) {
+                                songs.erase(itr);
+                                itr--;
+                            } else {
+                                hashes.insert(itr->Hash);
+                                auto search = RuntimeSongLoader::API::GetLevelByHash(itr->Hash);
+                                if(search.has_value())
+                                    foundSongs->Add(search.value());
+                            }
                         }
+                        // save removed duplicates
+                        WriteToFile(path, playlist->playlistJSON);
                         songloaderBeatmapLevelPack->SetCustomPreviewBeatmapLevels(foundSongs->ToArray());
                         // add the playlist to the sorted array
                         if(IsPlaylistShown(playlist->path)) {
