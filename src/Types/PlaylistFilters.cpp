@@ -261,6 +261,8 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     cvsTrans->set_position({0, 0.02, 2.25});
     cvsTrans->set_eulerAngles({90, 0, 0});
 
+    canvas->SetActive(false);
+
     co_yield nullptr;
 
     #pragma region filterList
@@ -284,18 +286,23 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // add list data
     filterList->addSprites({AllPacksSprite(), DefaultPacksSprite(), CustomPacksSprite(), PackFoldersSprite()});
     filterList->addTexts({"All level packs", "No custom playlists", "Only custom playlists", "Playlist folders"});
+
+    co_yield nullptr;
+    
     // starting anchors break size delta for some reason
     auto contentTransform = filterList->tableView->scrollView->contentRectTransform;
     contentTransform->set_anchorMin({0, 0});
     contentTransform->set_anchorMax({0, 1});
     filterList->tableView->ReloadData();
+
+    co_yield nullptr;
+
     if(filterSelectionState == 3) {
         filterSelectionState = 0;
         UpdateShownPlaylists();
     }
     filterList->tableView->SelectCellWithIdx(filterSelectionState, false);
 
-    co_yield nullptr;
     // some update method or something is messing with this
     // and I cannot figure out what or why it's only this list
     contentTransform->set_localPosition({0, 7.5, 0});
@@ -352,8 +359,6 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     
     editButton->set_interactable(false);
     deleteButton->set_interactable(false);
-
-    folderMenu->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -393,8 +398,6 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
         subfoldersToggled(enabled);
     });
     subfoldersToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(35);
-    
-    folderEditMenu->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -464,6 +467,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     defaultsToggle->get_transform()->GetParent()->get_gameObject()->AddComponent<UnityEngine::UI::ContentSizeFitter*>()->set_horizontalFit(UnityEngine::UI::ContentSizeFitter::FitMode::PreferredSize);
     #pragma endregion
 
+    canvas->SetActive(true);
     setFoldersFilters(true);
 
     co_return;

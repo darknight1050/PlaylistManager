@@ -7,6 +7,8 @@
 
 #include "HMUI/ModalView.hpp"
 
+#include "TMPro/TextMeshProUGUI.hpp"
+
 #include "GlobalNamespace/StandardLevelDetailView.hpp"
 #include "GlobalNamespace/LevelCollectionTableView.hpp"
 #include "GlobalNamespace/CustomBeatmapLevelPack.hpp"
@@ -18,9 +20,10 @@ namespace PlaylistManager {
     class ButtonsContainer {
 
         private:
-        UnityEngine::GameObject* layoutObject;
+        UnityEngine::GameObject *layoutObject, *infoButtonContainer;
         UnityEngine::UI::Button *saveCoverButton, *playlistAddButton, *playlistRemoveButton;
-        HMUI::ModalView *playlistAddModal;
+        HMUI::ModalView *playlistAddModal, *infoModal;
+        TMPro::TextMeshProUGUI *infoText;
         class CustomListSource *playlistCovers;
         GlobalNamespace::StandardLevelDetailView *levelDetailView;
         GlobalNamespace::LevelCollectionTableView *levelListTableView;
@@ -37,6 +40,8 @@ namespace PlaylistManager {
         void playlistSelected(int listCellIdx);
         void scrollListLeftButtonPressed();
         void scrollListRightButtonPressed();
+        void confirmRemovalButtonPressed();
+        void cancelRemovalButtonPressed();
 
         public:
         static ButtonsContainer* buttonsInstance;

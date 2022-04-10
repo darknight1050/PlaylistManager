@@ -88,7 +88,6 @@ namespace PlaylistManager {
         horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
         auto uiButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Reset UI", Vec{0, 0}, Vec{40, 10}, [] {
             DestroyUI();
-            CreateUI();
         });
         BeatSaberUI::AddHoverHint(uiButton->get_gameObject(), "Resets all UI instances");
         uiButton->set_interactable(playlistConfig.Management);
@@ -97,9 +96,7 @@ namespace PlaylistManager {
             uiButton->set_interactable(enabled);
             playlistConfig.Management = enabled;
             WriteToFile(GetConfigPath(), playlistConfig);
-            if(enabled)
-                CreateUI();
-            else
+            if(!enabled)
                 DestroyUI();
         });
         managementToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
@@ -124,15 +121,5 @@ namespace PlaylistManager {
 
         if(GridViewAddon::addonInstance)
             GridViewAddon::addonInstance->Destroy();
-    }
-
-    void CreateUI() {
-        if(!playlistConfig.Management)
-            return;
-        
-        if(!PlaylistFilters::filtersInstance) {
-            PlaylistFilters::filtersInstance = new PlaylistFilters();
-            PlaylistFilters::filtersInstance->Init();
-        }
     }
 };

@@ -19,7 +19,6 @@
 
 #include "questui/shared/QuestUI.hpp"
 
-#include "GlobalNamespace/MainMenuViewController.hpp"
 #include "GlobalNamespace/StandardLevelDetailViewController.hpp"
 #include "GlobalNamespace/LevelCollectionViewController.hpp"
 #include "GlobalNamespace/LevelCollectionNavigationController.hpp"
@@ -113,8 +112,7 @@ MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCe
     return TupleType::New_ctor(min, max);
 }
 
-// allow name and author changes to be made on keyboard close
-// assumes only one keyboard will be open at a time
+// allow name and author changes to be made on keyboard close (assumes only one keyboard will be open at a time)
 MAKE_HOOK_MATCH(InputFieldView_DeactivateKeyboard, &HMUI::InputFieldView::DeactivateKeyboard,
         void, HMUI::InputFieldView* self, HMUI::UIKeyboard* keyboard) {
 
@@ -149,7 +147,7 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync, &A
     }
 }
 
-// override header cell behavior
+// override header cell behavior and change no data prefab
 MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewController::SetData,
         void, LevelCollectionViewController* self, IBeatmapLevelCollection* beatmapLevelCollection, StringW headerText, UnityEngine::Sprite* headerSprite, bool sortLevels, UnityEngine::GameObject* noDataInfoPrefab) {
     
@@ -171,6 +169,11 @@ MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewContr
     } else {
         if(noDataInfoPrefab)
             self->noDataInfoGO = self->container->InstantiatePrefab(noDataInfoPrefab, self->noDataInfoContainer);
+        // change no custom songs text if playlists exist
+        // because if they do then the only way to get here with that specific no data indicator is to have no playlists filtered
+        static ConstString message("No playlists are contained in the filtering options selected.");
+        if(GetLoadedPlaylists().size() > 0 && noDataInfoPrefab == FindComponent<LevelFilteringNavigationController*>()->emptyCustomSongListInfoPrefab)
+            self->noDataInfoGO->GetComponentInChildren<TMPro::TextMeshProUGUI*>()->set_text(message);
         self->levelCollectionTableView->get_gameObject()->SetActive(false);
     }
     if(self->get_isInViewControllerHierarchy()) {
@@ -207,8 +210,33 @@ MAKE_HOOK_MATCH(LevelFilteringNavigationController_UpdateSecondChildControllerCo
         GridViewAddon::addonInstance = new GridViewAddon();
         GridViewAddon::addonInstance->Init(self->annotatedBeatmapLevelCollectionsViewController);
     }
-    bool isCustomSongs = levelCategory == SelectLevelCategoryViewController::LevelCategory::CustomSongs;
-    GridViewAddon::addonInstance->SetVisible(isCustomSongs);
+    GridViewAddon::addonInstance->SetVisible(levelCategory == SelectLevelCategoryViewController::LevelCategory::CustomSongs);
+}
+
+// when to show the playlist filters
+MAKE_HOOK_MATCH(LevelFilteringNavigationController_DidActivate, &LevelFilteringNavigationController::DidActivate,
+        void, LevelFilteringNavigationController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
+    
+    LevelFilteringNavigationController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
+
+    if(!playlistConfig.Management)
+        return;
+
+    if(!PlaylistFilters::filtersInstance) {
+        PlaylistFilters::filtersInstance = new PlaylistFilters();
+        PlaylistFilters::filtersInstance->Init();
+    } else
+        PlaylistFilters::filtersInstance->SetVisible(true);
+}
+
+// when to hide the playlist filters
+MAKE_HOOK_MATCH(LevelFilteringNavigationController_DidDeactivate, &LevelFilteringNavigationController::DidDeactivate,
+        void, LevelFilteringNavigationController* self, bool removedFromHierarchy, bool screenSystemDisabling) {
+    
+    LevelFilteringNavigationController_DidDeactivate(self, removedFromHierarchy, screenSystemDisabling);
+
+    if(PlaylistFilters::filtersInstance)
+        PlaylistFilters::filtersInstance->SetVisible(false);
 }
 
 // when to show the playlist menu
@@ -264,21 +292,6 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
     ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
     ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylistWithPrefix(id));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
-}
-
-// when to set up the folders
-MAKE_HOOK_MATCH(MainMenuViewController_DidActivate, &MainMenuViewController::DidActivate, 
-        void, MainMenuViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
-    
-    MainMenuViewController_DidActivate(self, firstActivation, addedToHierarchy, screenSystemEnabling);
-
-    if(!playlistConfig.Management)
-        return;
-
-    if(!PlaylistFilters::filtersInstance) {
-        PlaylistFilters::filtersInstance = new PlaylistFilters();
-        PlaylistFilters::filtersInstance->Init();
-    }
 }
 
 // hook to apply changes when deselecting a cell in a multi select
@@ -473,9 +486,10 @@ extern "C" void load() {
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridView_OnEnable);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_UpdateSecondChildControllerContent);
+    INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidActivate);
+    INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidDeactivate);
     INSTALL_HOOK(getLogger(), LevelPackDetailViewController_ShowContent);
     INSTALL_HOOK(getLogger(), StandardLevelDetailViewController_ShowContent);
-    INSTALL_HOOK(getLogger(), MainMenuViewController_DidActivate);
     INSTALL_HOOK(getLogger(), TableView_HandleCellSelectionDidChange);
     INSTALL_HOOK(getLogger(), MenuTransitionsHelper_RestartGame);
     INSTALL_HOOK(getLogger(), MainMenuModSettingsViewController_DidActivate);
