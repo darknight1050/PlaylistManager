@@ -47,41 +47,42 @@ namespace PlaylistManager {
         });
         BeatSaberUI::AddHoverHint(reloadAllButton, "Reloads all playlists from the playlist folder");
 
-        auto coverModal = BeatSaberUI::CreateModal(self->get_transform(), {83, 17}, nullptr);
+        // "temporarily" removed due to incredibly annoying crash bug that only @Male gets
+        // auto coverModal = BeatSaberUI::CreateModal(self->get_transform(), {83, 17}, nullptr);
         
-        auto list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [coverModal](int cellIdx) {
-            DeleteLoadedImage(cellIdx);
-            coverModal->Hide(true, nullptr);
-        });
-        list->setType(csTypeOf(CoverTableCell*));
-        list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
-        list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
+        // auto list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [coverModal](int cellIdx) {
+        //     DeleteLoadedImage(cellIdx);
+        //     coverModal->Hide(true, nullptr);
+        // });
+        // list->setType(csTypeOf(CoverTableCell*));
+        // list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
+        // list->tableView->scrollView->scrollViewDirection = HMUI::ScrollView::ScrollViewDirection::Horizontal;
 
-        // scroll arrows
-        auto left = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [list] {
-            CustomListSource::ScrollListLeft(list, 4);
-        });
-        ((UnityEngine::RectTransform*) left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
-        BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
+        // // scroll arrows
+        // auto left = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {-38, 0}, {8, 8}, [list] {
+        //     CustomListSource::ScrollListLeft(list, 4);
+        // });
+        // ((UnityEngine::RectTransform*) left->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+        // BeatSaberUI::SetButtonSprites(left, LeftCaratInactiveSprite(), LeftCaratSprite());
 
-        auto right = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [list] {
-            CustomListSource::ScrollListRight(list, 4);
-        });
-        ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
-        BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
+        // auto right = BeatSaberUI::CreateUIButton(coverModal->get_transform(), "", "SettingsButton", {38, 0}, {8, 8}, [list] {
+        //     CustomListSource::ScrollListRight(list, 4);
+        // });
+        // ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
+        // BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
 
-        horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
-        horizontal->set_childControlWidth(false);
-        horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
-        auto imageButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Delete Saved Image", Vec{0, 0}, Vec{40, 10}, [list, coverModal] {
-            // reload covers from folder
-            LoadCoverImages();
-            // add cover images and reload
-            list->replaceSprites(GetLoadedImages());
-            list->tableView->ReloadData();
-            list->tableView->ClearSelection();
-            coverModal->Show(true, false, nullptr);
-        });
+        // horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
+        // horizontal->set_childControlWidth(false);
+        // horizontal->set_childAlignment(UnityEngine::TextAnchor::MiddleCenter);
+        // auto imageButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "Delete Saved Image", Vec{0, 0}, Vec{40, 10}, [list, coverModal] {
+        //     // reload covers from folder
+        //     LoadCoverImages();
+        //     // add cover images and reload
+        //     list->replaceSprites(GetLoadedImages());
+        //     list->tableView->ReloadData();
+        //     list->tableView->ClearSelection();
+        //     coverModal->Show(true, false, nullptr);
+        // });
 
         horizontal = BeatSaberUI::CreateHorizontalLayoutGroup(parent);
         horizontal->set_childControlWidth(false);
