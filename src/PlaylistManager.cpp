@@ -582,7 +582,10 @@ namespace PlaylistManager {
         ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(pack->beatmapLevelCollection->get_beatmapLevels());
         ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> newLevels(levelList.Length() + 1);
         for(int i = 0; i < levelList.Length(); i++) {
-            newLevels[i] = levelList[i];
+            auto currentLevel = levelList[i];
+            if(currentLevel->get_levelID() == level->get_levelID())
+                return;
+            newLevels[i] = currentLevel;
         }
         newLevels[levelList.Length()] = level;
         auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels.convert();
@@ -623,8 +626,10 @@ namespace PlaylistManager {
         if(removed) {
             auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels.convert();
             ((GlobalNamespace::CustomBeatmapLevelCollection*) pack->beatmapLevelCollection)->customPreviewBeatmapLevels = readOnlyList;
-        } else
+        } else {
             LOG_ERROR("Could not find song to be removed!");
+            return;
+        }
         // update json object
         auto& json = playlist->playlistJSON;
         // find song by hash (since the field is required) and remove

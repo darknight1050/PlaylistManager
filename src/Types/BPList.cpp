@@ -26,16 +26,10 @@ SERIALIZE_METHOD(PlaylistManager, BPSong,
 
 DESERIALIZE_METHOD(PlaylistManager, CustomData,
     DESERIALIZE_VALUE_OPTIONAL(SyncURL, syncURL, String);
-    DESERIALIZE_VALUE_OPTIONAL(CustomArchiveURL, customArchiveUrl, String);
-    DESERIALIZE_VALUE_OPTIONAL(AllowDuplicates, AllowDuplicates, Bool);
-    DESERIALIZE_VALUE_OPTIONAL(ReadOnly, ReadOnly, Bool);
 )
 
 SERIALIZE_METHOD(PlaylistManager, CustomData,
     SERIALIZE_VALUE_OPTIONAL(SyncURL, syncURL);
-    SERIALIZE_VALUE_OPTIONAL(CustomArchiveURL, customArchiveUrl);
-    SERIALIZE_VALUE_OPTIONAL(AllowDuplicates, AllowDuplicates);
-    SERIALIZE_VALUE_OPTIONAL(ReadOnly, ReadOnly);
 )
 
 DESERIALIZE_METHOD(PlaylistManager, BPList,

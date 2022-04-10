@@ -16,9 +16,6 @@ DECLARE_JSON_CLASS(PlaylistManager, BPSong,
 
 DECLARE_JSON_CLASS(PlaylistManager, CustomData,
     std::optional<std::string> SyncURL;
-    std::optional<std::string> CustomArchiveURL;
-    std::optional<bool> AllowDuplicates;
-    std::optional<bool> ReadOnly;
 )
 
 DECLARE_JSON_CLASS(PlaylistManager, BPList,
