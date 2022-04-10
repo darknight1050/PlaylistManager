@@ -2,10 +2,15 @@
 
 #include "HMUI/ViewController.hpp"
 
-namespace PlaylistManager {
-    void ModSettingsDidActivate(HMUI::ViewController* self, bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling);
+#include "custom-types/shared/macros.hpp"
 
-    void DestroyUI();
+DECLARE_CLASS_CODEGEN(PlaylistManager, SettingsViewController, HMUI::ViewController,
 
-    void CreateUI();
-}
+    bool needsRestart = false;
+
+    public:
+    static void DestroyUI();
+
+    DECLARE_OVERRIDE_METHOD(void, DidActivate, il2cpp_utils::il2cpp_type_check::MetadataGetter<&HMUI::ViewController::DidActivate>::get(), bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling);
+    DECLARE_OVERRIDE_METHOD(void, DidDeactivate, il2cpp_utils::il2cpp_type_check::MetadataGetter<&HMUI::ViewController::DidDeactivate>::get(), bool removedFromHierarchy, bool screenSystemDisabling);
+)

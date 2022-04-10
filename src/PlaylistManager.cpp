@@ -128,7 +128,7 @@ namespace PlaylistManager {
         }
         // remove from loaded images
         loadedImages.erase(loadedImages.begin() + index);
-        RemoveCachedSprite(sprite);
+        // RemoveCachedSprite(sprite);
         // remove from image hashes
         std::unordered_map<std::size_t, int>::iterator removeItr;
         for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {

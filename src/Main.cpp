@@ -314,7 +314,7 @@ MAKE_HOOK_MATCH(TableView_HandleCellSelectionDidChange, &HMUI::TableView::Handle
 MAKE_HOOK_MATCH(MenuTransitionsHelper_RestartGame, &MenuTransitionsHelper::RestartGame,
         void, MenuTransitionsHelper* self, System::Action_1<Zenject::DiContainer*>* finishCallback) {
     
-    DestroyUI();
+    SettingsViewController::DestroyUI();
     
     ResettableStaticPtr::resetAll();
 
@@ -474,7 +474,7 @@ extern "C" void load() {
     LOG_INFO("Starting PlaylistManager installation...");
     il2cpp_functions::Init();
     QuestUI::Init();
-    QuestUI::Register::RegisterModSettingsViewController(modInfo, "Playlist Manager", ModSettingsDidActivate);
+    QuestUI::Register::RegisterModSettingsViewController<SettingsViewController*>(modInfo, "Playlist Manager");
     // create fake modInfo for reload playlists button
     ModInfo fakeModInfo;
     fakeModInfo.id = "Reload Playlists";
