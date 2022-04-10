@@ -126,6 +126,13 @@ void SettingsViewController::DidActivate(bool firstActivation, bool addedToHiera
     });
     downloadToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
     BeatSaberUI::AddHoverHint(downloadToggle->get_gameObject(), "Toggles download icons for custom playlists that do not have all their songs downloaded");
+
+    auto removeSongsToggle = BeatSaberUI::CreateToggle(parent, "Remove songs not on BeatSaver", playlistConfig.RemoveMissing, [](bool enabled){
+        playlistConfig.RemoveMissing = enabled;
+        WriteToFile(GetConfigPath(), playlistConfig);
+    });
+    downloadToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
+    BeatSaberUI::AddHoverHint(removeSongsToggle->get_gameObject(), "Automatically removes songs that are not present on Beat Saver from playlists");
 }
 
 void SettingsViewController::DidDeactivate(bool removedFromHierarchy, bool screenSystemDisabling) {
