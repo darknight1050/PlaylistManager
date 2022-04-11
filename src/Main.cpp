@@ -289,7 +289,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
     bool customPack = GetPlaylistWithPrefix(id) != nullptr;
     bool customSong = customPack || id == CustomLevelPackPrefixID "CustomLevels" || id == CustomLevelPackPrefixID "CustomWIPLevels";
     ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
-    ButtonsContainer::buttonsInstance->SetLevel((IPreviewBeatmapLevel*) self->beatmapLevel);
+    ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
     ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylistWithPrefix(id));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
 }

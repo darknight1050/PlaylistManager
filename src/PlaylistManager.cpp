@@ -658,4 +658,61 @@ namespace PlaylistManager {
         // write to file
         WriteToFile(playlist->path, json);
     }
+
+    void SetSongIndex(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level, int index) {
+        if(!level)
+            return;
+        // remove song from cs object
+        auto& pack = playlist->playlistCS;
+        if(!pack)
+            return;
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> levelList(pack->beatmapLevelCollection->get_beatmapLevels());
+        if(index >= levelList.Length() || index < 0)
+            return;
+        ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> newLevels(levelList.Length());
+        bool found = false;
+        for(int i = 0, j = 0; i < newLevels.Length(); i++) {
+            // skip past level in original list, but only the first time
+            if(j < levelList.Length() && levelList[j]->get_levelID() == level->get_levelID() && !found) {
+                j++;
+                found = true;
+            }
+            // shift backwards in original list when inserting level
+            if(i == index) {
+                j--;
+                newLevels[i] = level;
+            } else {
+                newLevels[i] = levelList[j];
+            }
+            j++;
+        }
+        if(found) {
+            auto readOnlyList = (System::Collections::Generic::IReadOnlyList_1<GlobalNamespace::CustomPreviewBeatmapLevel*>*) newLevels.convert();
+            ((GlobalNamespace::CustomBeatmapLevelCollection*) pack->beatmapLevelCollection)->customPreviewBeatmapLevels = readOnlyList;
+        } else {
+            LOG_ERROR("Could not find song to be moved!");
+            return;
+        }
+        // update json object
+        auto& json = playlist->playlistJSON;
+        // find song by hash (since the field is required) and remove
+        auto levelHash = GetLevelHash(level);
+        for(auto itr = json.Songs.begin(); itr != json.Songs.end(); ++itr) {
+            auto& song = *itr;
+            LOWER(song.Hash);
+            if(song.Hash == levelHash) {
+                json.Songs.erase(itr);
+                // only erase
+                break;
+            }
+        }
+        // add a blank song
+        json.Songs.insert(json.Songs.begin() + index, BPSong());
+        // set info
+        auto& songJson = json.Songs[index];
+        songJson.Hash = GetLevelHash(level);
+        songJson.SongName = level->get_songName();
+        // write to file
+        WriteToFile(playlist->path, json);
+    }
 }

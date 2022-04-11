@@ -20,10 +20,9 @@ namespace PlaylistManager {
     class ButtonsContainer {
 
         private:
-        UnityEngine::GameObject *layoutObject, *infoButtonContainer;
+        UnityEngine::GameObject *layoutObject, *movementButtonsContainer;
         UnityEngine::UI::Button *saveCoverButton, *playlistAddButton, *playlistRemoveButton;
-        HMUI::ModalView *playlistAddModal, *infoModal;
-        TMPro::TextMeshProUGUI *infoText;
+        HMUI::ModalView *playlistAddModal, *infoModal, *removeModal;
         class CustomListSource *playlistCovers;
         GlobalNamespace::StandardLevelDetailView *levelDetailView;
         GlobalNamespace::LevelCollectionTableView *levelListTableView;
@@ -31,6 +30,8 @@ namespace PlaylistManager {
         Playlist* currentPlaylist = nullptr;
 
         std::vector<Playlist*> loadedPlaylists;
+        
+        bool deleteSongOnRemoval = false;
 
         custom_types::Helpers::Coroutine initCoroutine();
 
@@ -42,6 +43,9 @@ namespace PlaylistManager {
         void scrollListRightButtonPressed();
         void confirmRemovalButtonPressed();
         void cancelRemovalButtonPressed();
+        void deleteSongToggleToggled(bool enabled);
+        void moveUpButtonPressed();
+        void moveDownButtonPressed();
 
         public:
         static ButtonsContainer* buttonsInstance;

@@ -126,4 +126,9 @@ namespace PlaylistManager {
     /// @param playlist The playlist to remove the song from
     /// @param level The song to remove from the playlist
     void RemoveSongFromPlaylist(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level);
+
+    /// @brief Changes the index of a song inside a playlist - does not reload playlists
+    /// @param playlist The playlist containing the song to be reordered
+    /// @param index The new index for the song to be at
+    void SetSongIndex(Playlist* playlist, GlobalNamespace::IPreviewBeatmapLevel* level, int index);
 }

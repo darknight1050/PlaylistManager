@@ -10,10 +10,13 @@
 
 #include "questui/shared/BeatSaberUI.hpp"
 
+#include "songloader/shared/API.hpp"
+
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSegmentedControlController.hpp"
 #include "GlobalNamespace/BeatmapCharacteristicSO.hpp"
+#include "GlobalNamespace/CustomPreviewBeatmapLevel.hpp"
 
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/TextSegmentedControl.hpp"
@@ -22,6 +25,7 @@
 
 #include "System/Threading/CancellationToken.hpp"
 #include "System/Threading/Tasks/Task_1.hpp"
+#include "System/Tuple_2.hpp"
 
 using namespace PlaylistManager;
 using namespace QuestUI;
@@ -44,9 +48,6 @@ void ButtonsContainer::saveCoverButtonPressed() {
     // reload from file
     LoadCoverImages();
     // show modal for feedback
-    static ConstString text("Song cover image saved!");
-    infoText->set_text(text);
-    infoButtonContainer->SetActive(false);
     infoModal->Show(true, true, nullptr);
     infoModal->get_transform()->set_localPosition({40, -10, 0});
 }
@@ -60,11 +61,8 @@ void ButtonsContainer::addToPlaylistButtonPressed() {
 }
 
 void ButtonsContainer::removeFromPlaylistButtonPressed() {
-    static ConstString text("Do you really want to remove this song from the playlist?");
-    infoText->set_text(text);
-    infoButtonContainer->SetActive(true);
-    infoModal->Show(true, true, nullptr);
-    infoModal->get_transform()->set_localPosition({40, -10, 0});
+    removeModal->Show(true, true, nullptr);
+    removeModal->get_transform()->set_localPosition({40, -10, 0});
 }
 
 void ButtonsContainer::playlistSelected(int listCellIdx) {
@@ -80,7 +78,6 @@ void ButtonsContainer::playlistSelected(int listCellIdx) {
         int currIndex = levelListTableView->selectedRow;
         // keep scroll position
         float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
-        anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
         auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
         levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
         levelListTableView->tableView->SelectCellWithIdx(currIndex, true);
@@ -97,19 +94,74 @@ void ButtonsContainer::scrollListRightButtonPressed() {
 }
 
 void ButtonsContainer::confirmRemovalButtonPressed() {
+    removeModal->Hide(true, nullptr);
     RemoveSongFromPlaylist(currentPlaylist, currentLevel);
-    // keep scroll position
-    float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
-    anchorPosY = std::min(anchorPosY, levelListTableView->CellSize() * levelListTableView->NumberOfCells());
-    auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
-    levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
-    // clear selection since the selected song was just deleted
-    levelListTableView->tableView->SelectCellWithIdx(0, true);
-    levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    if(deleteSongOnRemoval) {
+        std::string path = ((GlobalNamespace::CustomPreviewBeatmapLevel*) currentLevel)->customLevelPath;
+        RuntimeSongLoader::API::DeleteSong(path, [] {
+            RuntimeSongLoader::API::RefreshSongs(false);
+        });
+    } else {
+        // keep scroll position
+        float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
+        auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
+        levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
+        // clear selection since the selected song was just deleted
+        levelListTableView->tableView->SelectCellWithIdx(0, true);
+        levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    }
 }
 
 void ButtonsContainer::cancelRemovalButtonPressed() {
-    infoModal->Hide(true, nullptr);
+    removeModal->Hide(true, nullptr);
+}
+
+void ButtonsContainer::deleteSongToggleToggled(bool enabled) {
+    deleteSongOnRemoval = enabled;
+}
+
+void ButtonsContainer::moveUpButtonPressed() {
+    // get song index
+    int currIndex = levelListTableView->selectedRow;
+    if(currIndex <= 1)
+        return;
+    // move song, offset currIndex by header cell
+    SetSongIndex(currentPlaylist, currentLevel, currIndex - 2);
+    // get scroll view before SetData
+    float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
+    auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
+    levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
+    levelListTableView->tableView->SelectCellWithIdx(currIndex - 1, true);
+    levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    // scroll down if moving level close to out of visible cells
+    auto tuple = levelListTableView->tableView->GetVisibleCellsIdRange();
+    if(currIndex - 2 <= tuple->get_Item1()) {
+        float cellPosY = (currIndex - 2) * levelListTableView->CellSize();
+        levelListTableView->tableView->scrollView->ScrollTo(cellPosY, true);
+    }
+}
+
+void ButtonsContainer::moveDownButtonPressed() {
+    // get song index
+    int currIndex = levelListTableView->selectedRow;
+    if(currIndex >= levelListTableView->NumberOfCells() - 1)
+        return;
+    // move song, offset currIndex by header cell
+    SetSongIndex(currentPlaylist, currentLevel, currIndex);
+    // get scroll view before SetData
+    float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
+    auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
+    levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
+    levelListTableView->tableView->SelectCellWithIdx(currIndex + 1, true);
+    levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    // scroll down if moving level close to out of visible cells
+    auto tuple = levelListTableView->tableView->GetVisibleCellsIdRange();
+    if(currIndex + 3 > tuple->get_Item2()) {
+        float cellPosY = (currIndex + 3) * levelListTableView->CellSize();
+        // offset by scroll page size since cell is at the bottom of the page
+        cellPosY -= levelListTableView->tableView->scrollView->get_scrollPageSize();
+        levelListTableView->tableView->scrollView->ScrollTo(cellPosY, true);
+    }
 }
 #pragma endregion
 
@@ -128,7 +180,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     saveCoverButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         saveCoverButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(saveCoverButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
+    ((UnityEngine::RectTransform*) saveCoverButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     saveCoverButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(saveCoverButton, SaveCoverInactiveSprite(), SaveCoverSprite());
     BeatSaberUI::AddHoverHint(saveCoverButton, "Save the cover image of the song for use as a playlist cover");
@@ -136,7 +188,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     playlistAddButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         addToPlaylistButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(playlistAddButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
+    ((UnityEngine::RectTransform*) playlistAddButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     playlistAddButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(playlistAddButton, AddToPlaylistInactiveSprite(), AddToPlaylistSprite());
     BeatSaberUI::AddHoverHint(playlistAddButton, "Add this song to a playlist");
@@ -144,10 +196,33 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     playlistRemoveButton = BeatSaberUI::CreateUIButton(horizontal->get_transform(), "", "SettingsButton", {0, 0}, {5, 5}, [this](){
         removeFromPlaylistButtonPressed();
     });
-    reinterpret_cast<UnityEngine::RectTransform*>(playlistRemoveButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
+    ((UnityEngine::RectTransform*) playlistRemoveButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
     playlistRemoveButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(playlistRemoveButton, RemoveFromPlaylistInactiveSprite(), RemoveFromPlaylistSprite());
     BeatSaberUI::AddHoverHint(playlistRemoveButton, "Remove this song from this playlist");
+
+    co_yield nullptr;
+
+    movementButtonsContainer = BeatSaberUI::CreateCanvas();
+    movementButtonsContainer->get_transform()->SetParent(levelDetailTransform, false);
+    // local scale is funky on canvases because they're intended to be used unparented
+    movementButtonsContainer->get_transform()->set_localScale({1, 1, 1});
+
+    auto moveUpButton = BeatSaberUI::CreateUIButton(movementButtonsContainer->get_transform(), "", "SettingsButton", {-36, 24}, {5, 5}, [this]() {
+        moveUpButtonPressed();
+    });
+    ((UnityEngine::RectTransform*) moveUpButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
+    moveUpButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
+    BeatSaberUI::SetButtonSprites(moveUpButton, UpButtonInactiveSprite(), UpButtonSprite());
+    BeatSaberUI::AddHoverHint(moveUpButton, "Move this song up in the order of songs in this playlist");
+
+    auto moveDownButton = BeatSaberUI::CreateUIButton(movementButtonsContainer->get_transform(), "", "SettingsButton", {-37, 19}, {5, 5}, [this]() {
+        moveDownButtonPressed();
+    });
+    ((UnityEngine::RectTransform*) moveDownButton->get_transform()->GetChild(0))->set_sizeDelta({5, 5});
+    moveDownButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
+    BeatSaberUI::SetButtonSprites(moveDownButton, DownButtonInactiveSprite(), DownButtonSprite());
+    BeatSaberUI::AddHoverHint(moveDownButton, "Move this song down in the order of songs in this playlist");
     #pragma endregion
 
     co_yield nullptr;
@@ -180,31 +255,37 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     ((UnityEngine::RectTransform*) right->get_transform()->GetChild(0))->set_sizeDelta({8, 8});
     BeatSaberUI::SetButtonSprites(right, RightCaratInactiveSprite(), RightCaratSprite());
 
-    infoModal = BeatSaberUI::CreateModal(levelDetailTransform, {50, 25}, nullptr);
-    auto infoModalLayout = BeatSaberUI::CreateVerticalLayoutGroup(infoModal);
-    infoModalLayout->set_spacing(-1);
-
-    infoText = BeatSaberUI::CreateText(infoModalLayout, "Song cover image saved!");
-    infoText->set_enableWordWrapping(true);
+    infoModal = BeatSaberUI::CreateModal(levelDetailTransform, {40, 15}, nullptr);
+    auto infoText = BeatSaberUI::CreateText(infoModal, "Song cover image saved!");
     infoText->set_alignment(TMPro::TextAlignmentOptions::Center);
-    auto textLayout = infoText->get_gameObject()->AddComponent<UnityEngine::UI::LayoutElement*>();
-    textLayout->set_preferredWidth(45);
-    textLayout->set_preferredHeight(10);
 
-    infoButtonContainer = UnityEngine::GameObject::New_ctor("PlaylistManagerModalButtonContainer");
-    infoButtonContainer->get_transform()->SetParent(infoModalLayout->get_transform(), false);
-    auto buttonLayout = infoButtonContainer->AddComponent<UnityEngine::UI::LayoutElement*>();
-    buttonLayout->set_preferredWidth(40);
-    buttonLayout->set_preferredHeight(10);
+    co_yield nullptr;
+
+    removeModal = BeatSaberUI::CreateModal(levelDetailTransform, {50, 32}, nullptr);
+    
+    // janky raw newline because I don't want to add a layout element
+    auto removeText = BeatSaberUI::CreateText(removeModal, "Do you really want to remove this\nsong from the playlist?", false, UnityEngine::Vector2(0, 9));
+    removeText->set_alignment(TMPro::TextAlignmentOptions::Center);
+
     static ConstString contentName("Content");
-    auto confirmRemovalButton = BeatSaberUI::CreateUIButton(infoButtonContainer->get_transform(), "Remove", "ActionButton", {-11.5, 0}, {20, 10}, [this] {
+    auto confirmRemovalButton = BeatSaberUI::CreateUIButton(removeModal->get_transform(), "Remove", "ActionButton", {-11.5, -2}, {20, 10}, [this] {
         confirmRemovalButtonPressed();
     });
     UnityEngine::Object::Destroy(confirmRemovalButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
-    auto cancelRemovalButton = BeatSaberUI::CreateUIButton(infoButtonContainer->get_transform(), "Cancel", {11.5, 0}, {20, 10}, [this] {
+    auto cancelRemovalButton = BeatSaberUI::CreateUIButton(removeModal->get_transform(), "Cancel", {11.5, -2}, {20, 10}, [this] {
         cancelRemovalButtonPressed();
     });
     UnityEngine::Object::Destroy(cancelRemovalButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
+
+    auto deleteToggle = BeatSaberUI::CreateToggle(removeModal->get_transform(), "Delete Song", deleteSongOnRemoval, {0, -27}, [this](bool enabled) {
+        deleteSongToggleToggled(enabled);
+    });
+    // the toggle really isn't a fan of going this thin
+    auto parent = deleteToggle->get_transform()->GetParent();
+    parent->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
+    auto nameText = parent->Find("NameText")->GetComponent<TMPro::TextMeshProUGUI*>();
+    nameText->set_enableAutoSizing(false);
+    ((UnityEngine::RectTransform*) parent)->set_sizeDelta({-5, 0});
     #pragma endregion
 
     co_return;
@@ -226,6 +307,8 @@ void ButtonsContainer::SetVisible(bool visible, bool showRemove) {
         playlistAddButton->get_gameObject()->set_active(visible);
     if(playlistRemoveButton)
         playlistRemoveButton->get_gameObject()->set_active(visible && showRemove);
+    if(movementButtonsContainer)
+        movementButtonsContainer->set_active(visible && showRemove);
     if(playlistAddModal)
         playlistAddModal->Hide(false, nullptr);
     if(infoModal)
