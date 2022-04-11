@@ -504,7 +504,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
             setFoldersFilters(false);
             return;
         }
-        titleField->set_text(currentFolder->FolderName);
+        titleField->SetText(currentFolder->FolderName);
         instantSetToggle(subfoldersToggle, currentFolder->HasSubfolders);
         instantSetToggle(defaultsToggle, currentFolder->ShowDefaults);
         playlistListContainer->SetActive(!currentFolder->HasSubfolders);
@@ -513,7 +513,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
         topLayout->set_anchoredPosition({0, 0});
     } else {
         static ConstString empty("");
-        titleField->set_text(empty);
+        titleField->SetText(empty);
         currentTitle = "";
         instantSetToggle(subfoldersToggle, false);
         currentSubfolders = false;
