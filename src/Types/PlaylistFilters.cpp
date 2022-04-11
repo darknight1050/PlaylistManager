@@ -359,6 +359,14 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     
     editButton->set_interactable(false);
     deleteButton->set_interactable(false);
+
+    // why bother with automatic line breaks when the text never changes anyway
+    noFoldersInfo = BeatSaberUI::CreateText(folderMenu->get_transform(), "You don't have any folders. Create a folder to store\nand filter playlists or subfolders.", {0, -20});
+    noFoldersInfo->set_alignment(TMPro::TextAlignmentOptions::Center);
+    noFoldersInfo->get_gameObject()->SetActive(false);
+    noSubfoldersInfo = BeatSaberUI::CreateText(folderMenu->get_transform(), "This folder contains no subfolders.", {0, -20});
+    noSubfoldersInfo->set_alignment(TMPro::TextAlignmentOptions::Center);
+    noSubfoldersInfo->get_gameObject()->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -590,6 +598,8 @@ void PlaylistFilters::RefreshFolders() {
     }
     folderList->replaceTexts(folderNames);
     folderList->tableView->ReloadData();
+    noFoldersInfo->get_gameObject()->SetActive(folderNames.size() == 0 && parentFolders.size() == 0);
+    noSubfoldersInfo->get_gameObject()->SetActive(folderNames.size() == 0 && parentFolders.size() > 0);
 }
 
 void PlaylistFilters::RefreshPlaylists() {

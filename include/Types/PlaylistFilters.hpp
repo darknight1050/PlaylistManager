@@ -30,7 +30,7 @@ namespace PlaylistManager {
         UnityEngine::UI::Button *editButton, *deleteButton, *editCreateButton;
         HMUI::InputFieldView *titleField;
         UnityEngine::UI::Toggle *subfoldersToggle, *defaultsToggle;
-        TMPro::TextMeshProUGUI *folderTitle;
+        TMPro::TextMeshProUGUI *folderTitle, *noFoldersInfo, *noSubfoldersInfo;
 
         bool currentSubfolders, currentDefaults;
         std::string currentTitle;
