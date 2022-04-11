@@ -19,6 +19,7 @@
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridView.hpp"
 #include "GlobalNamespace/PageControl.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsViewController.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridViewAnimator.hpp"
 #include "GlobalNamespace/BeatmapLevelsModel.hpp"
 #include "GlobalNamespace/LevelSearchViewController.hpp"
 
@@ -159,6 +160,7 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
         gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
         gameTableView->gridView->ReloadData();
         gameTableView->pageControl->SetPagesCount(gameTableView->gridView->rowCount);
+        gameTableView->animator->Init(gameTableView->cellHeight, gameTableView->gridView->rowCount);
     }
     if(updateSongs) {
         // concatenate arrays together
