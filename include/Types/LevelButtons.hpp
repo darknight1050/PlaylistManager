@@ -33,6 +33,8 @@ namespace PlaylistManager {
         
         bool deleteSongOnRemoval = false;
 
+        bool hasConstructed = false, visibleOnFinish = false, inPlaylistOnFinish = false;
+
         custom_types::Helpers::Coroutine initCoroutine();
 
         void saveCoverButtonPressed();
@@ -51,7 +53,7 @@ namespace PlaylistManager {
         static ButtonsContainer* buttonsInstance;
 
         void Init(GlobalNamespace::StandardLevelDetailView* levelDetailView);
-        void SetVisible(bool visible, bool showRemove);
+        void SetVisible(bool visible, bool inPlaylist);
         void SetLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
         void SetPlaylist(Playlist* playlist);
         void RefreshPlaylists();

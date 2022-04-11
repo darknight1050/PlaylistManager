@@ -201,6 +201,9 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     BeatSaberUI::SetButtonSprites(playlistRemoveButton, RemoveFromPlaylistInactiveSprite(), RemoveFromPlaylistSprite());
     BeatSaberUI::AddHoverHint(playlistRemoveButton, "Remove this song from this playlist");
 
+    saveCoverButton->get_gameObject()->SetActive(false);
+    playlistAddButton->get_gameObject()->SetActive(false);
+    playlistRemoveButton->get_gameObject()->SetActive(false);
     co_yield nullptr;
 
     movementButtonsContainer = BeatSaberUI::CreateCanvas();
@@ -223,6 +226,8 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     moveDownButton->GetComponentInChildren<HMUI::ImageView*>()->skew = 0.18;
     BeatSaberUI::SetButtonSprites(moveDownButton, DownButtonInactiveSprite(), DownButtonSprite());
     BeatSaberUI::AddHoverHint(moveDownButton, "Move this song down in the order of songs in this playlist");
+
+    movementButtonsContainer->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -288,6 +293,9 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     ((UnityEngine::RectTransform*) parent)->set_sizeDelta({-5, 0});
     #pragma endregion
 
+    hasConstructed = true;
+    SetVisible(visibleOnFinish, inPlaylistOnFinish);
+
     co_return;
 }
 
@@ -300,15 +308,20 @@ void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* detailView
         custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
-void ButtonsContainer::SetVisible(bool visible, bool showRemove) {
+void ButtonsContainer::SetVisible(bool visible, bool inPlaylist) {
+    if(!hasConstructed) {
+        visibleOnFinish = visible;
+        inPlaylistOnFinish = inPlaylist;
+        return;
+    }
     if(saveCoverButton)
-        saveCoverButton->get_gameObject()->set_active(visible);
+        saveCoverButton->get_gameObject()->SetActive(visible);
     if(playlistAddButton)
-        playlistAddButton->get_gameObject()->set_active(visible);
+        playlistAddButton->get_gameObject()->SetActive(visible);
     if(playlistRemoveButton)
-        playlistRemoveButton->get_gameObject()->set_active(visible && showRemove);
+        playlistRemoveButton->get_gameObject()->SetActive(visible && inPlaylist);
     if(movementButtonsContainer)
-        movementButtonsContainer->set_active(visible && showRemove);
+        movementButtonsContainer->SetActive(visible && inPlaylist);
     if(playlistAddModal)
         playlistAddModal->Hide(false, nullptr);
     if(infoModal)
