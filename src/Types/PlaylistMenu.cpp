@@ -370,7 +370,10 @@ void PlaylistMenu::deleteButtonPressed() {
 
 void PlaylistMenu::createButtonPressed() {
     // create new playlist based on fields
-    AddPlaylist(currentTitle, currentAuthor, coverImageIndex >= 0 ? coverImage->get_sprite() : nullptr);
+    std::string path = AddPlaylist(currentTitle, currentAuthor, coverImageIndex >= 0 ? coverImage->get_sprite() : nullptr);
+    // add to current folder if inside one
+    if(filterSelectionState == 3 && !currentFolder->HasSubfolders)
+        currentFolder->Playlists.emplace_back(path);
     ReloadPlaylists();
 }
 

@@ -224,6 +224,23 @@ namespace PlaylistManager {
         auto path = GetPlaylistsPath();
         if(!std::filesystem::is_directory(path))
             return;
+        // clear out old playlists if showDefaults is off
+        bool showDefaults = filterSelectionState != 2;
+        if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
+            showDefaults = currentFolder->ShowDefaults;
+        if(!showDefaults) {
+            GlobalNamespace::CustomBeatmapLevelPack *customsPack, *customWIPsPack;
+            for(auto& pack : customBeatmapLevelPackCollectionSO->customBeatmapLevelPacks->items) {
+                if(pack->get_packName() == "Custom Levels")
+                    customsPack = pack;
+                if(pack->get_packName() == "WIP Levels")
+                    customWIPsPack = pack;
+            }
+            if(customsPack)
+                customBeatmapLevelPackCollectionSO->RemoveLevelPack(customsPack);
+            if(customWIPsPack)
+                customBeatmapLevelPackCollectionSO->RemoveLevelPack(customWIPsPack);
+        }
         // create set of playlists that aren't found when loading
         std::unordered_set<std::string> removedPaths{};
         for(auto& path : playlistConfig.Order)
@@ -389,7 +406,7 @@ namespace PlaylistManager {
         return filterSelectionState != 1;
     }
 
-    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage) {
+    std::string AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage) {
         // create playlist with info
         auto newPlaylist = BPList();
         newPlaylist.PlaylistTitle = title;
@@ -402,6 +419,7 @@ namespace PlaylistManager {
         // save playlist
         std::string path = GetNewPlaylistPath(title);
         WriteToFile(path, newPlaylist);
+        return path;
     }
 
     void MovePlaylist(Playlist* playlist, int index) {
@@ -477,16 +495,13 @@ namespace PlaylistManager {
     void ReloadPlaylists(bool fullReload) {
         if(!hasLoaded)
             return;
-        bool showDefaults = filterSelectionState != 2;
-        if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
-            showDefaults = currentFolder->ShowDefaults;
         // handle full reload here since songloader's full refesh isn't carried through
         // also, we don't want to always full reload songs at the same time as playlists
         if(fullReload) {
             for(auto& pair : path_playlists)
                 MarkPlaylistForReload(pair.second);
         }
-        API::RefreshPacks(showDefaults);
+        API::RefreshPacks();
     }
 
     void MarkPlaylistForReload(Playlist* playlist) {

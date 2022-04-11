@@ -74,7 +74,8 @@ namespace PlaylistManager {
     /// @param title The name of the playlist to be created
     /// @param author The author of the playlist to be created
     /// @param coverImage The cover image for the playlist - does not have to be a loaded image
-    void AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage = nullptr);
+    /// @return The path of the created playlist
+    std::string AddPlaylist(std::string const& title, std::string const& author, UnityEngine::Sprite* coverImage = nullptr);
 
     /// @brief Moves a playlist in the order config - does not reload playlists
     /// @param playlist The playlist to be moved
