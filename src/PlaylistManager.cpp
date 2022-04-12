@@ -115,10 +115,9 @@ namespace PlaylistManager {
     void DeleteLoadedImage(int index) {
         auto sprite = loadedImages[index];
         // get path
-        auto foundItr = image_paths.find(loadedImages[index]);
-        if (foundItr == image_paths.end())
+        auto pathItr = image_paths.find(loadedImages[index]);
+        if (pathItr == image_paths.end())
             return;
-        image_paths.erase(sprite);
         // update image indices of playlists
         for(auto& playlist : GetLoadedPlaylists()) {
             if(playlist->imageIndex == index)
@@ -126,9 +125,6 @@ namespace PlaylistManager {
             if(playlist->imageIndex > index)
                 playlist->imageIndex--;
         }
-        // remove from loaded images
-        loadedImages.erase(loadedImages.begin() + index);
-        // RemoveCachedSprite(sprite);
         // remove from image hashes
         std::unordered_map<std::size_t, int>::iterator removeItr;
         for(auto itr = imageHashes.begin(); itr != imageHashes.end(); itr++) {
@@ -140,8 +136,13 @@ namespace PlaylistManager {
                 itr->second--;
             }
         }
+        // remove from maps and delete file
         imageHashes.erase(removeItr);
-        std::filesystem::remove(foundItr->second);
+        std::filesystem::remove(pathItr->second);
+        image_paths.erase(sprite);
+        // remove from loaded images
+        loadedImages.erase(loadedImages.begin() + index);
+        RemoveCachedSprite(sprite);
     }
 
     void LoadCoverImages() {

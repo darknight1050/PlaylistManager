@@ -70,7 +70,6 @@ void SettingsViewController::DidActivate(bool firstActivation, bool addedToHiera
     auto list = BeatSaberUI::CreateCustomSourceList<CustomListSource*>(coverModal->get_transform(), {70, 15}, [this, coverModal](int cellIdx) {
         DeleteLoadedImage(cellIdx);
         coverModal->Hide(true, nullptr);
-        needsRestart = true;
     });
     list->setType(csTypeOf(CoverTableCell*));
     list->tableView->tableType = HMUI::TableView::TableType::Horizontal;
@@ -133,9 +132,4 @@ void SettingsViewController::DidActivate(bool firstActivation, bool addedToHiera
     });
     downloadToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
     BeatSaberUI::AddHoverHint(removeSongsToggle->get_gameObject(), "Automatically removes songs that are not present on Beat Saver from playlists");
-}
-
-void SettingsViewController::DidDeactivate(bool removedFromHierarchy, bool screenSystemDisabling) {
-    if(needsRestart)
-        FindComponent<GlobalNamespace::MenuTransitionsHelper*>()->RestartGame(nullptr);
 }
