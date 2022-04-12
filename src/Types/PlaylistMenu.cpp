@@ -198,8 +198,12 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // wait for songs to refresh
         while(!doneRefreshing)
             co_yield nullptr;
-        if(playlistConfig.RemoveMissing)
+        // clears any songs that could not be downloaded
+        if(playlistConfig.RemoveMissing) {
             RemoveMissingSongsFromPlaylist(syncingPlaylist);
+            // sets the download icons based on after songs have or haven't been removed
+            gameTableView->RefreshAvailability();
+        }
     }
     awaitingSync = false;
     syncingModal->Hide(true, nullptr);
@@ -241,8 +245,11 @@ void PlaylistMenu::downloadButtonPressed() {
             awaitingSync = false;
             syncingModal->Hide(true, nullptr);
             // clears any songs that could not be downloaded
-            if(playlistConfig.RemoveMissing)
+            if(playlistConfig.RemoveMissing) {
                 RemoveMissingSongsFromPlaylist(downloadingPlaylist);
+                // sets the download icons based on after songs have or haven't been removed
+                gameTableView->RefreshAvailability();
+            }
         });
     });
 }

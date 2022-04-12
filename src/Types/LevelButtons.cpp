@@ -290,7 +290,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     parent->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(30);
     auto nameText = parent->Find("NameText")->GetComponent<TMPro::TextMeshProUGUI*>();
     nameText->set_enableAutoSizing(false);
-    ((UnityEngine::RectTransform*) parent)->set_sizeDelta({-5, 0});
+    ((UnityEngine::RectTransform*) parent)->set_sizeDelta({-8, 0});
     #pragma endregion
 
     hasConstructed = true;

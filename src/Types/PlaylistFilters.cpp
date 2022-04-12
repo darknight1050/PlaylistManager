@@ -363,9 +363,13 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     // why bother with automatic line breaks when the text never changes anyway
     noFoldersInfo = BeatSaberUI::CreateText(folderMenu->get_transform(), "You don't have any folders. Create a folder to store\nand filter playlists or subfolders.", {0, -20});
     noFoldersInfo->set_alignment(TMPro::TextAlignmentOptions::Center);
+    noFoldersInfo->set_color({1, 1, 1, 0.5});
+    noFoldersInfo->set_fontSize(3);
     noFoldersInfo->get_gameObject()->SetActive(false);
     noSubfoldersInfo = BeatSaberUI::CreateText(folderMenu->get_transform(), "This folder contains no subfolders.", {0, -20});
     noSubfoldersInfo->set_alignment(TMPro::TextAlignmentOptions::Center);
+    noSubfoldersInfo->set_color({1, 1, 1, 0.5});
+    noSubfoldersInfo->set_fontSize(3);
     noSubfoldersInfo->get_gameObject()->SetActive(false);
     #pragma endregion
 

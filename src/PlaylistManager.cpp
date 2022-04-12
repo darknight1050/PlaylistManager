@@ -229,8 +229,10 @@ namespace PlaylistManager {
         if(filterSelectionState == 3 && currentFolder && !currentFolder->HasSubfolders)
             showDefaults = currentFolder->ShowDefaults;
         if(!showDefaults) {
-            GlobalNamespace::CustomBeatmapLevelPack *customsPack, *customWIPsPack;
+            GlobalNamespace::CustomBeatmapLevelPack *customsPack = nullptr, *customWIPsPack = nullptr;
             for(auto& pack : customBeatmapLevelPackCollectionSO->customBeatmapLevelPacks->items) {
+                if(!pack)
+                    continue;
                 if(pack->get_packName() == "Custom Levels")
                     customsPack = pack;
                 if(pack->get_packName() == "WIP Levels")
@@ -686,7 +688,8 @@ namespace PlaylistManager {
             return;
         ArrayW<GlobalNamespace::IPreviewBeatmapLevel*> newLevels(levelList.Length());
         bool found = false;
-        for(int i = 0, j = 0; i < newLevels.Length(); i++) {
+        // ensure we traverse the whole of both lists
+        for(int i = 0, j = 0; i < newLevels.Length() || j < levelList.Length(); i++) {
             // skip past level in original list, but only the first time
             if(j < levelList.Length() && levelList[j]->get_levelID() == level->get_levelID() && !found) {
                 j++;
@@ -696,7 +699,7 @@ namespace PlaylistManager {
             if(i == index) {
                 j--;
                 newLevels[i] = level;
-            } else {
+            } else if(i < newLevels.Length()) {
                 newLevels[i] = levelList[j];
             }
             j++;
