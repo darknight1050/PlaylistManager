@@ -294,7 +294,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
     #pragma endregion
 
     hasConstructed = true;
-    SetVisible(visibleOnFinish, inPlaylistOnFinish);
+    SetVisible(visibleOnFinish, inPlaylistOnFinish, isWIPOnFinish);
 
     co_return;
 }
@@ -308,16 +308,17 @@ void ButtonsContainer::Init(GlobalNamespace::StandardLevelDetailView* detailView
         custom_types::Helpers::CoroutineHelper::New(initCoroutine()));
 }
 
-void ButtonsContainer::SetVisible(bool visible, bool inPlaylist) {
+void ButtonsContainer::SetVisible(bool visible, bool inPlaylist, bool WIP) {
     if(!hasConstructed) {
         visibleOnFinish = visible;
         inPlaylistOnFinish = inPlaylist;
+        isWIPOnFinish = WIP;
         return;
     }
     if(saveCoverButton)
         saveCoverButton->get_gameObject()->SetActive(visible);
     if(playlistAddButton)
-        playlistAddButton->get_gameObject()->SetActive(visible);
+        playlistAddButton->get_gameObject()->SetActive(visible && !WIP);
     if(playlistRemoveButton)
         playlistRemoveButton->get_gameObject()->SetActive(visible && inPlaylist);
     if(movementButtonsContainer)

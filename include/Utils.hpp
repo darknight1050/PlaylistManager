@@ -6,6 +6,8 @@
 
 std::string GetLevelHash(GlobalNamespace::IPreviewBeatmapLevel* level);
 
+bool IsWipLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
+
 std::string SanitizeFileName(std::string const& fileName);
 
 bool UniqueFileName(std::string const& fileName, std::string const& compareDirectory);

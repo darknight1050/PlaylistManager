@@ -43,6 +43,10 @@ std::string GetLevelHash(GlobalNamespace::IPreviewBeatmapLevel* level) {
     return id;
 }
 
+bool IsWipLevel(GlobalNamespace::IPreviewBeatmapLevel* level) {
+    return level->get_levelID().ends_with(" WIP");
+}
+
 std::string SanitizeFileName(std::string const& fileName) {
     std::string newName;
     // yes I know not all of these are disallowed, and also that they are unlikely to end up in a name

@@ -7,6 +7,7 @@
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "Settings.hpp"
+#include "Utils.hpp"
 #include "ResettableStaticPtr.hpp"
 
 #include <chrono>
@@ -268,7 +269,7 @@ MAKE_HOOK_MATCH(LevelPackDetailViewController_ShowContent, &LevelPackDetailViewC
 
     // disable level buttons (hides modal if necessary)
     if(ButtonsContainer::buttonsInstance)
-        ButtonsContainer::buttonsInstance->SetVisible(false, false);
+        ButtonsContainer::buttonsInstance->SetVisible(false, false, false);
 }
 
 // when to show the level buttons
@@ -288,7 +289,8 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
     std::string id = self->pack->get_packID();
     bool customPack = GetPlaylistWithPrefix(id) != nullptr;
     bool customSong = customPack || id == CustomLevelPackPrefixID "CustomLevels" || id == CustomLevelPackPrefixID "CustomWIPLevels";
-    ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack);
+    bool wip = IsWipLevel(self->previewBeatmapLevel);
+    ButtonsContainer::buttonsInstance->SetVisible(customSong, customPack, wip);
     ButtonsContainer::buttonsInstance->SetLevel(self->previewBeatmapLevel);
     ButtonsContainer::buttonsInstance->SetPlaylist(GetPlaylistWithPrefix(id));
     ButtonsContainer::buttonsInstance->RefreshHighlightedDifficulties();
