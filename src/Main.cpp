@@ -67,6 +67,7 @@ ModInfo modInfo;
 PlaylistConfig playlistConfig;
 Folder* currentFolder = nullptr;
 int filterSelectionState = 0;
+bool allowInMultiplayer = false;
 
 Logger& getLogger() {
     static auto logger = new Logger(modInfo, LoggerOptions(false, true)); 
@@ -226,8 +227,10 @@ MAKE_HOOK_MATCH(LevelFilteringNavigationController_DidActivate, &LevelFilteringN
     if(!PlaylistFilters::filtersInstance) {
         PlaylistFilters::filtersInstance = new PlaylistFilters();
         PlaylistFilters::filtersInstance->Init();
-    } else
+    } else {
         PlaylistFilters::filtersInstance->SetVisible(true);
+        PlaylistFilters::filtersInstance->UpdateTransform();
+    }
 }
 
 // when to hide the playlist filters
@@ -481,6 +484,10 @@ extern "C" void load() {
     ModInfo fakeModInfo;
     fakeModInfo.id = "Reload Playlists";
     QuestUI::Register::RegisterMainMenuModSettingsViewController(fakeModInfo);
+    // get if custom songs are available in multiplayer
+    // requireMod also forces its load function to be called, which is unnecessary, but appears to be the only simple way to check for a mod's existence
+    allowInMultiplayer = Modloader::requireMod("MultiplayerCore");
+
     INSTALL_HOOK_ORIG(getLogger(), TableView_GetVisibleCellsIdRange);
     INSTALL_HOOK(getLogger(), InputFieldView_DeactivateKeyboard);
     INSTALL_HOOK(getLogger(), InputFieldView_Awake);
@@ -498,6 +505,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), DownloadSongsFlowCoordinator_DidActivate);
     INSTALL_HOOK(getLogger(), DownloadSongsSearchViewController_DidActivate);
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionNavigationController_DidActivate);
+    
     RuntimeSongLoader::API::AddRefreshLevelPacksEvent(
         [] (RuntimeSongLoader::SongLoaderBeatmapLevelPackCollectionSO* customBeatmapLevelPackCollectionSO) {
             LoadPlaylists(customBeatmapLevelPackCollectionSO);

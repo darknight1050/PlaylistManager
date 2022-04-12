@@ -12,6 +12,8 @@
 #include "questui/shared/BeatSaberUI.hpp"
 
 #include "GlobalNamespace/SharedCoroutineStarter.hpp"
+#include "GlobalNamespace/MultiplayerLevelSelectionFlowCoordinator.hpp"
+#include "GlobalNamespace/MainFlowCoordinator.hpp"
 
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/AnimatedSwitchView.hpp"
@@ -258,8 +260,7 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
     canvas = BeatSaberUI::CreateCanvas();
     canvas->AddComponent<HMUI::Screen*>();
     auto cvsTrans = canvas->get_transform();
-    cvsTrans->set_position({0, 0.02, 2.25});
-    cvsTrans->set_eulerAngles({90, 0, 0});
+    UpdateTransform();
 
     canvas->SetActive(false);
 
@@ -646,6 +647,27 @@ void PlaylistFilters::UpdateShownPlaylists() {
             packList->Add((IBeatmapLevelPack*)(CustomBeatmapLevelPack*) playlist->playlistCS);
     }
     SetCustomPacks(packList, true);
+}
+
+void PlaylistFilters::UpdateTransform() {
+    using namespace GlobalNamespace;
+    auto currentFlowCoordinator = FindComponent<MainFlowCoordinator*>()->YoungestChildFlowCoordinatorOrSelf();
+    auto cvsTrans = canvas->get_transform();
+    // in multiplayer menu
+    if(il2cpp_utils::try_cast<MultiplayerLevelSelectionFlowCoordinator>(currentFlowCoordinator).has_value()) {
+        if(!allowInMultiplayer)
+            canvas->SetActive(false);
+        else {
+            cvsTrans->set_position({0, 0.02, 1});
+            cvsTrans->set_eulerAngles({90, 0, 0});
+            cvsTrans->set_localScale({0.015, 0.015, 0.015});
+        }
+    // in solo or party menu
+    } else {
+        cvsTrans->set_position({0, 0.02, 2.5});
+        cvsTrans->set_eulerAngles({90, 0, 0});
+        cvsTrans->set_localScale({0.03, 0.03, 0.03});
+    }
 }
 
 void PlaylistFilters::SetVisible(bool visible) {

@@ -13,7 +13,7 @@
   "dependencies": [
     {
       "id": "beatsaber-hook",
-      "versionRange": "^3.6.8 <3.8.0",
+      "versionRange": "^3.6.8, <3.8.0",
       "additionalData": {
         "extraFiles": [
           "src/inline-hook"
@@ -43,6 +43,11 @@
     {
       "id": "songdownloader",
       "versionRange": "^0.4.0",
+      "additionalData": {}
+    },
+    {
+      "id": "modloader",
+      "versionRange": "^1.2.3",
       "additionalData": {}
     }
   ],
