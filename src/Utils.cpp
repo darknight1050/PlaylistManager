@@ -6,6 +6,7 @@
 
 #include "UnityEngine/ImageConversion.hpp"
 #include "UnityEngine/GameObject.hpp"
+#include "UnityEngine/RectTransform.hpp"
 #include "TMPro/TextMeshProUGUI.hpp"
 #include "System/Convert.hpp"
 #include "System/Action_4.hpp"
@@ -164,7 +165,14 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
         gameTableView->annotatedBeatmapLevelCollections = packReadOnly;
         gameTableView->gridView->ReloadData();
         gameTableView->pageControl->SetPagesCount(gameTableView->gridView->rowCount);
-        gameTableView->animator->Init(gameTableView->cellHeight, gameTableView->gridView->rowCount);
+        // update row count in animator and animated objects
+        gameTableView->animator->rowCount = gameTableView->gridView->rowCount;
+        auto sizeDelta = gameTableView->animator->contentTransform->get_sizeDelta();
+        sizeDelta.y = gameTableView->animator->rowHeight * gameTableView->animator->rowCount;
+        gameTableView->animator->contentTransform->set_sizeDelta(sizeDelta);
+        auto anchoredPosition = gameTableView->animator->contentTransform->get_anchoredPosition();
+        anchoredPosition.y = gameTableView->animator->GetContentYOffset();
+        gameTableView->animator->contentTransform->set_anchoredPosition(anchoredPosition);
     }
     if(updateSongs) {
         // concatenate arrays together

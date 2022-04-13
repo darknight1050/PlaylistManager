@@ -25,6 +25,7 @@
 
 #include "System/Threading/CancellationToken.hpp"
 #include "System/Threading/Tasks/Task_1.hpp"
+#include "System/Collections/Generic/HashSet_1.hpp"
 #include "System/Tuple_2.hpp"
 
 using namespace PlaylistManager;
@@ -127,12 +128,14 @@ void ButtonsContainer::moveUpButtonPressed() {
         return;
     // move song, offset currIndex by header cell
     SetSongIndex(currentPlaylist, currentLevel, currIndex - 2);
-    // get scroll view before SetData
-    float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
+    // set level list and cheat with modifying selected cell idx to avoid "reselecting" the song cell
     auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
-    levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
-    levelListTableView->tableView->SelectCellWithIdx(currIndex - 1, true);
-    levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    levelListTableView->previewBeatmapLevels = levelList;
+    levelListTableView->tableView->selectedCellIdxs->Remove(currIndex);
+    levelListTableView->tableView->selectedCellIdxs->Add(currIndex - 1);
+    levelListTableView->tableView->ReloadDataKeepingPosition();
+    // have to update this selected row manually, since it isn't being updated by a callback
+    levelListTableView->selectedRow = currIndex - 1;
     // scroll down if moving level close to out of visible cells
     auto tuple = levelListTableView->tableView->GetVisibleCellsIdRange();
     if(currIndex - 2 <= tuple->get_Item1()) {
@@ -148,12 +151,14 @@ void ButtonsContainer::moveDownButtonPressed() {
         return;
     // move song, offset currIndex by header cell
     SetSongIndex(currentPlaylist, currentLevel, currIndex);
-    // get scroll view before SetData
-    float anchorPosY = levelListTableView->tableView->get_contentTransform()->get_anchoredPosition().y;
+    // set level list and cheat with modifying selected cell idx to avoid "reselecting" the song cell
     auto levelList = currentPlaylist->playlistCS->beatmapLevelCollection->get_beatmapLevels();
-    levelListTableView->SetData(levelList, levelListTableView->favoriteLevelIds, false);
-    levelListTableView->tableView->SelectCellWithIdx(currIndex + 1, true);
-    levelListTableView->tableView->scrollView->ScrollTo(anchorPosY, false);
+    levelListTableView->previewBeatmapLevels = levelList;
+    levelListTableView->tableView->selectedCellIdxs->Remove(currIndex);
+    levelListTableView->tableView->selectedCellIdxs->Add(currIndex + 1);
+    levelListTableView->tableView->ReloadDataKeepingPosition();
+    // have to update this selected row manually, since it isn't being updated by a callback
+    levelListTableView->selectedRow = currIndex + 1;
     // scroll down if moving level close to out of visible cells
     auto tuple = levelListTableView->tableView->GetVisibleCellsIdRange();
     if(currIndex + 3 > tuple->get_Item2()) {
@@ -281,6 +286,7 @@ custom_types::Helpers::Coroutine ButtonsContainer::initCoroutine() {
         cancelRemovalButtonPressed();
     });
     UnityEngine::Object::Destroy(cancelRemovalButton->get_transform()->Find(contentName)->GetComponent<UnityEngine::UI::LayoutElement*>());
+    cancelRemovalButton->get_gameObject()->SetActive(true);
 
     auto deleteToggle = BeatSaberUI::CreateToggle(removeModal->get_transform(), "Delete Song", deleteSongOnRemoval, {0, -27}, [this](bool enabled) {
         deleteSongToggleToggled(enabled);
