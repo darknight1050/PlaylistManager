@@ -189,6 +189,7 @@ void PlaylistFilters::subfoldersToggled(bool enabled) {
     currentSubfolders = enabled;
     // update ui for subfolders / playlists
     playlistListContainer->SetActive(!enabled);
+    subfoldersInfo->get_gameObject()->SetActive(enabled);
     if(state == State::editing) {
         currentFolder->HasSubfolders = enabled;
         WriteToFile(GetConfigPath(), playlistConfig);
@@ -411,6 +412,12 @@ custom_types::Helpers::Coroutine PlaylistFilters::initCoroutine() {
         subfoldersToggled(enabled);
     });
     subfoldersToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(35);
+
+    subfoldersInfo = BeatSaberUI::CreateText(folderEditMenu->get_transform(), "This folder will be able to store other folders\ninstead of playlists.", {0, -15});
+    subfoldersInfo->set_alignment(TMPro::TextAlignmentOptions::Center);
+    subfoldersInfo->set_color({1, 1, 1, 0.5});
+    subfoldersInfo->set_fontSize(3);
+    subfoldersInfo->get_gameObject()->SetActive(false);
     #pragma endregion
 
     co_yield nullptr;
@@ -521,6 +528,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
         instantSetToggle(subfoldersToggle, currentFolder->HasSubfolders);
         instantSetToggle(defaultsToggle, currentFolder->ShowDefaults);
         playlistListContainer->SetActive(!currentFolder->HasSubfolders);
+        subfoldersInfo->get_gameObject()->SetActive(currentFolder->HasSubfolders);
         refreshFolderPlaylists();
         editCreateButton->get_gameObject()->SetActive(false);
         topLayout->set_anchoredPosition({0, 0});
@@ -534,6 +542,7 @@ void PlaylistFilters::setFolderEdit(bool editing) {
         currentDefaults = false;
         currentPlaylists.clear();
         playlistListContainer->SetActive(true);
+        subfoldersInfo->get_gameObject()->SetActive(false);
         playlistList->tableView->ClearSelection();
         editCreateButton->get_gameObject()->SetActive(true);
         topLayout->set_anchoredPosition({5, 0});

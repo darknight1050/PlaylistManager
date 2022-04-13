@@ -419,6 +419,7 @@ void ButtonsContainer::RefreshHighlightedDifficulties() {
 void ButtonsContainer::Destroy() {
     ButtonsContainer::buttonsInstance = nullptr;
     UnityEngine::Object::Destroy(layoutObject);
+    UnityEngine::Object::Destroy(movementButtonsContainer);
     // assumes it's always allocated with new
     delete this;
 }
