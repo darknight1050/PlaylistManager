@@ -55,7 +55,10 @@
 #include "HMUI/ViewController_AnimationType.hpp"
 #include "HMUI/FlowCoordinator.hpp"
 #include "HMUI/InputFieldView.hpp"
+#include "Tweening/TimeTweeningManager.hpp"
+#include "Tweening/Vector2Tween.hpp"
 #include "Zenject/DiContainer.hpp"
+#include "Zenject/StaticMemoryPool_7.hpp"
 #include "System/Tuple_2.hpp"
 #include "System/Action_1.hpp"
 #include "System/Action_2.hpp"
@@ -192,18 +195,51 @@ MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewContr
 // make playlist selector only 5 playlists wide and add scrolling
 MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridView_OnEnable, &AnnotatedBeatmapLevelCollectionsGridView::OnEnable,
         void, AnnotatedBeatmapLevelCollectionsGridView* self) {
-    
-    if(playlistConfig.Management)
+
+    if(playlistConfig.Management) {
         self->GetComponent<UnityEngine::RectTransform*>()->set_anchorMax({0.83, 1});
-    else
+        self->pageControl->content->get_gameObject()->SetActive(false);
+        auto content = self->animator->contentTransform;
+        content->set_anchoredPosition({0, content->get_anchoredPosition().y});
+    } else {
         self->GetComponent<UnityEngine::RectTransform*>()->set_anchorMax({1, 1});
+        self->pageControl->content->get_gameObject()->SetActive(true);
+        auto content = self->animator->contentTransform;
+        content->set_anchoredPosition({1.5, content->get_anchoredPosition().y});
+    }
     
     AnnotatedBeatmapLevelCollectionsGridView_OnEnable(self);
-    
-    self->pageControl->content->get_gameObject()->SetActive(false);
 
-    STATIC_AUTO(scroller, self->get_gameObject()->AddComponent<Scroller*>());
-    scroller->Init(self->animator->contentTransform);
+    if(!playlistConfig.Management)
+        return;
+
+    if(!self->GetComponent<Scroller*>())
+        self->get_gameObject()->AddComponent<Scroller*>()->Init(self->animator->contentTransform);
+}
+
+// make the playlist opening animation work better with the playlist scroller
+MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridViewAnimator_AnimateOpen, &AnnotatedBeatmapLevelCollectionsGridViewAnimator::AnimateOpen,
+        void, AnnotatedBeatmapLevelCollectionsGridViewAnimator* self, bool animated) {
+    
+    int rowCount = self->rowCount;
+    int selectedRow = self->selectedRow;
+    
+    if(playlistConfig.Management) {
+        // lock height to specific value
+        self->rowCount = 5;
+        self->selectedRow = 0;
+    }
+
+    AnnotatedBeatmapLevelCollectionsGridViewAnimator_AnimateOpen(self, animated);
+    
+    if(playlistConfig.Management) {
+        // prevent modification of content transform as it overrides the scroll view
+        Tweening::Vector2Tween::_get_Pool()->Despawn(self->contentPositionTween);
+        self->contentPositionTween = nullptr;
+    }
+    
+    self->rowCount = rowCount;
+    self->selectedRow = selectedRow;
 }
 
 // when to set up the add playlist button
@@ -501,6 +537,7 @@ extern "C" void load() {
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionCell_RefreshAvailabilityAsync);
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridView_OnEnable);
+    INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridViewAnimator_AnimateOpen);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_UpdateSecondChildControllerContent);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidActivate);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidDeactivate);

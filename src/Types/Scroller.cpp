@@ -18,7 +18,7 @@
 
 DEFINE_TYPE(PlaylistManager, Scroller);
 
-#define ACTION_1(type, methodname) il2cpp_utils::MakeDelegate<System::Action_1<type>*>((std::function<void(type)>) [this](type arg){methodname(arg);})
+#define ACTION_1(type, methodname) il2cpp_utils::MakeDelegate<System::Action_1<type>*>((std::function<void(type)>) [this](type arg){if(this->cachedPtr == this) methodname(arg);})
 
 using namespace PlaylistManager;
 
@@ -29,8 +29,6 @@ void UpdateScrollSpeed() {
 }
 
 void Scroller::Awake() {
-    LOG_INFO("scroller awake");
-
     platformHelper = FindComponent<GlobalNamespace::VRController*>()->vrPlatformHelper;
 
     auto eventListener = GetComponent<HMUI::EventSystemListener*>();
@@ -55,10 +53,16 @@ void Scroller::Update() {
     contentTransform->set_anchoredPosition({0, newPos});
 }
 
+void Scroller::OnDestroy() {
+    // would be better to remove the delegate, I'll try that out when codegen updates to the bshook with it and better virtuals
+    cachedPtr = nullptr;
+}
+
 void Scroller::Init(UnityEngine::RectTransform* content) {
     content->set_anchoredPosition({0, content->get_anchoredPosition().y});
     contentTransform = content;
     UpdateScrollSpeed();
+    cachedPtr = this;
 }
 
 void Scroller::HandlePointerDidEnter(UnityEngine::EventSystems::PointerEventData* pointerEventData) {

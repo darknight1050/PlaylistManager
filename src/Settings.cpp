@@ -7,6 +7,7 @@
 #include "Types/Config.hpp"
 #include "Types/CustomListSource.hpp"
 #include "Types/CoverTableCell.hpp"
+#include "Types/Scroller.hpp"
 #include "PlaylistManager.hpp"
 #include "ResettableStaticPtr.hpp"
 #include "Icons.hpp"
@@ -17,6 +18,7 @@
 #include "HMUI/Touchable.hpp"
 #include "HMUI/ScrollView.hpp"
 #include "HMUI/TableView_ScrollPositionType.hpp"
+#include "UnityEngine/Resources.hpp"
 
 DEFINE_TYPE(PlaylistManager, SettingsViewController);
 
@@ -35,10 +37,13 @@ void SettingsViewController::DestroyUI() {
 
     if(GridViewAddon::addonInstance)
         GridViewAddon::addonInstance->Destroy();
+    
+    for(auto& scroller : UnityEngine::Resources::FindObjectsOfTypeAll<Scroller*>())
+        UnityEngine::Object::Destroy(scroller);
 }
 
 void SettingsViewController::DidActivate(bool firstActivation, bool addedToHierarchy, bool screenSystemEnabling) {
-        
+    
     using Vec = UnityEngine::Vector2;
 
     if(!firstActivation)

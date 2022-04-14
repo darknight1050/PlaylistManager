@@ -11,10 +11,12 @@
 DECLARE_CLASS_CODEGEN(PlaylistManager, Scroller, UnityEngine::MonoBehaviour,
 
     private:
+    Scroller* cachedPtr = nullptr;
     bool addedDelegate = false, pointerHovered = false;
 
     DECLARE_INSTANCE_METHOD(void, Awake);
     DECLARE_INSTANCE_METHOD(void, Update);
+    DECLARE_INSTANCE_METHOD(void, OnDestroy);
     DECLARE_INSTANCE_METHOD(void, Init, UnityEngine::RectTransform* content);
     DECLARE_INSTANCE_METHOD(void, HandlePointerDidEnter, UnityEngine::EventSystems::PointerEventData* pointerEventData);
     DECLARE_INSTANCE_METHOD(void, HandlePointerDidExit, UnityEngine::EventSystems::PointerEventData* pointerEventData);
