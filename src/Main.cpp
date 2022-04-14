@@ -242,6 +242,16 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridViewAnimator_AnimateOpen, &A
     self->selectedRow = selectedRow;
 }
 
+// ensure animator doesn't get stuck at the wrong position
+MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridViewAnimator_ScrollToRowIdxInstant, &AnnotatedBeatmapLevelCollectionsGridViewAnimator::ScrollToRowIdxInstant,
+        void, AnnotatedBeatmapLevelCollectionsGridViewAnimator* self, int selectedRow) {
+
+    // despawns tweens and force sets the viewport and anchored pos
+    self->AnimateClose(selectedRow, false);
+
+    AnnotatedBeatmapLevelCollectionsGridViewAnimator_ScrollToRowIdxInstant(self, selectedRow);
+}
+
 // when to set up the add playlist button
 MAKE_HOOK_MATCH(LevelFilteringNavigationController_UpdateSecondChildControllerContent, &LevelFilteringNavigationController::UpdateSecondChildControllerContent,
         void, LevelFilteringNavigationController* self, SelectLevelCategoryViewController::LevelCategory levelCategory) {
@@ -538,6 +548,7 @@ extern "C" void load() {
     INSTALL_HOOK_ORIG(getLogger(), LevelCollectionViewController_SetData);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridView_OnEnable);
     INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridViewAnimator_AnimateOpen);
+    INSTALL_HOOK(getLogger(), AnnotatedBeatmapLevelCollectionsGridViewAnimator_ScrollToRowIdxInstant);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_UpdateSecondChildControllerContent);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidActivate);
     INSTALL_HOOK(getLogger(), LevelFilteringNavigationController_DidDeactivate);

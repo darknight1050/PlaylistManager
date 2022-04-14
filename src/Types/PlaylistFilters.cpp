@@ -686,6 +686,8 @@ void PlaylistFilters::SetVisible(bool visible) {
 void PlaylistFilters::Destroy() {
     PlaylistFilters::filtersInstance = nullptr;
     currentFolder = nullptr;
+    filterSelectionState = 0;
+    UpdateShownPlaylists();
     UnityEngine::Object::Destroy(canvas);
     // assumes it's always allocated with new
     delete this;

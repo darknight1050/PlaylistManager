@@ -77,8 +77,7 @@ void Scroller::HandlePointerDidEnter(UnityEngine::EventSystems::PointerEventData
 
 void Scroller::HandlePointerDidExit(UnityEngine::EventSystems::PointerEventData* pointerEventData) {
     pointerHovered = false;
-    destinationPos = FindComponent<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridViewAnimator*>()->GetContentYOffset();
-    set_enabled(true);
+    set_enabled(false);
 }
 
 void Scroller::HandleJoystickWasNotCenteredThisFrame(UnityEngine::Vector2 deltaPos) {
