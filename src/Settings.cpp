@@ -132,4 +132,11 @@ void SettingsViewController::DidActivate(bool firstActivation, bool addedToHiera
     });
     downloadToggle->get_transform()->GetParent()->GetComponent<UnityEngine::UI::LayoutElement*>()->set_preferredWidth(60);
     BeatSaberUI::AddHoverHint(removeSongsToggle->get_gameObject(), "Automatically removes songs that are not present on Beat Saver from playlists");
+
+    auto scrollSpeedSlider = BeatSaberUI::CreateSliderSetting(parent, "Playlist Scroll Speed", 0.5, playlistConfig.ScrollSpeed, 0.5, 10, 0.1, [](float value) {
+        playlistConfig.ScrollSpeed = value;
+        WriteToFile(GetConfigPath(), playlistConfig);
+        UpdateScrollSpeed();
+    });
+    BeatSaberUI::AddHoverHint(scrollSpeedSlider, "The speed at which to scroll through the playlists with the joystick.");
 }

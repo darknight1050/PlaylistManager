@@ -4,6 +4,7 @@
 #include "Types/PlaylistFilters.hpp"
 #include "Types/LevelButtons.hpp"
 #include "Types/GridViewAddon.hpp"
+#include "Types/Scroller.hpp"
 #include "Types/Config.hpp"
 #include "PlaylistManager.hpp"
 #include "Settings.hpp"
@@ -28,7 +29,9 @@
 #include "GlobalNamespace/MenuTransitionsHelper.hpp"
 #include "GlobalNamespace/BeatmapDifficultySegmentedControlController.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsViewController.hpp"
+#include "GlobalNamespace/AnnotatedBeatmapLevelCollectionsGridViewAnimator.hpp"
 #include "GlobalNamespace/AnnotatedBeatmapLevelCollectionCell.hpp"
+#include "GlobalNamespace/PageControl.hpp"
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
 #include "GlobalNamespace/PlayerData.hpp"
 #include "GlobalNamespace/PlayerDataModel.hpp"
@@ -90,7 +93,6 @@ std::string GetCoversPath() {
 }
 
 using TupleType = System::Tuple_2<int, int>;
-
 // small fix for horizontal tables
 MAKE_HOOK_MATCH(TableView_GetVisibleCellsIdRange, &HMUI::TableView::GetVisibleCellsIdRange,
         TupleType*, HMUI::TableView* self) {
@@ -187,7 +189,7 @@ MAKE_HOOK_MATCH(LevelCollectionViewController_SetData, &LevelCollectionViewContr
     }
 }
 
-// make playlist selector only 5 playlists wide
+// make playlist selector only 5 playlists wide and add scrolling
 MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridView_OnEnable, &AnnotatedBeatmapLevelCollectionsGridView::OnEnable,
         void, AnnotatedBeatmapLevelCollectionsGridView* self) {
     
@@ -197,6 +199,11 @@ MAKE_HOOK_MATCH(AnnotatedBeatmapLevelCollectionsGridView_OnEnable, &AnnotatedBea
         self->GetComponent<UnityEngine::RectTransform*>()->set_anchorMax({1, 1});
     
     AnnotatedBeatmapLevelCollectionsGridView_OnEnable(self);
+    
+    self->pageControl->content->get_gameObject()->SetActive(false);
+
+    STATIC_AUTO(scroller, self->get_gameObject()->AddComponent<Scroller*>());
+    scroller->Init(self->animator->contentTransform);
 }
 
 // when to set up the add playlist button
