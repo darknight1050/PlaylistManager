@@ -57,6 +57,11 @@
       "additionalData": {
         "private": true
       }
+    },
+    {
+      "id": "rapidjson-macros",
+      "versionRange": "^0.1.0",
+      "additionalData": {}
     }
   ],
   "additionalData": {}

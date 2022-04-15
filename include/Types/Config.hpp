@@ -1,6 +1,6 @@
 #pragma once
 
-#include "shared/Types/TypeMacros.hpp"
+#include "rapidjson-macros/shared/macros.hpp"
 #include "shared/Types/Folder.hpp"
 
 DECLARE_JSON_CLASS(PlaylistManager, PlaylistConfig,

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TypeMacros.hpp"
+#include "rapidjson-macros/shared/macros.hpp"
 
 DECLARE_JSON_CLASS(PlaylistManager, Difficulty,
     std::string Characteristic;
