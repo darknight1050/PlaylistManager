@@ -351,6 +351,12 @@ namespace PlaylistManager {
                     iter--;
                 }
             }
+            // delete them if they were still loaded as well
+            auto pathItr = path_playlists.find(path);
+            if(pathItr != path_playlists.end()) {
+                delete pathItr->second;
+                path_playlists.erase(pathItr);
+            }
         }
         WriteToFile(GetConfigPath(), playlistConfig);
         hasLoaded = true;
