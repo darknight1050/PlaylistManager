@@ -284,7 +284,15 @@ namespace PlaylistManager {
                         playlist->imageIndex = -1;
                     }
                     // get playlist object from file
-                    if(ReadFromFile(path, playlist->playlistJSON)) {
+                    bool success = false;
+                    try {
+                        ReadFromFile(path, playlist->playlistJSON);
+                        success = true;
+                    } catch(const std::exception& err) {
+                        LOG_ERROR("Error loading playlist %s: %s", path.c_str(), err.what());
+                        success = false;
+                    }
+                    if(success) {
                         playlist->name = playlist->playlistJSON.PlaylistTitle;
                         playlist->path = path;
                         path_playlists.insert({playlist->path, playlist});

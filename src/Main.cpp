@@ -522,9 +522,14 @@ extern "C" void setup(ModInfo& info) {
         mkpath(coversPath);
     
     auto configPath = GetConfigPath();
-    if(fileexists(configPath))
-        ReadFromFile(configPath, playlistConfig);
-    else
+    if(fileexists(configPath)) {
+        try {
+            ReadFromFile(configPath, playlistConfig);
+        } catch (const std::exception& err) {
+            LOG_ERROR("Error reading playlist config: %s", err.what());
+            WriteToFile(configPath, playlistConfig);
+        }
+    } else
         WriteToFile(configPath, playlistConfig);
 }
 
