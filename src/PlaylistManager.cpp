@@ -16,7 +16,10 @@
 #include "questui/shared/BeatSaberUI.hpp"
 #include "questui/shared/CustomTypes/Components/MainThreadScheduler.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmacro-redefined"
 #include "songdownloader/shared/BeatSaverAPI.hpp"
+#pragma GCC diagnostic pop
 
 #include "songloader/shared/API.hpp"
 
