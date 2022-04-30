@@ -99,8 +99,11 @@ void ButtonsContainer::confirmRemovalButtonPressed() {
     RemoveSongFromPlaylist(currentPlaylist, currentLevel);
     if(deleteSongOnRemoval) {
         std::string path = ((GlobalNamespace::CustomPreviewBeatmapLevel*) currentLevel)->customLevelPath;
-        RuntimeSongLoader::API::DeleteSong(path, [] {
-            RuntimeSongLoader::API::RefreshSongs(false);
+        auto state = GetSelectionState();
+        RuntimeSongLoader::API::DeleteSong(path, [state] {
+            RuntimeSongLoader::API::RefreshSongs(false, [state](std::vector<GlobalNamespace::CustomPreviewBeatmapLevel*> const& _) {
+                SetSelectionState(state);
+            });
         });
     } else {
         // keep scroll position

@@ -156,6 +156,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
     awaitingSync = true;
     static ConstString syncText("Syncing playlist...");
     syncingText->set_text(syncText);
+    ((UnityEngine::RectTransform*) syncingModal->get_transform())->set_anchoredPosition({-7, 0});
     syncingModal->Show(true, false, nullptr);
     auto webRequest = UnityEngine::Networking::UnityWebRequest::Get(syncUrl.value());
 
@@ -192,7 +193,7 @@ custom_types::Helpers::Coroutine PlaylistMenu::syncCoroutine() {
         // full reload the specific playlist only
         MarkPlaylistForReload(syncingPlaylist);
         bool doneRefreshing = false;
-        ReloadSongsKeepingPlaylistSelection([&doneRefreshing] {
+        ReloadSongsKeepingSelection([&doneRefreshing] {
             doneRefreshing = true;
         });
         // wait for songs to refresh
@@ -237,11 +238,12 @@ void PlaylistMenu::downloadButtonPressed() {
     awaitingSync = true;
     static ConstString downloadText("Downloading missing songs...");
     syncingText->set_text(downloadText);
+    ((UnityEngine::RectTransform*) syncingModal->get_transform())->set_anchoredPosition({-7, 0});
     syncingModal->Show(true, false, nullptr);
     auto downloadingPlaylist = playlist;
     DownloadMissingSongsFromPlaylist(downloadingPlaylist, [this, downloadingPlaylist] {
         MarkPlaylistForReload(downloadingPlaylist);
-        ReloadSongsKeepingPlaylistSelection([this, downloadingPlaylist] {
+        ReloadSongsKeepingSelection([this, downloadingPlaylist] {
             awaitingSync = false;
             syncingModal->Hide(true, nullptr);
             // clears any songs that could not be downloaded

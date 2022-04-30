@@ -4,6 +4,17 @@
 #include "GlobalNamespace/IPreviewBeatmapLevel.hpp"
 #include "GlobalNamespace/IBeatmapLevelPack.hpp"
 
+namespace PlaylistManager {
+    class Playlist;
+}
+
+struct SelectionState {
+    PlaylistManager::Playlist* selectedPlaylist;
+    int selectedPlaylistIdx;
+    GlobalNamespace::IPreviewBeatmapLevel* selectedSong;
+    int selectedSongIdx;
+};
+
 std::string GetLevelHash(GlobalNamespace::IPreviewBeatmapLevel* level);
 
 bool IsWipLevel(GlobalNamespace::IPreviewBeatmapLevel* level);
@@ -24,4 +35,8 @@ List<GlobalNamespace::IBeatmapLevelPack*>* GetCustomPacks();
 
 void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, bool updateSongs);
 
-void ReloadSongsKeepingPlaylistSelection(std::function<void()> finishCallback = nullptr);
+SelectionState GetSelectionState();
+
+void SetSelectionState(const SelectionState& state);
+
+void ReloadSongsKeepingSelection(std::function<void()> finishCallback = nullptr);

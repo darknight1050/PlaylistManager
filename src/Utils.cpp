@@ -1,5 +1,6 @@
 #include "Main.hpp"
 #include "Utils.hpp"
+#include "PlaylistManager.hpp"
 #include "ResettableStaticPtr.hpp"
 
 #include "songloader/shared/API.hpp"
@@ -13,6 +14,7 @@
 #include "GlobalNamespace/LevelFilteringNavigationController.hpp"
 #include "GlobalNamespace/LevelCollectionNavigationController.hpp"
 #include "GlobalNamespace/LevelCollectionViewController.hpp"
+#include "GlobalNamespace/LevelCollectionTableView.hpp"
 #include "GlobalNamespace/LevelSelectionFlowCoordinator.hpp"
 #include "GlobalNamespace/IBeatmapLevelPackCollection.hpp"
 #include "GlobalNamespace/BeatmapLevelPackCollection.hpp"
@@ -25,6 +27,8 @@
 #include "GlobalNamespace/LevelSearchViewController.hpp"
 
 #include <filesystem>
+
+using namespace PlaylistManager;
 
 // desired image size
 const int imageSize = 512;
@@ -206,12 +210,42 @@ void SetCustomPacks(List<GlobalNamespace::IBeatmapLevelPack*>* newPlaylists, boo
     }
 }
 
-void ReloadSongsKeepingPlaylistSelection(std::function<void()> finishCallback) {
-    auto tableView = FindComponent<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
-    int tableIdx = tableView->selectedCellIndex;
-    RuntimeSongLoader::API::RefreshSongs(false, [tableView, tableIdx, finishCallback](std::vector<GlobalNamespace::CustomPreviewBeatmapLevel*> const& _) {
-        tableView->SelectAndScrollToCellWithIdx(tableIdx);
+SelectionState GetSelectionState() {
+    LOG_INFO("SelectionState get");
+    SelectionState state{};
+    auto gridView = FindComponent<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
+    auto listIdx = gridView->selectedCellIndex;
+    // virtual methods T_T
+    auto pack = ArrayW<GlobalNamespace::IBeatmapLevelPack*>(gridView->annotatedBeatmapLevelCollections)[listIdx];
+    state.selectedPlaylist = GetPlaylistWithPrefix(pack->get_packID());
+    state.selectedPlaylistIdx = gridView->selectedCellIndex;
+    auto levelsView = FindComponent<GlobalNamespace::LevelCollectionTableView*>();
+    state.selectedSong = levelsView->selectedPreviewBeatmapLevel;
+    state.selectedSongIdx = levelsView->selectedRow;
+    return state;
+}
+
+void SetSelectionState(const SelectionState& state) {
+    LOG_INFO("SelectionState set");
+    auto gridView = FindComponent<GlobalNamespace::AnnotatedBeatmapLevelCollectionsGridView*>();
+    if(state.selectedPlaylistIdx >= gridView->GetNumberOfCells())
+        return;
+    // virtual methods T_T
+    auto pack = ArrayW<GlobalNamespace::IBeatmapLevelPack*>(gridView->annotatedBeatmapLevelCollections)[state.selectedPlaylistIdx];
+    if(GetPlaylistWithPrefix(pack->get_packID()) != state.selectedPlaylist)
+        return;
+    gridView->SelectAndScrollToCellWithIdx(state.selectedPlaylistIdx);
+    auto levelsView = FindComponent<GlobalNamespace::LevelCollectionTableView*>();
+    // checks for and finds song itself
+    levelsView->SelectLevel(state.selectedSong);
+}
+
+void ReloadSongsKeepingSelection(std::function<void()> finishCallback) {
+    auto state = GetSelectionState();
+    auto callback = [state, finishCallback](std::vector<GlobalNamespace::CustomPreviewBeatmapLevel*> const& _) {
+        SetSelectionState(state);
         if(finishCallback)
             finishCallback();
-    });
+    };
+    RuntimeSongLoader::API::RefreshSongs(false, callback);
 }

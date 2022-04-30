@@ -342,7 +342,7 @@ MAKE_HOOK_MATCH(StandardLevelDetailViewController_ShowContent, &StandardLevelDet
         ButtonsContainer::buttonsInstance->Init(self->standardLevelDetailView);
     }
     // note: pack is simply the first level pack it finds that contains the level, if selected from all songs etc.
-    std::string id = self->pack->get_packID();
+    std::string id = self->pack ? self->pack->get_packID() : "";
     bool customPack = GetPlaylistWithPrefix(id) != nullptr;
     bool customSong = customPack || id == CustomLevelPackPrefixID "CustomLevels" || id == CustomLevelPackPrefixID "CustomWIPLevels";
     bool wip = IsWipLevel(self->previewBeatmapLevel);
