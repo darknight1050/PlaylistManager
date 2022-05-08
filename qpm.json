@@ -4,7 +4,7 @@
   "info": {
     "name": "PlaylistManager",
     "id": "playlistmanager",
-    "version": "0.0.1",
+    "version": "0.2.6",
     "url": "https://github.com/darknight1050/PlaylistManager",
     "additionalData": {
       "overrideSoName": "libplaylistmanager.so"
