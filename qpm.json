@@ -2,10 +2,10 @@
   "sharedDir": "shared",
   "dependenciesDir": "extern",
   "info": {
-    "name": "playlistmanager",
+    "name": "PlaylistManager",
     "id": "playlistmanager",
     "version": "0.0.1",
-    "url": "https://github.com/darknight1050/playlistmanager",
+    "url": "https://github.com/darknight1050/PlaylistManager",
     "additionalData": {
       "overrideSoName": "libplaylistmanager.so"
     }
