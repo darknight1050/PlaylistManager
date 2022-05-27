@@ -4,14 +4,14 @@
   "info": {
     "name": "PlaylistManager",
     "id": "playlistmanager",
-    "version": "0.0.1",
+    "version": "0.2.7",
     "url": "https://github.com/darknight1050/PlaylistManager",
     "additionalData": {
       "overrideSoName": "libplaylistmanager.so"
     }
   },
   "dependencies": [
-	{
+    {
       "id": "beatsaber-hook",
       "versionRange": "^3.8.5",
       "additionalData": {
