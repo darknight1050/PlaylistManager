@@ -7,7 +7,11 @@
     "version": "0.2.8",
     "url": "https://github.com/darknight1050/PlaylistManager",
     "additionalData": {
-      "overrideSoName": "libplaylistmanager.so"
+      "soLink": "https://github.com/darknight1050/PlaylistManager/releases/download/v0.2.8/libplaylistmanager.so",
+      "debugSoLink": "https://github.com/darknight1050/PlaylistManager/releases/download/v0.2.8/debug_libplaylistmanager.so",
+      "overrideSoName": "libplaylistmanager.so",
+      "modLink": "https://github.com/darknight1050/PlaylistManager/releases/download/v0.2.8/PlaylistManager.qmod",
+      "branchName": "version-v0.2.8"
     }
   },
   "dependencies": [
